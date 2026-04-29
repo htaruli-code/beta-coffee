@@ -16,14 +16,27 @@ const API = (() => {
   // Single function for all calls. GAS uses one endpoint, action-based routing.
 
   async function post(payload) {
-    const res = await fetch(APP_CONFIG.GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    // v1.8.1: Send as form-urlencoded — avoids CORS preflight (OPTIONS).
+    // Browsers send OPTIONS before POST with Content-Type: application/json.
+    // GAS cannot handle OPTIONS so request is blocked. form-urlencoded is a
+    // "simple request" — browser sends it directly with no preflight.
+    // Code.gs reads it via: JSON.parse(e.parameter.payload)
+    // v1.9.1: Intercept UNAUTHORIZED → Auth.handleUnauthorized() → redirect to login
+    const body = new URLSearchParams({ payload: JSON.stringify(payload) });
+    const res  = await fetch(APP_CONFIG.GAS_URL, {
+      method:   'POST',
+      redirect: 'follow',
+      body:     body,
     });
     if (!res.ok) throw new Error('Network error: ' + res.status);
     const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Unknown error');
+    if (!data.success) {
+      if (data.code === 'UNAUTHORIZED') {
+        Auth.handleUnauthorized('login.html');
+        return;
+      }
+      throw new Error(data.error || 'Unknown error');
+    }
     return data.data;
   }
 
