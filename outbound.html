@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.7 | outbound.html -->
+<!-- Version 1.11 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -80,7 +80,7 @@
 
     /* ── Modal ── */
     .st-modal { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; padding: 1rem; }
-    .modal-box { background: var(--surface); border: 1px solid var(--border); width: 100%; max-width: 680px; max-height: 92vh; overflow-y: auto; padding: 2rem; }
+    .modal-box { background: var(--surface); border: 1px solid var(--border); width: 100%; max-width: 840px; max-height: 92vh; overflow-y: auto; padding: 2rem; }
     .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.5rem; }
     .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; flex-wrap: wrap; }
     .modal-section { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); margin: 1.25rem 0 0.9rem; }
@@ -184,7 +184,7 @@
     /* Modal */
     .st-modal { display: none; position: fixed; inset: 0; background: rgba(26,16,8,0.35); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
     .st-modal.open { display: flex; }
-    .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; width: 100%; max-width: 840px; max-height: 90vh; overflow-y: auto; }
     .modal-title { font-size: 1rem; font-weight: 500; color: var(--text); margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
     .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
     .modal-section { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
@@ -197,9 +197,9 @@
     .detail-row input, .detail-row select { padding: 0.3rem 0.5rem; font-size: 0.78rem; border-radius: 4px; }
 
     /* Outbound detail rows */
-    .detail-table-header { display: grid; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.6rem; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .detail-table-header { display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 0.8fr 0.6fr 2rem; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.6rem; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
     .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; margin-bottom: 0.6rem; }
-    .detail-row-out { display: grid; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; }
+    .detail-row-out { display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 0.8fr 0.6fr 2rem; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; }
     .detail-row-out:last-child { border-bottom: none; }
 
     /* Toast */
@@ -270,6 +270,17 @@
     .level-micro  { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; }
 
     /* ── End Warm Precision ─────────────────────────────────────────────────── */
+
+    /* Autocomplete dropdown (v1.11) */
+    .ac-wrap { position: relative; }
+    .ac-input { width: 100%; }
+    .ac-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); z-index: 200; max-height: 180px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .ac-item { padding: 0.5rem 0.75rem; font-size: 0.78rem; cursor: pointer; border-bottom: 1px solid var(--border); }
+    .ac-item:last-child { border-bottom: none; }
+    .ac-item:hover, .ac-item.ac-active { background: var(--surface2); }
+    .ac-item-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); font-weight: 500; }
+    .ac-item-sub { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+    .ac-item-avail { font-family: var(--font-mono); font-size: 0.68rem; color: var(--success); float: right; }
   </style>
 </head>
 <body>
@@ -374,7 +385,9 @@
       <div class="modal-section">Sample Details <span style="color:var(--error)">*</span></div>
 
       <div class="detail-table-header">
-        <span>Sample (ID — Name — Available)</span>
+        <span>Search Sample ID</span>
+        <span>Origin Code</span>
+        <span>Name</span>
         <span>Type</span>
         <span>Qty (g)</span>
         <span></span>
@@ -553,7 +566,10 @@
 
     document.getElementById('btn-cancel-outbound').addEventListener('click', () => UI.closeModal('modal-outbound'));
 
-    // ── Outbound detail rows ──────────────────────────────────────────────────
+    // ── Outbound detail rows (v1.11) ─────────────────────────────────────────
+    // Each row: autocomplete sample search | origin (auto-filled) | name (auto-filled) | type | qty | remove
+    // Autocomplete searches inbound_details by sample_id, origin_sample_code, sample_name
+
     function renderOutboundDetailRows() {
       const wrap = document.getElementById('outbound-detail-rows');
       wrap.innerHTML = '';
@@ -564,20 +580,124 @@
       outboundDetailRows.forEach((d, i) => {
         const div = document.createElement('div');
         div.className = 'detail-row-out';
+
+        // Build display label for selected sample
+        const selectedLabel = d.inbound_detail_id
+          ? (d.sample_code || d.inbound_detail_id)
+          : '';
+
         div.innerHTML =
-          `<input type="text" placeholder="Code" value="${UI.esc(d.sample_code)}" oninput="outboundDetailRows[${i}].sample_code=this.value" />` +
-          `<input type="text" placeholder="Name" value="${UI.esc(d.sample_name)}" oninput="outboundDetailRows[${i}].sample_name=this.value" />` +
-          `<input type="text" placeholder="Origin code" value="${UI.esc(d.origin_sample_code)}" oninput="outboundDetailRows[${i}].origin_sample_code=this.value" />` +
-          `<select oninput="outboundDetailRows[${i}].sample_type=this.value" style="width:100%">
+          // Autocomplete search cell
+          `<div class="ac-wrap" id="ac-wrap-${i}">
+            <input type="text" class="ac-input" id="ac-input-${i}" placeholder="Search sample ID…"
+              value="${UI.esc(selectedLabel)}"
+              autocomplete="off"
+              oninput="onAcInput(${i}, this.value)"
+              onfocus="onAcInput(${i}, this.value)"
+              onkeydown="onAcKey(event, ${i})" />
+            <div class="ac-dropdown" id="ac-drop-${i}" style="display:none"></div>
+          </div>` +
+          // Origin (read-only, auto-filled)
+          `<input type="text" id="ac-origin-${i}" placeholder="Origin code" value="${UI.esc(d.origin_sample_code || '')}"
+            readonly style="background:var(--surface);color:var(--muted)" />` +
+          // Name (read-only, auto-filled)
+          `<input type="text" id="ac-name-${i}" placeholder="Name" value="${UI.esc(d.sample_name || '')}"
+            readonly style="background:var(--surface);color:var(--muted)" />` +
+          // Type
+          `<select onchange="outboundDetailRows[${i}].sample_type=this.value">
             <option value="">— Type —</option>
-            <option value="Preship" ${d.sample_type==='Preship'?'selected':''}>Preship</option>
-            <option value="Type" ${d.sample_type==='Type'?'selected':''}>Type</option>
+            <option value="Preship"  ${d.sample_type==='Preship' ?'selected':''}>Preship</option>
+            <option value="Type"     ${d.sample_type==='Type'    ?'selected':''}>Type</option>
             <option value="Spot Lot" ${d.sample_type==='Spot Lot'?'selected':''}>Spot Lot</option>
           </select>` +
-          `<input type="number" placeholder="g" min="0" value="${UI.esc(d.qty_grams)}" oninput="outboundDetailRows[${i}].qty_grams=this.value" />` +
+          // Qty grams
+          `<input type="number" placeholder="g" min="0" value="${UI.esc(d.qty_grams || '')}"
+            oninput="outboundDetailRows[${i}].qty_grams=this.value" />` +
+          // Remove
           `<button class="btn-remove" onclick="removeOutboundDetailRow(${i})">✕</button>`;
+
         wrap.appendChild(div);
       });
+
+      // Close all dropdowns when clicking outside
+      document.addEventListener('click', closeAllAcDropdowns, { once: true });
+    }
+
+    function closeAllAcDropdowns() {
+      document.querySelectorAll('.ac-dropdown').forEach(el => el.style.display = 'none');
+    }
+
+    // Filter inbound details by search term — matches sample_id, origin_code, name
+    function getAcMatches(term) {
+      const q = term.toLowerCase().trim();
+      return (PAGE_DATA.inboundDetails || []).filter(d =>
+        (d.sample_id          || '').toLowerCase().includes(q) ||
+        (d.origin_sample_code || '').toLowerCase().includes(q) ||
+        (d.sample_name        || '').toLowerCase().includes(q)
+      ).slice(0, 12);
+    }
+
+    function onAcInput(idx, value) {
+      const drop = document.getElementById('ac-drop-' + idx);
+      if (!drop) return;
+
+      // Clear selection if user is typing new search
+      if (outboundDetailRows[idx].inbound_detail_id &&
+          value !== (outboundDetailRows[idx].sample_code || '')) {
+        outboundDetailRows[idx].inbound_detail_id = '';
+        outboundDetailRows[idx].sample_code = '';
+        outboundDetailRows[idx].sample_name = '';
+        outboundDetailRows[idx].origin_sample_code = '';
+        const originEl = document.getElementById('ac-origin-' + idx);
+        const nameEl   = document.getElementById('ac-name-'   + idx);
+        if (originEl) originEl.value = '';
+        if (nameEl)   nameEl.value   = '';
+      }
+
+      if (!value.trim()) { drop.style.display = 'none'; return; }
+
+      const matches = getAcMatches(value);
+      if (!matches.length) { drop.innerHTML = '<div class="ac-item" style="color:var(--muted)">No matches</div>'; drop.style.display = 'block'; return; }
+
+      drop.innerHTML = matches.map((d, mi) => {
+        const avail = d.buyer_available !== undefined ? d.buyer_available : (d.available_bags || 0);
+        return `<div class="ac-item" data-idx="${mi}" onmousedown="onAcPick(${idx}, '${d.detail_id}')">
+          <span class="ac-item-id">${UI.esc(d.sample_id || '')}</span>
+          <span class="ac-item-avail">${avail} bags</span>
+          <div class="ac-item-sub">${UI.esc(d.origin_sample_code || '—')} · ${UI.esc(d.sample_name || '')}</div>
+        </div>`;
+      }).join('');
+      drop.style.display = 'block';
+    }
+
+    function onAcKey(e, idx) {
+      // Keyboard nav: Escape closes dropdown
+      if (e.key === 'Escape') {
+        const drop = document.getElementById('ac-drop-' + idx);
+        if (drop) drop.style.display = 'none';
+      }
+    }
+
+    function onAcPick(idx, detailId) {
+      const det = (PAGE_DATA.inboundDetails || []).find(d => String(d.detail_id) === String(detailId));
+      if (!det) return;
+
+      // Populate row — origin first, then name
+      outboundDetailRows[idx].inbound_detail_id  = det.detail_id;
+      outboundDetailRows[idx].sample_code        = det.sample_id;
+      outboundDetailRows[idx].sample_name        = det.sample_name;
+      outboundDetailRows[idx].origin_sample_code = det.origin_sample_code;
+
+      // Update inputs inline without full re-render
+      const inputEl  = document.getElementById('ac-input-'  + idx);
+      const originEl = document.getElementById('ac-origin-' + idx);
+      const nameEl   = document.getElementById('ac-name-'   + idx);
+      const dropEl   = document.getElementById('ac-drop-'   + idx);
+
+      if (inputEl)  inputEl.value  = det.sample_id || '';
+      if (originEl) originEl.value = det.origin_sample_code || '';
+      if (nameEl)   nameEl.value   = det.sample_name || '';
+      if (dropEl)   dropEl.style.display = 'none';
     }
 
     function removeOutboundDetailRow(i) {
