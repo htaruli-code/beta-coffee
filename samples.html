@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.8.1 | samples.html -->
+<!-- Version 1.9 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -302,6 +302,7 @@
         <div class="page-sub" id="company-name"></div>
       </div>
       <button class="btn" id="btn-new-sample">+ New Sample Request</button>
+      <a href="all-samples.html" class="btn btn-ghost" style="text-decoration:none">All Samples ↗</a>
     </div>
 
     <!-- Toolbar / filter -->
@@ -316,6 +317,7 @@
       <table>
         <thead>
           <tr>
+            <th></th>
             <th>Inbound ID</th>
             <th>Supplier</th>
             <th>Warehouse</th>
@@ -330,8 +332,17 @@
           </tr>
         </thead>
         <tbody id="samples-tbody">
-          <tr><td colspan="11" class="st-empty"><div class="st-spinner"></div></td></tr>
+          <tr><td colspan="12" class="st-empty"><div class="st-spinner"></div></td></tr>
         </tbody>
+      </table>
+      <div id="pagination-bar" style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted)">
+        <span id="pagination-info"></span>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn btn-ghost btn-sm" id="btn-prev-page">← Prev</button>
+          <button class="btn btn-ghost btn-sm" id="btn-next-page">Next →</button>
+        </div>
+      </div>
+
       </table>
     </div>
   </div>
@@ -445,13 +456,18 @@
         populateModalDropdowns();
       } catch (err) {
         document.getElementById('samples-tbody').innerHTML =
-          '<tr><td colspan="11" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+          '<tr><td colspan="12" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
     }
 
-    // ── Render Table ──────────────────────────────────────────────────────────
+    // ── Pagination state ─────────────────────────────────────────────────────
+    const PAGE_SIZE = 20;
+    let currentPage = 1;
+    let expandedRows = new Set();
+
+    // ── Render Table (v1.9) ───────────────────────────────────────────────────
     function renderTable() {
-      const tbody = document.getElementById('samples-tbody');
+      const tbody       = document.getElementById('samples-tbody');
       const supplierMap = {};
       PAGE_DATA.suppliers.forEach(s => supplierMap[s.supplier_id] = s.supplier_name);
       const whMap = {};
@@ -464,17 +480,33 @@
         detailMap[d.inbound_id].push(d);
       });
 
-      UI.buildTable(tbody, PAGE_DATA.samples, (s) => {
-        const dets = detailMap[s.inbound_id] || [];
-        const detSummary = dets.length
-          ? dets.map(d => {
-              const inactive = d.is_active === false || d.is_active === 'FALSE';
-              return '<span class="sample-id"' + (inactive ? ' style="opacity:0.4;text-decoration:line-through" title="Inactive"' : '') + '>'
-                + UI.esc(d.sample_id) + '</span>';
-            }).join('<br>')
-          : '<span style="color:var(--muted)">—</span>';
+      // Paginate
+      const total     = PAGE_DATA.samples.length;
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start   = (currentPage - 1) * PAGE_SIZE;
+      const pageRows = PAGE_DATA.samples.slice(start, start + PAGE_SIZE);
 
-        return `
+      // Pagination info
+      document.getElementById('pagination-info').textContent =
+        total ? 'Showing ' + (start + 1) + '–' + Math.min(start + PAGE_SIZE, total) + ' of ' + total : '';
+      document.getElementById('btn-prev-page').disabled = currentPage <= 1;
+      document.getElementById('btn-next-page').disabled = currentPage >= totalPages;
+
+      tbody.innerHTML = '';
+
+      pageRows.forEach(s => {
+        const dets    = detailMap[s.inbound_id] || [];
+        const isOpen  = expandedRows.has(s.inbound_id);
+        const detCount = dets.length;
+
+        // Main row
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.innerHTML = `
+          <td style="width:28px;text-align:center;color:var(--accent);font-size:1rem;user-select:none">
+            ${detCount ? (isOpen ? '▾' : '▸') : ''}
+          </td>
           <td><span class="sample-id">#${UI.esc(s.inbound_id)}</span></td>
           <td>${UI.esc(supplierMap[s.supplier_id] || s.supplier_id)}</td>
           <td>${UI.esc(whMap[s.warehouse_id] || s.warehouse_id)}</td>
@@ -482,14 +514,59 @@
           <td>${UI.formatDate(s.sending_date) || '—'}</td>
           <td>${UI.esc(s.courier_name || '—')}</td>
           <td>${UI.esc(s.tracking_number || '—')}</td>
-          <td>${badge(s.tracked)}</td>
-          <td>${badge(s.received)}</td>
-          <td>${detSummary}</td>
-          <td style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" onclick="openSendLink(${s.inbound_id})">Send Link</button>
-            <button class="btn btn-ghost btn-sm" onclick="openPrices(${s.inbound_id})" title="View / edit sale prices">Prices</button>
+          <td>${trackedBtn(s)}</td>
+          <td>${receivedBtn(s)}</td>
+          <td style="font-size:0.75rem;color:var(--muted)">${detCount ? detCount + ' sample' + (detCount > 1 ? 's' : '') : '—'}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openSendLink(${s.inbound_id})">Link</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openPrices(${s.inbound_id})">Prices</button>
           </td>`;
+
+        // Toggle expand on row click
+        tr.addEventListener('click', () => {
+          if (expandedRows.has(s.inbound_id)) expandedRows.delete(s.inbound_id);
+          else expandedRows.add(s.inbound_id);
+          renderTable();
+        });
+        tbody.appendChild(tr);
+
+        // Expanded detail rows
+        if (isOpen && detCount > 0) {
+          const detTr = document.createElement('tr');
+          detTr.style.background = 'var(--surface)';
+          let detHtml = '<td colspan="12" style="padding:0.75rem 1rem 1rem 2.5rem">';
+          detHtml += '<div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Sample Details</div>';
+          detHtml += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
+          detHtml += '<thead><tr style="background:var(--surface2)">';
+          ['Sample ID','Name','Origin Code','Type','Bags','Bag kg','Cost $','Available','Active'].forEach(h => {
+            detHtml += '<th style="text-align:left;padding:4px 8px;font-size:0.65rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)">' + h + '</th>';
+          });
+          detHtml += '</tr></thead><tbody>';
+          dets.forEach(d => {
+            const inactive = d.is_active === false || d.is_active === 'FALSE';
+            const style = inactive ? 'opacity:0.45;' : '';
+            detHtml += '<tr style="border-bottom:1px solid var(--border);' + style + '">';
+            detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono);color:var(--accent)">' + UI.esc(d.sample_id) + '</td>';
+            detHtml += '<td style="padding:5px 8px">' + UI.esc(d.sample_name) + '</td>';
+            detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem">' + UI.esc(d.origin_sample_code || '—') + '</td>';
+            detHtml += '<td style="padding:5px 8px">' + UI.esc(d.coffee_type || '—') + '</td>';
+            detHtml += '<td style="padding:5px 8px">' + (d.available_bags || '—') + '</td>';
+            detHtml += '<td style="padding:5px 8px">' + (d.bag_size ? d.bag_size + ' kg' : '—') + '</td>';
+            detHtml += '<td style="padding:5px 8px">' + (d.cost_price ? '$' + parseFloat(d.cost_price).toFixed(2) : '—') + '</td>';
+            detHtml += '<td style="padding:5px 8px;color:var(--accent);font-weight:500">' + (d.buyer_available !== undefined ? d.buyer_available : '—') + '</td>';
+            detHtml += '<td style="padding:5px 8px">';
+            detHtml += '<button onclick="event.stopPropagation();toggleActive(' + d.detail_id + ',' + inactive + ')" class="btn btn-ghost btn-sm" style="font-size:0.65rem;padding:2px 8px;border-color:' + (inactive ? 'var(--error)' : 'var(--success)') + ';color:' + (inactive ? 'var(--error)' : 'var(--success)') + '">' + (inactive ? 'Inactive' : 'Active') + '</button>';
+            detHtml += '</td></tr>';
+          });
+          detHtml += '</tbody></table></td>';
+          detTr.innerHTML = detHtml;
+          tbody.appendChild(detTr);
+        }
       });
+
+      if (!pageRows.length) {
+        tbody.innerHTML = '<tr><td colspan="12" class="st-empty">No inbound samples found.</td></tr>';
+      }
     }
 
     function badge(val) {
@@ -498,6 +575,42 @@
         ? '<span class="badge badge-y">Y</span>'
         : '<span class="badge badge-n">N</span>';
     }
+
+    // One-click tracked/received toggle buttons (v1.9)
+    function trackedBtn(s) {
+      const isY = String(s.tracked).toUpperCase() === 'Y';
+      return '<button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:2px 8px;border-color:' +
+        (isY ? 'var(--success)' : 'var(--border)') + ';color:' + (isY ? 'var(--success)' : 'var(--muted)') + '" ' +
+        'onclick="event.stopPropagation();toggleTracking(' + s.inbound_id + ','tracked','' + (isY ? 'N' : 'Y') + '')">' +
+        (isY ? '✓ Tracked' : 'Track') + '</button>';
+    }
+
+    function receivedBtn(s) {
+      const isY = String(s.received).toUpperCase() === 'Y';
+      return '<button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:2px 8px;border-color:' +
+        (isY ? 'var(--success)' : 'var(--border)') + ';color:' + (isY ? 'var(--success)' : 'var(--muted)') + '" ' +
+        'onclick="event.stopPropagation();toggleTracking(' + s.inbound_id + ','received','' + (isY ? 'N' : 'Y') + '')">' +
+        (isY ? '✓ Received' : 'Receive') + '</button>';
+    }
+
+    async function toggleTracking(inboundId, field, newVal) {
+      try {
+        const payload = { inbound_id: inboundId };
+        payload[field] = newVal;
+        await API.updateTracking(inboundId, field === 'tracked' ? newVal : undefined, field === 'received' ? newVal : undefined);
+        // Update local state
+        const s = PAGE_DATA.samples.find(x => String(x.inbound_id) === String(inboundId));
+        if (s) s[field] = newVal;
+        renderTable();
+        UI.toastSuccess(field === 'tracked' ? 'Tracked updated.' : 'Received updated.');
+      } catch (err) {
+        UI.toastError(err.message);
+      }
+    }
+
+    // Pagination buttons
+    document.getElementById('btn-prev-page').addEventListener('click', () => { currentPage--; renderTable(); });
+    document.getElementById('btn-next-page').addEventListener('click', () => { currentPage++; renderTable(); });
 
     // ── Modal: New Sample ─────────────────────────────────────────────────────
     document.getElementById('btn-new-sample').addEventListener('click', () => {

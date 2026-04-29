@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<!-- Version 1.9 | all-samples.html -->
+<!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Samples — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --surface2: #faf3ea;
+      --border: #f0e8da; --border2: #e8d8c4; --accent: #c47a2b; --accent2: #a0611f;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52; --warn: #b45309;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 6px; --transition: 160ms ease;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+    /* Nav */
+    .nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 52px; gap: 2rem; position: sticky; top: 0; z-index: 100; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
+    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
+    .nav-links a:hover { background: var(--surface); color: var(--text); }
+    .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
+    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; }
+    .nav-user:hover { color: var(--accent); }
+    /* Page */
+    .page { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .page::before { content: ''; display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, #f0e8da 60%, transparent 100%); margin-bottom: 1.75rem; border-radius: 1px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; }
+    .page-title { font-size: 1.3rem; font-weight: 500; letter-spacing: -0.01em; }
+    .page-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
+    /* Toolbar */
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; flex-wrap: wrap; }
+    .toolbar select, .toolbar input { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); font-family: var(--font-sans); outline: none; }
+    .toolbar select:focus, .toolbar input:focus { border-color: var(--accent); }
+    .toolbar-spacer { flex: 1; }
+    /* Table */
+    .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead tr { background: var(--surface); }
+    th { text-align: left; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0.65rem 0.875rem; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+    th:hover { color: var(--accent); }
+    th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+    th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+    td { padding: 0.65rem 0.875rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface); }
+    .st-empty { text-align: center; color: var(--muted); padding: 3rem; font-size: 0.83rem; }
+    /* Badges */
+    .sample-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+    .badge { display: inline-block; font-size: 0.7rem; font-weight: 500; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono); }
+    .badge-active   { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .badge-inactive { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .badge-type { background: var(--surface2); color: var(--accent); border: 1px solid var(--border); }
+    /* Buttons */
+    .btn { background: var(--accent); color: #fff; border: none; font-family: var(--font-sans); font-size: 0.83rem; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); }
+    .btn:hover { background: var(--accent2); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface); border-color: var(--border2); }
+    .btn-sm { font-size: 0.75rem; padding: 0.3rem 0.75rem; }
+    /* Pagination */
+    .pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
+    /* Spinner */
+    .st-spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Toast */
+    .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.8rem; padding: 0.75rem 1.25rem; z-index: 9999; box-shadow: 0 2px 8px rgba(0,0,0,0.08); animation: fadeIn 0.2s ease; }
+    .st-toast--error { border-color: #f5c6c6; color: #a32d2d; background: #fdf0ee; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+    <div class="nav-links">
+      <a href="samples.html">Inbound</a>
+      <a href="all-samples.html" class="active">All Samples</a>
+      <a href="suppliers.html">Suppliers</a>
+      <a href="buyers.html">Buyers</a>
+      <a href="outbound.html">Outbound</a>
+    </div>
+    <span class="nav-user" id="nav-user"></span>
+  </nav>
+
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">All Samples</div>
+        <div class="page-sub" id="company-name"></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <select id="filter-warehouse">
+        <option value="">All Warehouses</option>
+      </select>
+      <select id="filter-coffee-type">
+        <option value="">All Types</option>
+      </select>
+      <select id="filter-active">
+        <option value="">Active + Inactive</option>
+        <option value="active">Active only</option>
+        <option value="inactive">Inactive only</option>
+      </select>
+      <input type="text" id="filter-search" placeholder="Search sample ID or name…" style="min-width:200px" />
+      <span class="toolbar-spacer"></span>
+      <span id="result-count" style="font-size:0.8rem;color:var(--muted)"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-col="sample_id">Sample ID</th>
+            <th data-col="sample_name">Name</th>
+            <th data-col="origin_sample_code">Origin Code</th>
+            <th data-col="coffee_type">Type</th>
+            <th data-col="available_bags">Bags Offered</th>
+            <th data-col="bag_size">Bag kg</th>
+            <th data-col="cost_price">Cost $</th>
+            <th data-col="buyer_available">Avail Now</th>
+            <th data-col="supplier">Supplier</th>
+            <th data-col="warehouse">Warehouse</th>
+            <th data-col="is_active">Status</th>
+          </tr>
+        </thead>
+        <tbody id="all-samples-tbody">
+          <tr><td colspan="11" class="st-empty"><div class="st-spinner"></div></td></tr>
+        </tbody>
+      </table>
+      <div class="pagination-bar">
+        <span id="pagination-info"></span>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn btn-ghost btn-sm" id="btn-prev">← Prev</button>
+          <button class="btn btn-ghost btn-sm" id="btn-next">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // Version 1.9 | all-samples.html script
+    Auth.requireAuth('login.html');
+
+    const PAGE_SIZE = 20;
+    let currentPage = 1;
+    let sortCol     = 'sample_id';
+    let sortDir     = 'asc';
+    let PAGE_DATA   = { details: [], inboundMap: {}, suppliers: [], warehouses: [], coffeeTypes: [] };
+    let filtered    = [];
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    (async () => {
+      const user    = Auth.getUser();
+      const company = Auth.getCompany();
+      const whs     = Auth.getWarehouses();
+
+      document.getElementById('nav-brand').textContent    = company ? company.company_name : 'Sample Tracker';
+      document.getElementById('company-name').textContent = company ? company.company_name : '';
+      document.getElementById('nav-user').textContent     = (user ? user.name : '') + ' · Sign out';
+      document.getElementById('nav-user').addEventListener('click', UI.logout);
+
+      // Populate warehouse filter from session
+      const filterWH = document.getElementById('filter-warehouse');
+      whs.forEach(wh => {
+        const opt = document.createElement('option');
+        opt.value = wh.warehouse_id;
+        opt.textContent = wh.warehouse_name;
+        filterWH.appendChild(opt);
+      });
+
+      await loadData(null);
+
+      // Filter listeners
+      filterWH.addEventListener('change', () => loadData(filterWH.value || null));
+      document.getElementById('filter-coffee-type').addEventListener('change', applyFilters);
+      document.getElementById('filter-active').addEventListener('change', applyFilters);
+      document.getElementById('filter-search').addEventListener('input', applyFilters);
+
+      // Sort listeners
+      document.querySelectorAll('th[data-col]').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.col;
+          if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+          else { sortCol = col; sortDir = 'asc'; }
+          document.querySelectorAll('th[data-col]').forEach(t => t.classList.remove('sort-asc','sort-desc'));
+          th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+          applyFilters();
+        });
+      });
+
+      // Pagination
+      document.getElementById('btn-prev').addEventListener('click', () => { currentPage--; renderTable(); });
+      document.getElementById('btn-next').addEventListener('click', () => { currentPage++; renderTable(); });
+    })();
+
+    // ── Load Data ─────────────────────────────────────────────────────────────
+    async function loadData(warehouseId) {
+      try {
+        PAGE_DATA = await API.getAllSamplesPage(warehouseId);
+        // Populate coffee type filter
+        const ctSel = document.getElementById('filter-coffee-type');
+        ctSel.innerHTML = '<option value="">All Types</option>';
+        (PAGE_DATA.coffeeTypes || []).forEach(t => {
+          const o = document.createElement('option');
+          o.value = t; o.textContent = t;
+          ctSel.appendChild(o);
+        });
+        applyFilters();
+      } catch (err) {
+        document.getElementById('all-samples-tbody').innerHTML =
+          '<tr><td colspan="11" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+      }
+    }
+
+    // ── Filter + Sort ─────────────────────────────────────────────────────────
+    function applyFilters() {
+      currentPage = 1;
+      const typeFilter   = document.getElementById('filter-coffee-type').value;
+      const activeFilter = document.getElementById('filter-active').value;
+      const search       = document.getElementById('filter-search').value.toLowerCase().trim();
+
+      // Build enriched rows
+      const supplierMap = {};
+      (PAGE_DATA.suppliers || []).forEach(s => supplierMap[s.supplier_id] = s.supplier_name);
+      const whMap = {};
+      (PAGE_DATA.warehouses || []).forEach(w => whMap[w.warehouse_id] = w.warehouse_name);
+
+      let rows = (PAGE_DATA.details || []).map(d => {
+        const inbound = (PAGE_DATA.inboundMap || {})[d.inbound_id] || {};
+        return Object.assign({}, d, {
+          supplier: supplierMap[inbound.supplier_id] || '—',
+          warehouse: whMap[inbound.warehouse_id]     || '—',
+        });
+      });
+
+      // Filter
+      if (typeFilter)   rows = rows.filter(d => d.coffee_type === typeFilter);
+      if (activeFilter === 'active')   rows = rows.filter(d => d.is_active !== false && d.is_active !== 'FALSE');
+      if (activeFilter === 'inactive') rows = rows.filter(d => d.is_active === false || d.is_active === 'FALSE');
+      if (search) rows = rows.filter(d =>
+        (d.sample_id    || '').toLowerCase().includes(search) ||
+        (d.sample_name  || '').toLowerCase().includes(search) ||
+        (d.coffee_type  || '').toLowerCase().includes(search) ||
+        (d.supplier     || '').toLowerCase().includes(search)
+      );
+
+      // Sort
+      rows.sort((a, b) => {
+        let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+        if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av;
+        return sortDir === 'asc'
+          ? String(av).localeCompare(String(bv))
+          : String(bv).localeCompare(String(av));
+      });
+
+      filtered = rows;
+      document.getElementById('result-count').textContent = rows.length + ' sample' + (rows.length !== 1 ? 's' : '');
+      renderTable();
+    }
+
+    // ── Render Table ──────────────────────────────────────────────────────────
+    function renderTable() {
+      const tbody = document.getElementById('all-samples-tbody');
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start    = (currentPage - 1) * PAGE_SIZE;
+      const pageRows = filtered.slice(start, start + PAGE_SIZE);
+
+      document.getElementById('pagination-info').textContent =
+        total ? 'Showing ' + (start + 1) + '–' + Math.min(start + PAGE_SIZE, total) + ' of ' + total : '';
+      document.getElementById('btn-prev').disabled = currentPage <= 1;
+      document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+      tbody.innerHTML = '';
+      if (!pageRows.length) {
+        tbody.innerHTML = '<tr><td colspan="11" class="st-empty">No samples found.</td></tr>';
+        return;
+      }
+
+      pageRows.forEach(d => {
+        const inactive = d.is_active === false || d.is_active === 'FALSE';
+        const tr = document.createElement('tr');
+        if (inactive) tr.style.opacity = '0.55';
+        tr.innerHTML =
+          '<td><span class="sample-id">' + UI.esc(d.sample_id || '—') + '</span></td>' +
+          '<td>' + UI.esc(d.sample_name || '—') + '</td>' +
+          '<td style="font-family:var(--font-mono);font-size:0.72rem">' + UI.esc(d.origin_sample_code || '—') + '</td>' +
+          '<td>' + (d.coffee_type ? '<span class="badge badge-type">' + UI.esc(d.coffee_type) + '</span>' : '<span style="color:var(--muted)">—</span>') + '</td>' +
+          '<td style="font-family:var(--font-mono)">' + (d.available_bags || '—') + '</td>' +
+          '<td style="font-family:var(--font-mono)">' + (d.bag_size ? d.bag_size + ' kg' : '—') + '</td>' +
+          '<td style="font-family:var(--font-mono)">' + (d.cost_price ? '$' + parseFloat(d.cost_price).toFixed(2) : '—') + '</td>' +
+          '<td style="font-family:var(--font-mono);color:var(--accent);font-weight:500">' + (d.buyer_available !== undefined && d.buyer_available !== '' ? d.buyer_available : '—') + '</td>' +
+          '<td>' + UI.esc(d.supplier || '—') + '</td>' +
+          '<td>' + UI.esc(d.warehouse || '—') + '</td>' +
+          '<td>' + (inactive
+            ? '<span class="badge badge-inactive">Inactive</span>'
+            : '<span class="badge badge-active">Active</span>') + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>
