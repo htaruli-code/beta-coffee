@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9.1 | samples.html -->
+<!-- Version 1.9.2 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -741,7 +741,7 @@
     // Prices are auto-calculated: cost_price × tier multiplier.
     // User can override any price — saved individually per detail+level.
 
-    document.getElementById('btn-prices-close').addEventListener('click', () => UI.closeModal('modal-prices'));
+    // btn-prices-close uses inline onclick — no addEventListener needed
 
     function openPrices(inboundId) {
       const details  = PAGE_DATA.details.filter(d => String(d.inbound_id) === String(inboundId));
@@ -763,7 +763,7 @@
       }
 
       const LEVELS = ['Large', 'Medium', 'Small', 'Micro'];
-      const LEVEL_COLORS = { Large: '#4affa0', Medium: '#7ab8ff', Small: '#ffc84a', Micro: '#ff8c8c' };
+      const LEVEL_COLORS = { Large: '#1e6640', Medium: '#1a5ca8', Small: '#854f0b', Micro: '#a32d2d' };
 
       details.forEach(d => {
         const block = document.createElement('div');
@@ -777,11 +777,12 @@
         const activeColor = isActive ? 'var(--success)' : 'var(--error)';
         const activeLabel = isActive ? 'ACTIVE' : 'INACTIVE';
 
-        let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">';
-        html += '<div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent)">'
-          + UI.esc(d.sample_id) + ' — ' + UI.esc(d.sample_name)
-          + (d.cost_price ? ' <span style="color:var(--muted)">(cost: $' + parseFloat(d.cost_price).toFixed(2) + '/kg)</span>' : '')
-          + '</div>';
+        let html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem">';
+        html += '<div>';
+        html += '<div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--accent);font-weight:500">' + UI.esc(d.sample_id) + '</div>';
+        html += '<div style="font-size:0.82rem;color:var(--text);margin-top:2px">' + UI.esc(d.sample_name) + (d.coffee_sales_name ? ' <span style="color:var(--muted)">· ' + UI.esc(d.coffee_sales_name) + '</span>' : '') + '</div>';
+        html += (d.cost_price ? '<div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent);margin-top:3px">Cost: $' + parseFloat(d.cost_price).toFixed(2) + '/kg</div>' : '');
+        html += '</div>';
         html += '<button id="toggle-btn-' + d.detail_id + '" '
           + 'style="font-family:var(--font-mono);font-size:0.65rem;padding:3px 10px;border:1px solid ' + activeColor + ';color:' + activeColor + ';background:transparent;cursor:pointer;letter-spacing:0.06em" '
           + 'onclick="toggleActive(' + d.detail_id + ',' + (!isActive) + ')">'
@@ -791,7 +792,7 @@
 
         // Bag status block — offered / confirmed / available
         html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;padding:0.6rem 0.75rem;background:var(--surface);border:1px solid var(--border);font-family:var(--font-mono);font-size:0.72rem">';
-        html += '<div><div style="color:var(--muted);font-size:0.62rem;margin-bottom:2px">OFFERED BY SUPPLIER</div><div style="color:var(--text)">' + (d.available_bags || 0) + ' bags</div></div>';
+        html += '<div><div style="font-family:var(--font-mono);font-size:0.62rem;letter-spacing:0.06em;color:var(--muted);margin-bottom:4px">OFFERED BY SUPPLIER</div><div style="color:var(--text);font-weight:500">' + (d.available_bags || 0) + ' bags</div></div>';
         html += '<div><div style="color:var(--muted);font-size:0.62rem;margin-bottom:2px">WE CONFIRMED</div>';
         html += '<div style="display:flex;align-items:center;gap:6px">';
         html += '<input type="number" min="0" value="' + confirmedQty + '" style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;font-size:0.78rem;font-family:var(--font-mono)" id="confirmed-' + d.detail_id + '" />';
@@ -812,7 +813,7 @@
           const priceObj = priceMap[d.detail_id] ? priceMap[d.detail_id][level] : null;
           const val      = priceObj ? parseFloat(priceObj.sale_price).toFixed(2) : '0.00';
           const isManual = priceObj && priceObj.is_manual;
-          const color    = LEVEL_COLORS[level];
+          const color    = LEVEL_COLORS[level];  // now warm readable colors
           html += `<div>
             <div style="font-size:0.65rem;font-family:var(--font-mono);color:${color};margin-bottom:3px">
               ${UI.esc(level)}${isManual ? ' <span title="Manually set">★</span>' : ''}
@@ -926,7 +927,7 @@
 
   <!-- ── Modal: Sample Prices (v1.3) ── -->
   <div class="st-modal" id="modal-prices">
-    <div class="modal-box" style="max-width:480px">
+    <div class="modal-box" style="max-width:720px">
       <div class="modal-title">Sale Prices — <span id="price-modal-sample-id" style="color:var(--accent)"></span></div>
       <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem">
         Auto-filled from cost × tier multiplier. Edit any field to override.
@@ -934,7 +935,7 @@
       </p>
       <div id="price-rows-container"></div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" id="btn-prices-close">Close</button>
+        <button class="btn btn-ghost" id="btn-prices-close" onclick="UI.closeModal('modal-prices')">Close</button>
       </div>
     </div>
   </div>
