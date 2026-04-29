@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9.2 | samples.html -->
+<!-- Version 1.10 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -57,8 +57,7 @@
     /* ── Buttons ── */
     .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: opacity var(--transition); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn:hover:not(:disabled) { opacity: 0.85; }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+        .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
     .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); opacity: 1; }
     .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.7rem; }
     .btn-danger { background: transparent; color: var(--error); border: 1px solid var(--error); }
@@ -546,13 +545,13 @@
             const inactive = d.is_active === false || d.is_active === 'FALSE';
             const style = inactive ? 'opacity:0.45;' : '';
             detHtml += '<tr style="border-bottom:1px solid var(--border);' + style + '">';
-            detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono);color:var(--accent)">' + UI.esc(d.sample_id) + '</td>';
+            detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem;color:var(--accent)">' + UI.esc(d.sample_id) + '</td>';
             detHtml += '<td style="padding:5px 8px">' + UI.esc(d.sample_name) + '</td>';
             detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem">' + UI.esc(d.origin_sample_code || '—') + '</td>';
             detHtml += '<td style="padding:5px 8px">' + UI.esc(d.coffee_type || '—') + '</td>';
             detHtml += '<td style="padding:5px 8px">' + (d.available_bags || '—') + '</td>';
             detHtml += '<td style="padding:5px 8px">' + (d.bag_size ? d.bag_size + ' kg' : '—') + '</td>';
-            detHtml += '<td style="padding:5px 8px">' + (d.cost_price ? '$' + parseFloat(d.cost_price).toFixed(2) : '—') + '</td>';
+            detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono)">' + (d.cost_price ? '$' + parseFloat(d.cost_price).toFixed(2) + '/' + (d.cost_price_unit || 'kg') : '—') + '</td>';
             detHtml += '<td style="padding:5px 8px;color:var(--accent);font-weight:500">' + (d.buyer_available !== undefined ? d.buyer_available : '—') + '</td>';
             detHtml += '<td style="padding:5px 8px">';
             detHtml += '<button onclick="event.stopPropagation();toggleActive(' + d.detail_id + ',' + inactive + ')" class="btn btn-ghost btn-sm" style="font-size:0.65rem;padding:2px 8px;border-color:' + (inactive ? 'var(--error)' : 'var(--success)') + ';color:' + (inactive ? 'var(--error)' : 'var(--success)') + '">' + (inactive ? 'Inactive' : 'Active') + '</button>';
@@ -781,7 +780,7 @@
         html += '<div>';
         html += '<div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--accent);font-weight:500">' + UI.esc(d.sample_id) + '</div>';
         html += '<div style="font-size:0.82rem;color:var(--text);margin-top:2px">' + UI.esc(d.sample_name) + (d.coffee_sales_name ? ' <span style="color:var(--muted)">· ' + UI.esc(d.coffee_sales_name) + '</span>' : '') + '</div>';
-        html += (d.cost_price ? '<div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent);margin-top:3px">Cost: $' + parseFloat(d.cost_price).toFixed(2) + '/kg</div>' : '');
+        html += (d.cost_price ? '<div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent);margin-top:3px">Cost: $' + parseFloat(d.cost_price).toFixed(2) + '/' + (d.cost_price_unit || 'kg') + ' · $' + (parseFloat(d.cost_price) / (d.cost_price_unit === 'lb' ? 0.453592 : 1)).toFixed(2) + '/kg normalised</div>' : '');
         html += '</div>';
         html += '<button id="toggle-btn-' + d.detail_id + '" '
           + 'style="font-family:var(--font-mono);font-size:0.65rem;padding:3px 10px;border:1px solid ' + activeColor + ';color:' + activeColor + ';background:transparent;cursor:pointer;letter-spacing:0.06em" '
