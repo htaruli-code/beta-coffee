@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9.2 | buyers.html -->
+<!-- Version 1.9.3 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -37,8 +37,7 @@
     /* ── Buttons ── */
     .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: opacity var(--transition); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn:hover:not(:disabled) { opacity: 0.85; }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+        .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
     .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); opacity: 1; }
     .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.7rem; }
 
@@ -423,9 +422,11 @@
     }
 
     function populateWarehouseSelect() {
-      // v1.9.2: use PAGE_DATA.warehouses from API (reliable) instead of Auth.getWarehouses()
-      // Auth.getWarehouses() can be empty if session was set before warehouses were added
-      UI.populateSelect(document.getElementById('b-warehouse'), PAGE_DATA.warehouses || [], 'warehouse_id', 'warehouse_name', '— Select warehouse —');
+      // v1.9.3: use PAGE_DATA.warehouses (from API) with fallback to Auth.getWarehouses() (from session)
+      const whs = (PAGE_DATA.warehouses && PAGE_DATA.warehouses.length)
+        ? PAGE_DATA.warehouses
+        : Auth.getWarehouses();
+      UI.populateSelect(document.getElementById('b-warehouse'), whs, 'warehouse_id', 'warehouse_name', '— Select warehouse —');
     }
 
     // ── New ───────────────────────────────────────────────────────────────────
@@ -454,10 +455,10 @@
       document.getElementById('b-contact').value = b.contact_person || '';
       document.getElementById('b-email').value   = b.email || '';
       document.getElementById('b-country').value = b.country_id;
-      document.getElementById('b-level').value     = b.buyer_level  || '';
-      // v1.9.2: set after a tick to ensure options are rendered
-      const whVal = b.warehouse_id ? String(b.warehouse_id) : '';
-      setTimeout(() => { document.getElementById('b-warehouse').value = whVal; }, 0);
+      document.getElementById('b-level').value = b.buyer_level || '';
+      // v1.9.3: re-populate warehouse dropdown fresh on every edit open, then set value
+      populateWarehouseSelect();
+      document.getElementById('b-warehouse').value = b.warehouse_id ? String(b.warehouse_id) : '';
       renderMinimumsGrid(b.buyer_id);  // v1.8
       UI.openModal('modal-buyer');
     }
