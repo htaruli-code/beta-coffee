@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<!-- Version 1.8 | samples.html -->
+<!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inbound Samples — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; 
+      --border: #f0e8da; --accent: #c47a2b; --text: #1a1a1a;
+      --muted: #8a7060; --error: #c0392b; --success: #2e7d52; --warn: #b45309;
+      --warn: #ffc84a;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease;
+      --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      height: var(--nav-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 1.5rem;
+    }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+
+    /* ── Layout ── */
+    .page { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    select {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-mono); font-size: 0.78rem;
+      padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none;
+      cursor: pointer; transition: border-color var(--transition);
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: opacity var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { opacity: 0.85; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); opacity: 1; }
+    .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.7rem; }
+    .btn-danger { background: transparent; color: var(--error); border: 1px solid var(--error); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--surface2); }
+    th { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.82rem; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+    .st-empty { color: var(--muted); font-style: italic; text-align: center; padding: 2rem !important; }
+
+    /* ── Badges ── */
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.06em; padding: 0.2rem 0.5rem; border-radius: 2px; text-transform: uppercase; }
+    .badge-y  { background: #1a2e10; color: var(--success); border: 1px solid #2d5a1e; }
+    .badge-n  { background: #1e1a10; color: var(--warn);    border: 1px solid #5a3e1e; }
+
+    /* ── Sample ID ── */
+    .sample-id { font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent); }
+
+    /* ── Modal ── */
+    .st-modal {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.7); align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border);
+      width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto;
+      padding: 2rem;
+    }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.5rem; }
+    .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; flex-wrap: wrap; }
+
+    /* ── Form ── */
+    .field { margin-bottom: 1.1rem; }
+    label { display: block; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.45rem; }
+    input[type="text"], input[type="email"], input[type="date"], input[type="number"], textarea {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-mono); font-size: 0.85rem;
+      padding: 0.65rem 0.875rem; outline: none; border-radius: var(--radius);
+      transition: border-color var(--transition);
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .field-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
+
+    /* ── Details section ── */
+    .details-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1rem; }
+    .detail-row { display: grid; grid-template-columns: 1.4fr 1fr 0.6fr 1.2fr 0.6fr 0.6fr 0.7fr 0.8fr auto; gap: 0.4rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-header { background: var(--surface2); font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+    /* ── Spinner ── */
+    .st-spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; z-index: 9999; animation: fadeIn 0.2s ease; }
+    .st-toast--success { border-color: var(--success); color: var(--success); }
+    .st-toast--error   { border-color: var(--error);   color: var(--error);   }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* ── Warm Precision Theme v1.0 ─────────────────────────────────────────── */
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+
+    /* Nav */
+    .nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 52px; gap: 2rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
+    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
+    .nav-links a:hover { background: var(--surface); color: var(--text); }
+    .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
+    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
+    .nav-user:hover { color: var(--accent); }
+
+    /* Page */
+    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .page-title { font-size: 1.3rem; font-weight: 500; color: var(--text); letter-spacing: -0.01em; }
+    .page-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* Amber divider accent */
+    .page::before { content: ''; display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, #f0e8da 60%, transparent 100%); margin-bottom: 1.75rem; border-radius: 1px; }
+
+    /* Toolbar */
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; }
+    .toolbar select { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); cursor: pointer; font-family: var(--font-sans); }
+    .toolbar select:focus { outline: none; border-color: var(--accent); }
+
+    /* Table */
+    .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead tr { background: var(--surface); }
+    th { text-align: left; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface); }
+    .st-empty { text-align: center; color: var(--muted); padding: 3rem; font-size: 0.83rem; }
+
+    /* Badges */
+    .badge { display: inline-block; font-size: 0.7rem; font-weight: 500; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono); }
+    .badge-y { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .badge-n { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .sample-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+
+    /* Buttons */
+    .btn { background: var(--accent); color: #fff; border: none; font-family: var(--font-sans); font-size: 0.83rem; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); letter-spacing: 0.01em; }
+    .btn:hover { background: var(--accent2); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface); border-color: var(--border2); }
+    .btn-sm { font-size: 0.75rem; padding: 0.3rem 0.75rem; }
+
+    /* Inputs */
+    input[type="text"], input[type="email"], input[type="date"], input[type="number"], textarea, select {
+      background: #fff; border: 1px solid var(--border); color: var(--text);
+      font-family: var(--font-sans); font-size: 0.85rem; padding: 0.55rem 0.875rem;
+      border-radius: var(--radius); outline: none; width: 100%;
+      transition: border-color var(--transition);
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,122,43,0.08); }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    label { display: block; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .field { margin-bottom: 1rem; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* Modal */
+    .st-modal { display: none; position: fixed; inset: 0; background: rgba(26,16,8,0.35); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+    .st-modal.open { display: flex; }
+    .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 1rem; font-weight: 500; color: var(--text); margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+    .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .modal-section { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+    /* Detail rows (samples modal) */
+    .details-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 0.5rem; }
+    .detail-row { display: grid; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-header { background: var(--surface); font-family: var(--font-mono); font-size: 0.62rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .detail-row input, .detail-row select { padding: 0.3rem 0.5rem; font-size: 0.78rem; border-radius: 4px; }
+
+    /* Outbound detail rows */
+    .detail-table-header { display: grid; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.6rem; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; margin-bottom: 0.6rem; }
+    .detail-row-out { display: grid; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; }
+    .detail-row-out:last-child { border-bottom: none; }
+
+    /* Toast */
+    .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.8rem; padding: 0.75rem 1.25rem; z-index: 9999; box-shadow: 0 2px 8px rgba(0,0,0,0.08); animation: fadeIn 0.2s ease; }
+    .st-toast--success { border-color: #b8e0cb; color: #1e6640; background: #edf7f0; }
+    .st-toast--error   { border-color: #f5c6c6; color: #a32d2d; background: #fdf0ee; }
+
+    /* Spinner */
+    .st-spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* Add/remove row buttons */
+    .btn-add-row { background: transparent; border: 1px dashed var(--border); color: var(--muted); font-size: 0.75rem; padding: 0.45rem 1rem; border-radius: var(--radius); cursor: pointer; width: 100%; font-family: var(--font-sans); transition: all var(--transition); }
+    .btn-add-row:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-remove { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 0.72rem; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; transition: all var(--transition); }
+    .btn-remove:hover { border-color: var(--error); color: var(--error); }
+
+    /* Status badges */
+    .status-badge { display: inline-block; font-size: 0.7rem; font-weight: 500; padding: 2px 9px; border-radius: 4px; }
+    .status-requested  { background: #fef9ec; color: #854f0b; border: 1px solid #f5d89a; }
+    .status-sent       { background: #eef4fd; color: #1a5ca8; border: 1px solid #b5d0f5; }
+    .status-received   { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .status-dropped    { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+    /* Info block (supplier-submit / buyer-reserve) */
+    .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.75rem; }
+    .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .info-value { font-size: 0.83rem; color: var(--text); text-align: right; }
+    .info-value.accent { color: var(--accent); font-family: var(--font-mono); font-weight: 500; }
+    .info-value.warn { color: var(--warn); }
+    .section-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+    /* Availability bar */
+    .avail-bar-wrap { margin: 1rem 0; }
+    .avail-bar-labels { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .avail-bar { height: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+    .avail-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s ease; border-radius: 3px; }
+    .avail-bar-fill.low  { background: #e9a94a; }
+    .avail-bar-fill.none { background: var(--error); }
+
+    /* Price preview */
+    .price-preview { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; margin-bottom: 1.25rem; font-family: var(--font-mono); font-size: 0.82rem; min-height: 3.5rem; }
+    .price-preview .total { font-size: 1.1rem; color: var(--accent); font-weight: 500; margin-top: 0.35rem; }
+    .price-preview .muted { color: var(--muted); font-size: 0.72rem; }
+
+    /* Success / Error states (buyer-reserve, supplier-submit) */
+    .success-icon { font-size: 2rem; text-align: center; margin-bottom: 1rem; color: var(--success); }
+    .success-title { font-family: var(--font-mono); font-size: 1rem; font-weight: 500; text-align: center; color: var(--success); margin-bottom: 0.5rem; }
+    .success-sub, .success-detail { font-size: 0.83rem; color: var(--muted); text-align: center; line-height: 1.7; }
+    .error-msg { font-family: var(--font-mono); font-size: 0.82rem; color: var(--error); text-align: center; padding: 1rem 0; }
+    .full-icon  { font-size: 2rem; text-align: center; margin-bottom: 1rem; color: var(--error); }
+    .full-title { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 500; text-align: center; color: var(--error); margin-bottom: 0.5rem; }
+    .full-sub   { font-size: 0.82rem; color: var(--muted); text-align: center; }
+
+    /* Card (login, submit pages) */
+    .card, .login-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+    .card-logo, .login-logo { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2rem; }
+    .card-title, .login-title { font-size: 1.3rem; font-weight: 500; color: var(--text); margin-bottom: 0.3rem; font-family: var(--font-sans); letter-spacing: -0.01em; }
+    .card-sub, .login-sub { font-size: 0.83rem; color: var(--muted); margin-bottom: 2rem; }
+
+    /* Level badges */
+    .level-large  { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .level-medium { background: #eef4fd; color: #1a5ca8; border: 1px solid #b5d0f5; }
+    .level-small  { background: #fef9ec; color: #854f0b; border: 1px solid #f5d89a; }
+    .level-micro  { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; }
+
+    /* ── End Warm Precision ─────────────────────────────────────────────────── */
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="nav">
+    <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+    <div class="nav-links">
+      <a href="samples.html" class="active">Samples</a>
+      <a href="suppliers.html">Suppliers</a>
+      <a href="buyers.html">Buyers</a>
+      <a href="outbound.html">Outbound</a>
+    </div>
+    <span class="nav-user" id="nav-user" title="Sign out">Sign out</span>
+  </nav>
+
+  <!-- Page -->
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Inbound Samples</div>
+        <div class="page-sub" id="company-name"></div>
+      </div>
+      <button class="btn" id="btn-new-sample">+ New Sample Request</button>
+    </div>
+
+    <!-- Toolbar / filter -->
+    <div class="toolbar">
+      <select id="filter-warehouse">
+        <option value="">All Warehouses</option>
+      </select>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Inbound ID</th>
+            <th>Supplier</th>
+            <th>Warehouse</th>
+            <th>Created</th>
+            <th>Sending Date</th>
+            <th>Courier</th>
+            <th>Tracking #</th>
+            <th>Tracked</th>
+            <th>Received</th>
+            <th>Details</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="samples-tbody">
+          <tr><td colspan="11" class="st-empty"><div class="st-spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Modal: New / Edit Inbound Sample ── -->
+  <div class="st-modal" id="modal-sample">
+    <div class="modal-box">
+      <div class="modal-title" id="modal-sample-title">New Sample Request</div>
+
+      <div class="field">
+        <label for="s-supplier">Supplier <span style="color:var(--error)">*</span></label>
+        <select id="s-supplier" style="width:100%"></select>
+      </div>
+
+      <div class="field">
+        <label for="s-warehouse">Warehouse <span style="color:var(--error)">*</span></label>
+        <select id="s-warehouse" style="width:100%"></select>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="s-po">PO Number</label>
+          <input type="text" id="s-po" placeholder="Optional" />
+        </div>
+        <div class="field">
+          <label for="s-ref">Supplier Ref</label>
+          <input type="text" id="s-ref" placeholder="Optional" />
+        </div>
+      </div>
+
+      <!-- Details sub-section -->
+      <div class="field">
+        <label>Sample Details</label>
+        <div class="details-list" id="details-list">
+          <div class="detail-row detail-header">
+            <span>Sample Name</span><span>Origin Code</span><span>Qty (g)</span><span>Coffee Sales Name</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Type</span><span></span>
+          </div>
+          <div id="details-rows"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-add-detail" type="button">+ Add Sample</button>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-modal-cancel">Cancel</button>
+        <button class="btn" id="btn-modal-save">Save &amp; Send Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Send Link Confirm ── -->
+  <div class="st-modal" id="modal-link">
+    <div class="modal-box">
+      <div class="modal-title">Send Supplier Link</div>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.5rem;">
+        An email with a secure submission link will be sent to the supplier.<br>
+        The link expires in 7 days.
+      </p>
+      <div id="link-info" style="font-size:0.82rem;margin-bottom:1.5rem;"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="UI.closeModal('modal-link')">Cancel</button>
+        <button class="btn" id="btn-confirm-link">Send Link</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // Version 1.8 | samples.html script
+
+    if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let PAGE_DATA = { samples: [], details: [], prices: [], tiers: [], reservedMap: {}, suppliers: [], warehouses: [], coffeeTypes: [] };  // v1.8: coffeeTypes added
+    let editingInboundId = null;
+    let pendingLinkInboundId = null;
+    let detailRows = []; // temp detail buffer for modal
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    (async () => {
+      const user    = Auth.getUser();
+      const company = Auth.getCompany();
+      const whs     = Auth.getWarehouses();
+
+      document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+      document.getElementById('company-name').textContent = company ? company.company_name : '';
+      document.getElementById('nav-user').textContent = (user ? user.name : '') + ' · Sign out';
+      document.getElementById('nav-user').addEventListener('click', UI.logout);
+
+      // Populate warehouse filter (from session — no extra call)
+      const filterWH = document.getElementById('filter-warehouse');
+      whs.forEach(wh => {
+        const opt = document.createElement('option');
+        opt.value = wh.warehouse_id;
+        opt.textContent = wh.warehouse_name;
+        filterWH.appendChild(opt);
+      });
+
+      filterWH.addEventListener('change', () => loadPageData(filterWH.value));
+
+      await loadPageData(null);
+    })();
+
+    // ── Load Page Data (one API call) ─────────────────────────────────────────
+    async function loadPageData(warehouseId) {
+      try {
+        PAGE_DATA = await API.getSamplesPage(warehouseId);
+        if (!PAGE_DATA.coffeeTypes) PAGE_DATA.coffeeTypes = ['Microlot', 'Blend']; // fallback
+        renderTable();
+        populateModalDropdowns();
+      } catch (err) {
+        document.getElementById('samples-tbody').innerHTML =
+          '<tr><td colspan="11" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+      }
+    }
+
+    // ── Render Table ──────────────────────────────────────────────────────────
+    function renderTable() {
+      const tbody = document.getElementById('samples-tbody');
+      const supplierMap = {};
+      PAGE_DATA.suppliers.forEach(s => supplierMap[s.supplier_id] = s.supplier_name);
+      const whMap = {};
+      Auth.getWarehouses().forEach(w => whMap[w.warehouse_id] = w.warehouse_name);
+
+      // Group details by inbound_id
+      const detailMap = {};
+      PAGE_DATA.details.forEach(d => {
+        if (!detailMap[d.inbound_id]) detailMap[d.inbound_id] = [];
+        detailMap[d.inbound_id].push(d);
+      });
+
+      UI.buildTable(tbody, PAGE_DATA.samples, (s) => {
+        const dets = detailMap[s.inbound_id] || [];
+        const detSummary = dets.length
+          ? dets.map(d => {
+              const inactive = d.is_active === false || d.is_active === 'FALSE';
+              return '<span class="sample-id"' + (inactive ? ' style="opacity:0.4;text-decoration:line-through" title="Inactive"' : '') + '>'
+                + UI.esc(d.sample_id) + '</span>';
+            }).join('<br>')
+          : '<span style="color:var(--muted)">—</span>';
+
+        return `
+          <td><span class="sample-id">#${UI.esc(s.inbound_id)}</span></td>
+          <td>${UI.esc(supplierMap[s.supplier_id] || s.supplier_id)}</td>
+          <td>${UI.esc(whMap[s.warehouse_id] || s.warehouse_id)}</td>
+          <td>${UI.formatDate(s.created_at)}</td>
+          <td>${UI.formatDate(s.sending_date) || '—'}</td>
+          <td>${UI.esc(s.courier_name || '—')}</td>
+          <td>${UI.esc(s.tracking_number || '—')}</td>
+          <td>${badge(s.tracked)}</td>
+          <td>${badge(s.received)}</td>
+          <td>${detSummary}</td>
+          <td style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="openSendLink(${s.inbound_id})">Send Link</button>
+            <button class="btn btn-ghost btn-sm" onclick="openPrices(${s.inbound_id})" title="View / edit sale prices">Prices</button>
+          </td>`;
+      });
+    }
+
+    function badge(val) {
+      const isY = String(val).toUpperCase() === 'Y' || val === true || val === 'TRUE';
+      return isY
+        ? '<span class="badge badge-y">Y</span>'
+        : '<span class="badge badge-n">N</span>';
+    }
+
+    // ── Modal: New Sample ─────────────────────────────────────────────────────
+    document.getElementById('btn-new-sample').addEventListener('click', () => {
+      editingInboundId = null;
+      detailRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', coffee_type: '' }];  // v1.3/v1.8
+      document.getElementById('modal-sample-title').textContent = 'New Sample Request';
+      document.getElementById('s-po').value = '';
+      document.getElementById('s-ref').value = '';
+      renderDetailRows();
+      UI.openModal('modal-sample');
+    });
+
+    document.getElementById('btn-modal-cancel').addEventListener('click', () => UI.closeModal('modal-sample'));
+
+    function populateModalDropdowns() {
+      UI.populateSelect(document.getElementById('s-supplier'), PAGE_DATA.suppliers, 'supplier_id', 'supplier_name', '— Select supplier —');
+      UI.populateSelect(document.getElementById('s-warehouse'), Auth.getWarehouses(), 'warehouse_id', 'warehouse_name', '— Select warehouse —');
+    }
+
+    // ── Detail rows ───────────────────────────────────────────────────────────
+    function renderDetailRows() {
+      const container = document.getElementById('details-rows');
+      container.innerHTML = '';
+      detailRows.forEach((d, i) => {
+        const row = document.createElement('div');
+        row.className = 'detail-row';
+        // v1.1: coffee_sales_name | v1.3: available_bags, bag_size, cost_price
+        row.innerHTML = `
+          <input type="text" placeholder="Sample name" value="${UI.esc(d.sample_name)}" onchange="detailRows[${i}].sample_name=this.value" />
+          <input type="text" placeholder="Origin code" value="${UI.esc(d.origin_sample_code)}" onchange="detailRows[${i}].origin_sample_code=this.value" />
+          <input type="number" placeholder="g" min="0" value="${UI.esc(d.qty_grams)}" onchange="detailRows[${i}].qty_grams=this.value" />
+          <input type="text" placeholder="Sales name" value="${UI.esc(d.coffee_sales_name || '')}" onchange="detailRows[${i}].coffee_sales_name=this.value" />
+          <input type="number" placeholder="0" min="0" value="${UI.esc(d.available_bags || '')}" onchange="detailRows[${i}].available_bags=this.value" title="Available bags" />
+          <input type="number" placeholder="0" min="0" step="0.1" value="${UI.esc(d.bag_size || '')}" onchange="detailRows[${i}].bag_size=this.value" title="Bag size (kg)" />
+          <input type="number" placeholder="0.00" min="0" step="0.01" value="${UI.esc(d.cost_price || '')}" onchange="detailRows[${i}].cost_price=this.value" title="Cost price per kg" />
+          <select onchange="detailRows[${i}].coffee_type=this.value" title="Coffee type (internal — not shown to supplier)">
+            <option value="">—</option>
+            ${(PAGE_DATA.coffeeTypes || ['Microlot','Blend']).map(t => '<option value="' + t + '"' + (d.coffee_type === t ? ' selected' : '') + '>' + t + '</option>').join('')}
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="removeDetailRow(${i})">✕</button>`;
+        container.appendChild(row);
+      });
+    }
+
+    function removeDetailRow(i) {
+      detailRows.splice(i, 1);
+      renderDetailRows();
+    }
+
+    document.getElementById('btn-add-detail').addEventListener('click', () => {
+      detailRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', coffee_type: '' });  // v1.3/v1.8
+      renderDetailRows();
+    });
+
+    // ── Save Inbound ──────────────────────────────────────────────────────────
+    document.getElementById('btn-modal-save').addEventListener('click', async () => {
+      const supplierId  = document.getElementById('s-supplier').value;
+      const warehouseId = document.getElementById('s-warehouse').value;
+      const po          = document.getElementById('s-po').value.trim();
+      const ref         = document.getElementById('s-ref').value.trim();
+
+      if (!supplierId)  { UI.toastError('Select a supplier.'); return; }
+      if (!warehouseId) { UI.toastError('Select a warehouse.'); return; }
+
+      const validDetails = detailRows.filter(d => d.sample_name.trim());
+      if (!validDetails.length) { UI.toastError('Add at least one sample.'); return; }
+
+      const btn = document.getElementById('btn-modal-save');
+      UI.setLoading(btn, true);
+
+      try {
+        // 1. Save inbound header
+        const { inbound_id } = await API.saveInbound({
+          inbound_id:   editingInboundId,
+          supplier_id:  supplierId,
+          warehouse_id: warehouseId,
+          po_number:    po,
+          supplier_ref: ref,
+        });
+
+        // 2. Save each detail (one call per detail — unavoidable for sample_id gen)
+        // Supplier's country is used for sample_id — get from supplier's country_id
+        const supplier = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(supplierId));
+        for (const d of validDetails) {
+          await API.saveDetail(inbound_id, warehouseId, supplier.country_id, d);
+        }
+
+        UI.closeModal('modal-sample');
+        UI.toastSuccess('Sample request saved.');
+        await loadPageData(document.getElementById('filter-warehouse').value);
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
+
+    // ── Send Link ─────────────────────────────────────────────────────────────
+    function openSendLink(inboundId) {
+      pendingLinkInboundId = inboundId;
+      const s = PAGE_DATA.samples.find(x => String(x.inbound_id) === String(inboundId));
+      const supplierMap = {};
+      PAGE_DATA.suppliers.forEach(x => supplierMap[x.supplier_id] = x);
+      const supplier = supplierMap[s.supplier_id];
+      document.getElementById('link-info').innerHTML =
+        'Supplier: <strong>' + UI.esc(supplier ? supplier.supplier_name : s.supplier_id) + '</strong><br>' +
+        'Email: <strong>' + UI.esc(supplier ? supplier.email : '—') + '</strong>';
+      UI.openModal('modal-link');
+    }
+
+    document.getElementById('btn-confirm-link').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-confirm-link');
+      UI.setLoading(btn, true);
+      try {
+        await API.sendSupplierLink(pendingLinkInboundId);
+        UI.closeModal('modal-link');
+        UI.toastSuccess('Link sent to supplier.');
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
+
+    // ── Prices Modal (v1.3) ───────────────────────────────────────────────────
+    // Shows 4-tier sale prices for every detail on an inbound.
+    // Prices are auto-calculated: cost_price × tier multiplier.
+    // User can override any price — saved individually per detail+level.
+
+    document.getElementById('btn-prices-close').addEventListener('click', () => UI.closeModal('modal-prices'));
+
+    function openPrices(inboundId) {
+      const details  = PAGE_DATA.details.filter(d => String(d.inbound_id) === String(inboundId));
+      const priceMap = {};
+      (PAGE_DATA.prices || []).forEach(p => {
+        if (!priceMap[p.detail_id]) priceMap[p.detail_id] = {};
+        priceMap[p.detail_id][p.level] = p;
+      });
+
+      document.getElementById('price-modal-sample-id').textContent = '#' + inboundId;
+
+      const container = document.getElementById('price-rows-container');
+      container.innerHTML = '';
+
+      if (!details.length) {
+        container.innerHTML = '<p style="color:var(--muted);font-size:0.82rem">No sample details yet.</p>';
+        UI.openModal('modal-prices');
+        return;
+      }
+
+      const LEVELS = ['Large', 'Medium', 'Small', 'Micro'];
+      const LEVEL_COLORS = { Large: '#4affa0', Medium: '#7ab8ff', Small: '#ffc84a', Micro: '#ff8c8c' };
+
+      details.forEach(d => {
+        const block = document.createElement('div');
+        block.style.cssText = 'margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--border)';
+
+        // v1.5: read buyer_available (cached) + confirmed_purchase from detail
+        const buyerAvail  = d.buyer_available !== undefined ? d.buyer_available : (d.available_bags || 0);
+        const confirmedQty = d.confirmed_purchase || 0;
+
+        const isActive   = d.is_active !== false && d.is_active !== 'FALSE';
+        const activeColor = isActive ? 'var(--success)' : 'var(--error)';
+        const activeLabel = isActive ? 'ACTIVE' : 'INACTIVE';
+
+        let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">';
+        html += '<div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent)">'
+          + UI.esc(d.sample_id) + ' — ' + UI.esc(d.sample_name)
+          + (d.cost_price ? ' <span style="color:var(--muted)">(cost: $' + parseFloat(d.cost_price).toFixed(2) + '/kg)</span>' : '')
+          + '</div>';
+        html += '<button id="toggle-btn-' + d.detail_id + '" '
+          + 'style="font-family:var(--font-mono);font-size:0.65rem;padding:3px 10px;border:1px solid ' + activeColor + ';color:' + activeColor + ';background:transparent;cursor:pointer;letter-spacing:0.06em" '
+          + 'onclick="toggleActive(' + d.detail_id + ',' + (!isActive) + ')">'
+          + (isActive ? '✓ ACTIVE' : '✕ INACTIVE')
+          + '</button>';
+        html += '</div>';
+
+        // Bag status block — offered / confirmed / available
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;padding:0.6rem 0.75rem;background:var(--surface);border:1px solid var(--border);font-family:var(--font-mono);font-size:0.72rem">';
+        html += '<div><div style="color:var(--muted);font-size:0.62rem;margin-bottom:2px">OFFERED BY SUPPLIER</div><div style="color:var(--text)">' + (d.available_bags || 0) + ' bags</div></div>';
+        html += '<div><div style="color:var(--muted);font-size:0.62rem;margin-bottom:2px">WE CONFIRMED</div>';
+        html += '<div style="display:flex;align-items:center;gap:6px">';
+        html += '<input type="number" min="0" value="' + confirmedQty + '" style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;font-size:0.78rem;font-family:var(--font-mono)" id="confirmed-' + d.detail_id + '" />';
+        html += '<button style="background:var(--accent);color:#fff;border:none;font-family:var(--font-mono);font-size:0.65rem;padding:3px 8px;cursor:pointer;font-weight:600" onclick="saveConfirmedQty(' + d.detail_id + ')">SAVE</button>';
+        html += '</div></div>';
+        html += '<div><div style="color:var(--muted);font-size:0.62rem;margin-bottom:2px">BUYER AVAILABLE</div><div style="color:var(--accent);font-weight:600" id="avail-' + d.detail_id + '">' + buyerAvail + ' bags</div></div>';
+        // v1.8: coffee_type selector (internal only)
+        const ctOpts = (PAGE_DATA.coffeeTypes || ['Microlot','Blend'])
+          .map(t => '<option value="' + t + '"' + (d.coffee_type === t ? ' selected' : '') + '>' + t + '</option>').join('');
+        html += '<div><div style="color:var(--muted);font-size:0.62rem;margin-bottom:2px">COFFEE TYPE</div>'
+          + '<select id="ct-' + d.detail_id + '" onchange="saveCoffeeType(' + d.detail_id + ',this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;font-size:0.78rem;font-family:var(--font-mono);width:100%">'
+          + '<option value="">— pick —</option>' + ctOpts + '</select></div>';
+        html += '</div>';
+
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.5rem">';
+
+        LEVELS.forEach(level => {
+          const priceObj = priceMap[d.detail_id] ? priceMap[d.detail_id][level] : null;
+          const val      = priceObj ? parseFloat(priceObj.sale_price).toFixed(2) : '0.00';
+          const isManual = priceObj && priceObj.is_manual;
+          const color    = LEVEL_COLORS[level];
+          html += `<div>
+            <div style="font-size:0.65rem;font-family:var(--font-mono);color:${color};margin-bottom:3px">
+              ${UI.esc(level)}${isManual ? ' <span title="Manually set">★</span>' : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="font-size:0.75rem;color:var(--muted)">$</span>
+              <input type="number" min="0" step="0.01"
+                value="${val}"
+                style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 6px;font-size:0.82rem;font-family:var(--font-mono)"
+                onchange="savePriceOverride(${d.detail_id}, '${level}', this.value, this)" />
+            </div>
+          </div>`;
+        });
+
+        html += '</div>';
+        block.innerHTML = html;
+        container.appendChild(block);
+      });
+
+      UI.openModal('modal-prices');
+    }
+
+    async function savePriceOverride(detailId, level, value, inputEl) {
+      const salePrice = parseFloat(value);
+      if (isNaN(salePrice) || salePrice < 0) { UI.toastError('Invalid price.'); return; }
+      try {
+        await API.saveSamplePrice(detailId, level, salePrice);
+        // Mark field as manually set in local state
+        const existing = (PAGE_DATA.prices || []).find(p => String(p.detail_id) === String(detailId) && p.level === level);
+        if (existing) { existing.sale_price = salePrice; existing.is_manual = true; }
+        else { PAGE_DATA.prices = PAGE_DATA.prices || []; PAGE_DATA.prices.push({ detail_id: detailId, level, sale_price: salePrice, is_manual: true }); }
+        // Add star indicator
+        const label = inputEl.closest('div').previousElementSibling;
+        if (label && !label.textContent.includes('★')) label.innerHTML += ' <span title="Manually set">★</span>';
+        UI.toastSuccess(level + ' price saved.');
+      } catch (err) {
+        UI.toastError(err.message);
+      }
+    }
+
+    // ── Confirmed Purchase (v1.5) ─────────────────────────────────────────────
+    // User sets how many bags they actually bought from supplier.
+    // GAS recalcs buyer_available and returns the new value.
+    // UI updates the buyer_available display inline — no page reload needed.
+
+    async function saveConfirmedQty(detailId) {
+      const input = document.getElementById('confirmed-' + detailId);
+      const qty   = parseInt(input.value);
+      if (isNaN(qty) || qty < 0) { UI.toastError('Enter a valid quantity.'); return; }
+      try {
+        const result = await API.saveConfirmedPurchase(detailId, qty);
+        // Update buyer_available display inline
+        const availEl = document.getElementById('avail-' + detailId);
+        if (availEl) availEl.textContent = result.buyer_available + ' bags';
+        // Also update local PAGE_DATA so price modal stays consistent
+        const det = PAGE_DATA.details.find(d => String(d.detail_id) === String(detailId));
+        if (det) { det.confirmed_purchase = qty; det.buyer_available = result.buyer_available; }
+        UI.toastSuccess('Confirmed purchase saved. Buyer available: ' + result.buyer_available + ' bags.');
+      } catch (err) {
+        UI.toastError(err.message);
+      }
+    }
+
+    // ── Detail Active Toggle (v1.7) ───────────────────────────────────────────
+    // Activate or deactivate an inbound_detail.
+    // Inactive = hidden from outbound picker + buyer emails.
+    // Visible here in history with strikethrough sample_id.
+
+    async function toggleActive(detailId, newState) {
+      const btn = document.getElementById('toggle-btn-' + detailId);
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+      try {
+        await API.toggleDetailActive(detailId, newState);
+        // Update local state
+        const det = PAGE_DATA.details.find(d => String(d.detail_id) === String(detailId));
+        if (det) det.is_active = newState;
+        // Update button appearance inline
+        if (btn) {
+          const color = newState ? 'var(--success)' : 'var(--error)';
+          btn.style.borderColor = color;
+          btn.style.color       = color;
+          btn.textContent       = newState ? '✓ ACTIVE' : '✕ INACTIVE';
+          btn.setAttribute('onclick', 'toggleActive(' + detailId + ',' + (!newState) + ')');
+          btn.disabled    = false;
+          btn.style.opacity = '1';
+        }
+        UI.toastSuccess('Sample ' + (newState ? 'activated' : 'deactivated') + '.');
+        // Re-render table so strikethrough updates
+        renderTable();
+      } catch (err) {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        UI.toastError(err.message);
+      }
+    }
+
+    // ── Coffee Type (v1.8) ────────────────────────────────────────────────────
+    // User sets coffee type on inbound detail — internal classification, not shown to supplier.
+
+    async function saveCoffeeType(detailId, coffeeType) {
+      if (!coffeeType) return;
+      try {
+        await API.updateDetailCoffeeType(detailId, coffeeType);
+        const det = PAGE_DATA.details.find(d => String(d.detail_id) === String(detailId));
+        if (det) det.coffee_type = coffeeType;
+        UI.toastSuccess('Coffee type set to ' + coffeeType + '.');
+      } catch (err) {
+        UI.toastError(err.message);
+      }
+    }
+  </script>
+
+  <!-- ── Modal: Sample Prices (v1.3) ── -->
+  <div class="st-modal" id="modal-prices">
+    <div class="modal-box" style="max-width:480px">
+      <div class="modal-title">Sale Prices — <span id="price-modal-sample-id" style="color:var(--accent)"></span></div>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem">
+        Auto-filled from cost × tier multiplier. Edit any field to override.
+        <span style="color:var(--accent)">★</span> = manually set.
+      </p>
+      <div id="price-rows-container"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-prices-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+
+</body>
+</html>

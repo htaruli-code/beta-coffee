@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<!-- Version 1.7 | outbound.html -->
+<!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outbound Samples — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; 
+      --border: #f0e8da; --accent: #c47a2b; --text: #1a1a1a;
+      --muted: #8a7060; --error: #c0392b; --success: #2e7d52; --warn: #b45309; --warn: #ffc84a;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+
+    /* ── Layout ── */
+    .page { max-width: 1300px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    select { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; cursor: pointer; transition: border-color var(--transition); }
+    select:focus { border-color: var(--accent); }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: opacity var(--transition); white-space: nowrap; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { opacity: 0.85; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); opacity: 1; }
+    .btn-sm { padding: 0.32rem 0.65rem; font-size: 0.68rem; }
+
+    /* ── Status buttons ── */
+    .status-btns { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .btn-status { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.28rem 0.6rem; cursor: pointer; border-radius: var(--radius); transition: all var(--transition); white-space: nowrap; }
+    .btn-status:hover:not(:disabled)   { color: var(--text); border-color: var(--text); }
+    .btn-status:disabled { opacity: 0.3; cursor: default; }
+    .btn-status.s-requested  { border-color: var(--muted);   color: var(--muted); }
+    .btn-status.s-sent       { border-color: var(--warn);    color: var(--warn); }
+    .btn-status.s-received   { border-color: #7ab8ff;        color: #7ab8ff; }
+    .btn-status.s-dropped-off { border-color: var(--success); color: var(--success); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--surface2); }
+    th { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.82rem; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+    .st-empty { color: var(--muted); font-style: italic; text-align: center; padding: 2rem !important; }
+
+    /* ── Status badge ── */
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.06em; padding: 0.22rem 0.55rem; border-radius: 2px; text-transform: uppercase; white-space: nowrap; }
+    .badge-requested   { background: #1a1a1a; color: var(--muted);    border: 1px solid var(--border); }
+    .badge-sent        { background: #2a2010; color: var(--warn);     border: 1px solid #5a4010; }
+    .badge-received    { background: #10203a; color: #7ab8ff;         border: 1px solid #1e3f6a; }
+    .badge-dropped-off { background: #0e2a18; color: var(--success);  border: 1px solid #1a5030; }
+
+    /* ── Beans badge ── */
+    .badge-green   { background: #162010; color: #80d060; border: 1px solid #2a4020; }
+    .badge-roasted { background: #2a1808; color: #d08040; border: 1px solid #4a2c10; }
+
+    /* ── Modal ── */
+    .st-modal { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; padding: 1rem; }
+    .modal-box { background: var(--surface); border: 1px solid var(--border); width: 100%; max-width: 680px; max-height: 92vh; overflow-y: auto; padding: 2rem; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.5rem; }
+    .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; flex-wrap: wrap; }
+    .modal-section { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); margin: 1.25rem 0 0.9rem; }
+
+    /* ── Form ── */
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.45rem; }
+    input[type="text"], input[type="date"], input[type="number"] { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.85rem; padding: 0.65rem 0.875rem; outline: none; border-radius: var(--radius); transition: border-color var(--transition); }
+    input:focus, select:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+
+    /* ── Detail rows (outbound) ── */
+    .detail-table-header { display: grid; grid-template-columns: 2.5fr 1fr 0.8fr auto; gap: 0.4rem; background: var(--surface2); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.5rem; font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; margin-bottom: 0.6rem; }
+    .detail-row-out { display: grid; grid-template-columns: 2.5fr 1fr 0.8fr auto; gap: 0.4rem; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--border); align-items: center; }
+    .detail-row-out:last-child { border-bottom: none; }
+    .detail-row-out input { padding: 0.38rem 0.5rem; font-size: 0.78rem; }
+    .detail-row-out select { padding: 0.38rem 0.5rem; font-size: 0.78rem; }
+    .btn-remove { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 0.72rem; padding: 0.28rem 0.5rem; cursor: pointer; border-radius: var(--radius); transition: all var(--transition); }
+    .btn-remove:hover { border-color: var(--error); color: var(--error); }
+    .btn-add-row { background: transparent; border: 1px dashed var(--border); color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; padding: 0.45rem 1rem; cursor: pointer; border-radius: var(--radius); width: 100%; transition: all var(--transition); letter-spacing: 0.06em; text-transform: uppercase; }
+    .btn-add-row:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── View details panel ── */
+    .detail-summary { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); }
+
+    /* ── Spinner / Toast ── */
+    .st-spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; z-index: 9999; animation: fadeIn 0.2s ease; }
+    .st-toast--success { border-color: var(--success); color: var(--success); }
+    .st-toast--error   { border-color: var(--error);   color: var(--error);   }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* ── Warm Precision Theme v1.0 ─────────────────────────────────────────── */
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+
+    /* Nav */
+    .nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 52px; gap: 2rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
+    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
+    .nav-links a:hover { background: var(--surface); color: var(--text); }
+    .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
+    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
+    .nav-user:hover { color: var(--accent); }
+
+    /* Page */
+    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .page-title { font-size: 1.3rem; font-weight: 500; color: var(--text); letter-spacing: -0.01em; }
+    .page-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* Amber divider accent */
+    .page::before { content: ''; display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, #f0e8da 60%, transparent 100%); margin-bottom: 1.75rem; border-radius: 1px; }
+
+    /* Toolbar */
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; }
+    .toolbar select { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); cursor: pointer; font-family: var(--font-sans); }
+    .toolbar select:focus { outline: none; border-color: var(--accent); }
+
+    /* Table */
+    .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead tr { background: var(--surface); }
+    th { text-align: left; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface); }
+    .st-empty { text-align: center; color: var(--muted); padding: 3rem; font-size: 0.83rem; }
+
+    /* Badges */
+    .badge { display: inline-block; font-size: 0.7rem; font-weight: 500; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono); }
+    .badge-y { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .badge-n { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .sample-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+
+    /* Buttons */
+    .btn { background: var(--accent); color: #fff; border: none; font-family: var(--font-sans); font-size: 0.83rem; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); letter-spacing: 0.01em; }
+    .btn:hover { background: var(--accent2); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface); border-color: var(--border2); }
+    .btn-sm { font-size: 0.75rem; padding: 0.3rem 0.75rem; }
+
+    /* Inputs */
+    input[type="text"], input[type="email"], input[type="date"], input[type="number"], textarea, select {
+      background: #fff; border: 1px solid var(--border); color: var(--text);
+      font-family: var(--font-sans); font-size: 0.85rem; padding: 0.55rem 0.875rem;
+      border-radius: var(--radius); outline: none; width: 100%;
+      transition: border-color var(--transition);
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,122,43,0.08); }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    label { display: block; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .field { margin-bottom: 1rem; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* Modal */
+    .st-modal { display: none; position: fixed; inset: 0; background: rgba(26,16,8,0.35); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+    .st-modal.open { display: flex; }
+    .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 1rem; font-weight: 500; color: var(--text); margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+    .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .modal-section { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+    /* Detail rows (samples modal) */
+    .details-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 0.5rem; }
+    .detail-row { display: grid; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-header { background: var(--surface); font-family: var(--font-mono); font-size: 0.62rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .detail-row input, .detail-row select { padding: 0.3rem 0.5rem; font-size: 0.78rem; border-radius: 4px; }
+
+    /* Outbound detail rows */
+    .detail-table-header { display: grid; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.6rem; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; margin-bottom: 0.6rem; }
+    .detail-row-out { display: grid; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; }
+    .detail-row-out:last-child { border-bottom: none; }
+
+    /* Toast */
+    .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.8rem; padding: 0.75rem 1.25rem; z-index: 9999; box-shadow: 0 2px 8px rgba(0,0,0,0.08); animation: fadeIn 0.2s ease; }
+    .st-toast--success { border-color: #b8e0cb; color: #1e6640; background: #edf7f0; }
+    .st-toast--error   { border-color: #f5c6c6; color: #a32d2d; background: #fdf0ee; }
+
+    /* Spinner */
+    .st-spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* Add/remove row buttons */
+    .btn-add-row { background: transparent; border: 1px dashed var(--border); color: var(--muted); font-size: 0.75rem; padding: 0.45rem 1rem; border-radius: var(--radius); cursor: pointer; width: 100%; font-family: var(--font-sans); transition: all var(--transition); }
+    .btn-add-row:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-remove { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 0.72rem; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; transition: all var(--transition); }
+    .btn-remove:hover { border-color: var(--error); color: var(--error); }
+
+    /* Status badges */
+    .status-badge { display: inline-block; font-size: 0.7rem; font-weight: 500; padding: 2px 9px; border-radius: 4px; }
+    .status-requested  { background: #fef9ec; color: #854f0b; border: 1px solid #f5d89a; }
+    .status-sent       { background: #eef4fd; color: #1a5ca8; border: 1px solid #b5d0f5; }
+    .status-received   { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .status-dropped    { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+    /* Info block (supplier-submit / buyer-reserve) */
+    .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.75rem; }
+    .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .info-value { font-size: 0.83rem; color: var(--text); text-align: right; }
+    .info-value.accent { color: var(--accent); font-family: var(--font-mono); font-weight: 500; }
+    .info-value.warn { color: var(--warn); }
+    .section-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+    /* Availability bar */
+    .avail-bar-wrap { margin: 1rem 0; }
+    .avail-bar-labels { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .avail-bar { height: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+    .avail-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s ease; border-radius: 3px; }
+    .avail-bar-fill.low  { background: #e9a94a; }
+    .avail-bar-fill.none { background: var(--error); }
+
+    /* Price preview */
+    .price-preview { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; margin-bottom: 1.25rem; font-family: var(--font-mono); font-size: 0.82rem; min-height: 3.5rem; }
+    .price-preview .total { font-size: 1.1rem; color: var(--accent); font-weight: 500; margin-top: 0.35rem; }
+    .price-preview .muted { color: var(--muted); font-size: 0.72rem; }
+
+    /* Success / Error states (buyer-reserve, supplier-submit) */
+    .success-icon { font-size: 2rem; text-align: center; margin-bottom: 1rem; color: var(--success); }
+    .success-title { font-family: var(--font-mono); font-size: 1rem; font-weight: 500; text-align: center; color: var(--success); margin-bottom: 0.5rem; }
+    .success-sub, .success-detail { font-size: 0.83rem; color: var(--muted); text-align: center; line-height: 1.7; }
+    .error-msg { font-family: var(--font-mono); font-size: 0.82rem; color: var(--error); text-align: center; padding: 1rem 0; }
+    .full-icon  { font-size: 2rem; text-align: center; margin-bottom: 1rem; color: var(--error); }
+    .full-title { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 500; text-align: center; color: var(--error); margin-bottom: 0.5rem; }
+    .full-sub   { font-size: 0.82rem; color: var(--muted); text-align: center; }
+
+    /* Card (login, submit pages) */
+    .card, .login-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+    .card-logo, .login-logo { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2rem; }
+    .card-title, .login-title { font-size: 1.3rem; font-weight: 500; color: var(--text); margin-bottom: 0.3rem; font-family: var(--font-sans); letter-spacing: -0.01em; }
+    .card-sub, .login-sub { font-size: 0.83rem; color: var(--muted); margin-bottom: 2rem; }
+
+    /* Level badges */
+    .level-large  { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .level-medium { background: #eef4fd; color: #1a5ca8; border: 1px solid #b5d0f5; }
+    .level-small  { background: #fef9ec; color: #854f0b; border: 1px solid #f5d89a; }
+    .level-micro  { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; }
+
+    /* ── End Warm Precision ─────────────────────────────────────────────────── */
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+    <div class="nav-links">
+      <a href="samples.html">Samples</a>
+      <a href="suppliers.html">Suppliers</a>
+      <a href="buyers.html">Buyers</a>
+      <a href="outbound.html" class="active">Outbound</a>
+    </div>
+    <span class="nav-user" id="nav-user">Sign out</span>
+  </nav>
+
+  <div class="page">
+    <div class="page-header">
+      <div class="page-title">Outbound Samples</div>
+      <button class="btn" id="btn-new">+ New Outbound</button>
+    </div>
+
+    <div class="toolbar">
+      <select id="filter-warehouse">
+        <option value="">All Warehouses</option>
+      </select>
+      <select id="filter-status">
+        <option value="">All Statuses</option>
+        <option value="Requested">Requested</option>
+        <option value="Sent">Sent</option>
+        <option value="Received">Received</option>
+        <option value="Dropped Off">Dropped Off</option>
+      </select>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Buyer</th>
+            <th>Warehouse</th>
+            <th>Beans</th>
+            <th>Shipping Date</th>
+            <th>Courier</th>
+            <th>Tracking #</th>
+            <th>Samples</th>
+            <th>Status</th>
+            <th>Update Status</th>
+          </tr>
+        </thead>
+        <tbody id="outbound-tbody">
+          <tr><td colspan="10" class="st-empty"><div class="st-spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Modal: New Outbound ── -->
+  <div class="st-modal" id="modal-outbound">
+    <div class="modal-box">
+      <div class="modal-title">New Outbound Sample</div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="o-buyer">Buyer <span style="color:var(--error)">*</span></label>
+          <select id="o-buyer" style="width:100%"></select>
+        </div>
+        <div class="field">
+          <label for="o-warehouse">Warehouse <span style="color:var(--error)">*</span></label>
+          <select id="o-warehouse" style="width:100%"></select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="o-beans">Beans <span style="color:var(--error)">*</span></label>
+          <select id="o-beans" style="width:100%">
+            <option value="">— Select type —</option>
+            <option value="Green">Green</option>
+            <option value="Roasted">Roasted</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="o-shipping-date">Shipping Date</label>
+          <input type="date" id="o-shipping-date" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="o-courier">Courier</label>
+          <input type="text" id="o-courier" placeholder="e.g. DHL" />
+        </div>
+        <div class="field">
+          <label for="o-tracking">Tracking Number</label>
+          <input type="text" id="o-tracking" placeholder="Optional at creation" />
+        </div>
+      </div>
+
+      <!-- Sample detail rows -->
+      <div class="modal-section">Sample Details <span style="color:var(--error)">*</span></div>
+
+      <div class="detail-table-header">
+        <span>Sample (ID — Name — Available)</span>
+        <span>Type</span>
+        <span>Qty (g)</span>
+        <span></span>
+      </div>
+      <div class="detail-rows-wrap" id="outbound-detail-rows"></div>
+      <button class="btn-add-row" id="btn-add-detail-row" type="button">+ Add Sample Row</button>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-cancel-outbound">Cancel</button>
+        <button class="btn" id="btn-save-outbound">Create &amp; Notify Warehouse</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Status Update Confirm ── -->
+  <div class="st-modal" id="modal-status">
+    <div class="modal-box" style="max-width:440px">
+      <div class="modal-title">Update Status</div>
+      <div id="status-confirm-info" style="font-size:0.85rem;color:var(--muted);margin-bottom:1.5rem;line-height:1.6"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="UI.closeModal('modal-status')">Cancel</button>
+        <button class="btn" id="btn-confirm-status">Confirm &amp; Notify</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // Version 1.2 | outbound.html script
+
+    if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let PAGE_DATA = { outbounds: [], details: [], buyers: [], warehouses: [], inboundDetails: [], samplePrices: [] };
+    let outboundDetailRows = []; // v1.7: each row = { inbound_detail_id, sample_type, qty_grams }
+    let pendingStatus = { outbound_id: null, status: null };
+
+    const STATUS_ORDER = ['Requested', 'Sent', 'Received', 'Dropped Off'];
+    const STATUS_CSS   = { 'Requested': 'badge-requested', 'Sent': 'badge-sent', 'Received': 'badge-received', 'Dropped Off': 'badge-dropped-off' };
+    const BTN_CSS      = { 'Requested': 's-requested', 'Sent': 's-sent', 'Received': 's-received', 'Dropped Off': 's-dropped-off' };
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    (async () => {
+      const user    = Auth.getUser();
+      const company = Auth.getCompany();
+      document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+      document.getElementById('nav-user').textContent  = (user ? user.name : '') + ' · Sign out';
+      document.getElementById('nav-user').addEventListener('click', UI.logout);
+
+      // Warehouse filter from session
+      const whs = Auth.getWarehouses();
+      const filterWH = document.getElementById('filter-warehouse');
+      whs.forEach(wh => {
+        const opt = document.createElement('option');
+        opt.value = wh.warehouse_id;
+        opt.textContent = wh.warehouse_name;
+        filterWH.appendChild(opt);
+      });
+
+      filterWH.addEventListener('change', applyFilters);
+      document.getElementById('filter-status').addEventListener('change', applyFilters);
+
+      await loadPageData(null);
+    })();
+
+    // ── Load Page Data ────────────────────────────────────────────────────────
+    async function loadPageData(warehouseId) {
+      try {
+        PAGE_DATA = await API.getOutboundPage(warehouseId);
+        populateModalDropdowns();
+        renderTable(PAGE_DATA.outbounds);
+      } catch (err) {
+        document.getElementById('outbound-tbody').innerHTML =
+          '<tr><td colspan="10" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+      }
+    }
+
+    function applyFilters() {
+      const whId     = document.getElementById('filter-warehouse').value;
+      const status   = document.getElementById('filter-status').value;
+      let filtered   = PAGE_DATA.outbounds;
+      if (whId)   filtered = filtered.filter(o => String(o.warehouse_id) === whId);
+      if (status) filtered = filtered.filter(o => o.status === status);
+      renderTable(filtered);
+    }
+
+    // ── Render Table ──────────────────────────────────────────────────────────
+    function renderTable(outbounds) {
+      const tbody = document.getElementById('outbound-tbody');
+      const buyerMap = {};
+      PAGE_DATA.buyers.forEach(b => buyerMap[b.buyer_id] = b.company_name);
+      const whMap = {};
+      Auth.getWarehouses().forEach(w => whMap[w.warehouse_id] = w.warehouse_name);
+
+      // Group details by outbound_id
+      const detailMap = {};
+      PAGE_DATA.details.forEach(d => {
+        if (!detailMap[d.outbound_id]) detailMap[d.outbound_id] = [];
+        detailMap[d.outbound_id].push(d);
+      });
+
+      UI.buildTable(tbody, outbounds, (o) => {
+        const dets = detailMap[o.outbound_id] || [];
+        const detSummary = dets.length
+          ? `<span class="detail-summary">${dets.length} sample${dets.length > 1 ? 's' : ''}</span>`
+          : '<span style="color:var(--muted)">—</span>';
+
+        const statusClass  = STATUS_CSS[o.status]  || 'badge-requested';
+        const currentIdx   = STATUS_ORDER.indexOf(o.status);
+
+        // Status buttons — only show valid next statuses and current
+        const statusBtns = STATUS_ORDER.map((s, idx) => {
+          const btnClass = BTN_CSS[s] || '';
+          const isCurrent = s === o.status;
+          const isNext    = idx === currentIdx + 1;
+          if (!isCurrent && !isNext) return '';
+          const disabled  = isCurrent ? 'disabled' : '';
+          return `<button class="btn-status ${btnClass}" ${disabled}
+            onclick="openStatusConfirm(${o.outbound_id},'${UI.esc(s)}','${UI.esc(buyerMap[o.buyer_id] || '')}')">
+            ${isCurrent ? '● ' : ''}${UI.esc(s)}
+          </button>`;
+        }).join('');
+
+        return `
+          <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">#${UI.esc(o.outbound_id)}</td>
+          <td>${UI.esc(buyerMap[o.buyer_id] || '—')}</td>
+          <td>${UI.esc(whMap[o.warehouse_id] || '—')}</td>
+          <td>${beansBadge(o.beans)}</td>
+          <td>${UI.formatDate(o.shipping_date) || '—'}</td>
+          <td>${UI.esc(o.courier || '—')}</td>
+          <td>${UI.esc(o.tracking_number || '—')}</td>
+          <td>${detSummary}</td>
+          <td><span class="badge ${statusClass}">${UI.esc(o.status)}</span></td>
+          <td><div class="status-btns">${statusBtns}</div></td>`;
+      });
+    }
+
+    function beansBadge(beans) {
+      if (!beans) return '<span style="color:var(--muted)">—</span>';
+      const cls = beans === 'Green' ? 'badge-green' : 'badge-roasted';
+      return `<span class="badge ${cls}">${UI.esc(beans)}</span>`;
+    }
+
+    // ── Populate modal dropdowns ───────────────────────────────────────────────
+    function populateModalDropdowns() {
+      UI.populateSelect(document.getElementById('o-buyer'),     PAGE_DATA.buyers,    'buyer_id',     'company_name',   '— Select buyer —');
+      UI.populateSelect(document.getElementById('o-warehouse'), Auth.getWarehouses(), 'warehouse_id', 'warehouse_name', '— Select warehouse —');
+    }
+
+    // v1.6: Auto-fill warehouse when buyer selected | v1.7: re-render picker (prices change per level)
+    document.getElementById('o-buyer').addEventListener('change', function() {
+      const buyerId = this.value;
+      if (!buyerId) return;
+      const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(buyerId));
+      if (buyer && buyer.warehouse_id) {
+        document.getElementById('o-warehouse').value = buyer.warehouse_id;
+      }
+      renderOutboundDetailRows(); // v1.7: refresh prices in picker for new buyer's level
+    });
+
+    // ── New Outbound Modal ────────────────────────────────────────────────────
+    document.getElementById('btn-new').addEventListener('click', () => {
+      outboundDetailRows = [{ inbound_detail_id: '', sample_code: '', sample_name: '', origin_sample_code: '', sample_type: '', qty_grams: '' }];  // v1.7
+      document.getElementById('o-buyer').value         = '';
+      document.getElementById('o-warehouse').value     = '';
+      document.getElementById('o-beans').value         = '';
+      document.getElementById('o-shipping-date').value = '';
+      document.getElementById('o-courier').value       = '';
+      document.getElementById('o-tracking').value      = '';
+      renderOutboundDetailRows();
+      UI.openModal('modal-outbound');
+    });
+
+    document.getElementById('btn-cancel-outbound').addEventListener('click', () => UI.closeModal('modal-outbound'));
+
+    // ── Outbound detail rows ──────────────────────────────────────────────────
+    function renderOutboundDetailRows() {
+      const wrap = document.getElementById('outbound-detail-rows');
+      wrap.innerHTML = '';
+      if (!outboundDetailRows.length) {
+        wrap.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--muted);font-size:0.8rem">No sample rows yet.</div>';
+        return;
+      }
+      outboundDetailRows.forEach((d, i) => {
+        const div = document.createElement('div');
+        div.className = 'detail-row-out';
+        div.innerHTML =
+          `<input type="text" placeholder="Code" value="${UI.esc(d.sample_code)}" oninput="outboundDetailRows[${i}].sample_code=this.value" />` +
+          `<input type="text" placeholder="Name" value="${UI.esc(d.sample_name)}" oninput="outboundDetailRows[${i}].sample_name=this.value" />` +
+          `<input type="text" placeholder="Origin code" value="${UI.esc(d.origin_sample_code)}" oninput="outboundDetailRows[${i}].origin_sample_code=this.value" />` +
+          `<select oninput="outboundDetailRows[${i}].sample_type=this.value" style="width:100%">
+            <option value="">— Type —</option>
+            <option value="Preship" ${d.sample_type==='Preship'?'selected':''}>Preship</option>
+            <option value="Type" ${d.sample_type==='Type'?'selected':''}>Type</option>
+            <option value="Spot Lot" ${d.sample_type==='Spot Lot'?'selected':''}>Spot Lot</option>
+          </select>` +
+          `<input type="number" placeholder="g" min="0" value="${UI.esc(d.qty_grams)}" oninput="outboundDetailRows[${i}].qty_grams=this.value" />` +
+          `<button class="btn-remove" onclick="removeOutboundDetailRow(${i})">✕</button>`;
+        wrap.appendChild(div);
+      });
+    }
+
+    function removeOutboundDetailRow(i) {
+      if (outboundDetailRows.length === 1) { UI.toastError('At least one sample row required.'); return; }
+      outboundDetailRows.splice(i, 1);
+      renderOutboundDetailRows();
+    }
+
+
+    document.getElementById('btn-add-detail-row').addEventListener('click', () => {
+      outboundDetailRows.push({ inbound_detail_id: '', sample_code: '', sample_name: '', origin_sample_code: '', sample_type: '', qty_grams: '' });  // v1.7
+      renderOutboundDetailRows();
+    });
+
+    // ── Save Outbound ─────────────────────────────────────────────────────────
+    document.getElementById('btn-save-outbound').addEventListener('click', async () => {
+      const buyerId     = document.getElementById('o-buyer').value;
+      const warehouseId = document.getElementById('o-warehouse').value;
+      const beans       = document.getElementById('o-beans').value;
+
+      if (!buyerId)     { UI.toastError('Select a buyer.'); return; }
+      if (!warehouseId) { UI.toastError('Select a warehouse.'); return; }
+      if (!beans)       { UI.toastError('Select beans type.'); return; }
+
+      const validDetails = outboundDetailRows.filter(d => d.inbound_detail_id);  // v1.7: must pick from picker
+      if (!validDetails.length) { UI.toastError('Select at least one sample from the picker.'); return; }
+
+      const btn = document.getElementById('btn-save-outbound');
+      UI.setLoading(btn, true);
+
+      try {
+        const outboundData = {
+          buyer_id:      buyerId,
+          warehouse_id:  warehouseId,
+          beans:         beans,
+          shipping_date: document.getElementById('o-shipping-date').value,
+          courier:       document.getElementById('o-courier').value.trim(),
+          tracking_number: document.getElementById('o-tracking').value.trim(),
+          status:        'Requested'
+        };
+
+        // Single call — passes details in payload so GAS can email warehouse with full info
+        const { outbound_id } = await API.saveOutbound(outboundData, validDetails);
+
+        // Save details (separate calls — detail IDs needed individually)
+        for (const d of validDetails) {
+          await API.saveOutboundDetail(outbound_id, d);
+        }
+
+        UI.closeModal('modal-outbound');
+        UI.toastSuccess('Outbound created. Warehouse notified.');
+        await loadPageData(document.getElementById('filter-warehouse').value || null);
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
+
+    // ── Status Update ─────────────────────────────────────────────────────────
+    function openStatusConfirm(outboundId, status, buyerName) {
+      pendingStatus = { outbound_id: outboundId, status };
+      const notifyMsg = status !== 'Requested'
+        ? 'Buyer <strong>' + UI.esc(buyerName) + '</strong> and the warehouse will be notified by email.'
+        : 'No emails will be sent for this status.';
+      document.getElementById('status-confirm-info').innerHTML =
+        'Change status of outbound <strong>#' + UI.esc(outboundId) + '</strong> to:<br><br>' +
+        '<strong style="font-size:1rem">' + UI.esc(status) + '</strong><br><br>' +
+        notifyMsg;
+      UI.openModal('modal-status');
+    }
+
+    document.getElementById('btn-confirm-status').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-confirm-status');
+      UI.setLoading(btn, true);
+      try {
+        await API.updateOutboundStatus(pendingStatus.outbound_id, pendingStatus.status);
+        UI.closeModal('modal-status');
+        const notified = pendingStatus.status !== 'Requested' ? ' Buyer and warehouse notified.' : '';
+        UI.toastSuccess('Status updated to ' + pendingStatus.status + '.' + notified);
+        await loadPageData(document.getElementById('filter-warehouse').value || null);
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
+  </script>
+
+</body>
+</html>

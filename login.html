@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<!-- Version 1.2 | login.html -->
+<!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Tokens ── */
+    :root {
+      --bg:        #ffffff;
+      --surface:   #fdf8f2;
+      --surface2:  #faf3ea;
+      --border:    #f0e8da;
+      --border2:   #e8d8c4;
+      --accent:    #c47a2b;
+      --accent2:   #a0611f;
+      --text:      #1a1a1a;
+      --muted:     #8a7060;
+      --error:     #c0392b;
+      --success:   #2e7d52;
+      --warn:      #b45309;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius:    6px;
+      --transition: 160ms ease;
+    }
+
+    body {
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    /* ── Card ── */
+    .login-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-logo {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .login-title {
+      font-family: var(--font-mono);
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+
+    .login-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    /* ── Form ── */
+    .field { margin-bottom: 1.25rem; }
+
+    label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    input[type="email"],
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      padding: 0.75rem 1rem;
+      outline: none;
+      border-radius: var(--radius);
+      transition: border-color var(--transition);
+    }
+
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+
+    /* ── Code input ── */
+    #code-input {
+      letter-spacing: 0.3em;
+      font-size: 1.4rem;
+      text-align: center;
+    }
+
+    /* ── Button ── */
+    .btn {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.875rem 1rem;
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: opacity var(--transition);
+      margin-top: 0.5rem;
+    }
+
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { opacity: 0.88; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      margin-top: 0.75rem;
+    }
+
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); opacity: 1; }
+
+    /* ── Status msg ── */
+    #status-msg {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      min-height: 1.2rem;
+      margin-bottom: 1rem;
+      padding: 0.5rem 0;
+    }
+
+    #status-msg.error   { color: var(--error); }
+    #status-msg.success { color: var(--success); }
+
+    /* ── Step sections ── */
+    #step-code { display: none; }
+
+    .timer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    #timer {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    #timer.urgent { color: var(--error); }
+
+    /* ── Toast ── */
+    .st-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 0.75rem 1.25rem;
+      z-index: 9999;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .st-toast--success { border-color: var(--success); color: var(--success); }
+    .st-toast--error   { border-color: var(--error);   color: var(--error);   }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* ── Warm Precision Theme v1.0 ─────────────────────────────────────────── */
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+
+    /* Nav */
+    .nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 52px; gap: 2rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
+    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
+    .nav-links a:hover { background: var(--surface); color: var(--text); }
+    .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
+    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
+    .nav-user:hover { color: var(--accent); }
+
+    /* Page */
+    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .page-title { font-size: 1.3rem; font-weight: 500; color: var(--text); letter-spacing: -0.01em; }
+    .page-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* Amber divider accent */
+    .page::before { content: ''; display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, #f0e8da 60%, transparent 100%); margin-bottom: 1.75rem; border-radius: 1px; }
+
+    /* Toolbar */
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; }
+    .toolbar select { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); cursor: pointer; font-family: var(--font-sans); }
+    .toolbar select:focus { outline: none; border-color: var(--accent); }
+
+    /* Table */
+    .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead tr { background: var(--surface); }
+    th { text-align: left; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface); }
+    .st-empty { text-align: center; color: var(--muted); padding: 3rem; font-size: 0.83rem; }
+
+    /* Badges */
+    .badge { display: inline-block; font-size: 0.7rem; font-weight: 500; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono); }
+    .badge-y { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .badge-n { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .sample-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+
+    /* Buttons */
+    .btn { background: var(--accent); color: #fff; border: none; font-family: var(--font-sans); font-size: 0.83rem; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); letter-spacing: 0.01em; }
+    .btn:hover { background: var(--accent2); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface); border-color: var(--border2); }
+    .btn-sm { font-size: 0.75rem; padding: 0.3rem 0.75rem; }
+
+    /* Inputs */
+    input[type="text"], input[type="email"], input[type="date"], input[type="number"], textarea, select {
+      background: #fff; border: 1px solid var(--border); color: var(--text);
+      font-family: var(--font-sans); font-size: 0.85rem; padding: 0.55rem 0.875rem;
+      border-radius: var(--radius); outline: none; width: 100%;
+      transition: border-color var(--transition);
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,122,43,0.08); }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    label { display: block; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .field { margin-bottom: 1rem; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* Modal */
+    .st-modal { display: none; position: fixed; inset: 0; background: rgba(26,16,8,0.35); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+    .st-modal.open { display: flex; }
+    .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 1rem; font-weight: 500; color: var(--text); margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+    .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .modal-section { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+    /* Detail rows (samples modal) */
+    .details-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 0.5rem; }
+    .detail-row { display: grid; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-header { background: var(--surface); font-family: var(--font-mono); font-size: 0.62rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .detail-row input, .detail-row select { padding: 0.3rem 0.5rem; font-size: 0.78rem; border-radius: 4px; }
+
+    /* Outbound detail rows */
+    .detail-table-header { display: grid; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.6rem; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; margin-bottom: 0.6rem; }
+    .detail-row-out { display: grid; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; }
+    .detail-row-out:last-child { border-bottom: none; }
+
+    /* Toast */
+    .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.8rem; padding: 0.75rem 1.25rem; z-index: 9999; box-shadow: 0 2px 8px rgba(0,0,0,0.08); animation: fadeIn 0.2s ease; }
+    .st-toast--success { border-color: #b8e0cb; color: #1e6640; background: #edf7f0; }
+    .st-toast--error   { border-color: #f5c6c6; color: #a32d2d; background: #fdf0ee; }
+
+    /* Spinner */
+    .st-spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* Add/remove row buttons */
+    .btn-add-row { background: transparent; border: 1px dashed var(--border); color: var(--muted); font-size: 0.75rem; padding: 0.45rem 1rem; border-radius: var(--radius); cursor: pointer; width: 100%; font-family: var(--font-sans); transition: all var(--transition); }
+    .btn-add-row:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-remove { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 0.72rem; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; transition: all var(--transition); }
+    .btn-remove:hover { border-color: var(--error); color: var(--error); }
+
+    /* Status badges */
+    .status-badge { display: inline-block; font-size: 0.7rem; font-weight: 500; padding: 2px 9px; border-radius: 4px; }
+    .status-requested  { background: #fef9ec; color: #854f0b; border: 1px solid #f5d89a; }
+    .status-sent       { background: #eef4fd; color: #1a5ca8; border: 1px solid #b5d0f5; }
+    .status-received   { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .status-dropped    { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+    /* Info block (supplier-submit / buyer-reserve) */
+    .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.75rem; }
+    .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .info-value { font-size: 0.83rem; color: var(--text); text-align: right; }
+    .info-value.accent { color: var(--accent); font-family: var(--font-mono); font-weight: 500; }
+    .info-value.warn { color: var(--warn); }
+    .section-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+    /* Availability bar */
+    .avail-bar-wrap { margin: 1rem 0; }
+    .avail-bar-labels { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .avail-bar { height: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+    .avail-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s ease; border-radius: 3px; }
+    .avail-bar-fill.low  { background: #e9a94a; }
+    .avail-bar-fill.none { background: var(--error); }
+
+    /* Price preview */
+    .price-preview { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; margin-bottom: 1.25rem; font-family: var(--font-mono); font-size: 0.82rem; min-height: 3.5rem; }
+    .price-preview .total { font-size: 1.1rem; color: var(--accent); font-weight: 500; margin-top: 0.35rem; }
+    .price-preview .muted { color: var(--muted); font-size: 0.72rem; }
+
+    /* Success / Error states (buyer-reserve, supplier-submit) */
+    .success-icon { font-size: 2rem; text-align: center; margin-bottom: 1rem; color: var(--success); }
+    .success-title { font-family: var(--font-mono); font-size: 1rem; font-weight: 500; text-align: center; color: var(--success); margin-bottom: 0.5rem; }
+    .success-sub, .success-detail { font-size: 0.83rem; color: var(--muted); text-align: center; line-height: 1.7; }
+    .error-msg { font-family: var(--font-mono); font-size: 0.82rem; color: var(--error); text-align: center; padding: 1rem 0; }
+    .full-icon  { font-size: 2rem; text-align: center; margin-bottom: 1rem; color: var(--error); }
+    .full-title { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 500; text-align: center; color: var(--error); margin-bottom: 0.5rem; }
+    .full-sub   { font-size: 0.82rem; color: var(--muted); text-align: center; }
+
+    /* Card (login, submit pages) */
+    .card, .login-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+    .card-logo, .login-logo { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2rem; }
+    .card-title, .login-title { font-size: 1.3rem; font-weight: 500; color: var(--text); margin-bottom: 0.3rem; font-family: var(--font-sans); letter-spacing: -0.01em; }
+    .card-sub, .login-sub { font-size: 0.83rem; color: var(--muted); margin-bottom: 2rem; }
+
+    /* Level badges */
+    .level-large  { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .level-medium { background: #eef4fd; color: #1a5ca8; border: 1px solid #b5d0f5; }
+    .level-small  { background: #fef9ec; color: #854f0b; border: 1px solid #f5d89a; }
+    .level-micro  { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; }
+
+    /* ── End Warm Precision ─────────────────────────────────────────────────── */
+  </style>
+</head>
+<body>
+
+  <div class="login-card">
+    <div class="login-logo">Sample Tracker</div>
+    <h1 class="login-title">Sign in</h1>
+    <p class="login-sub">Enter your work email to receive a login code.</p>
+
+    <div id="status-msg" role="alert" aria-live="polite"></div>
+
+    <!-- Step 1: Email -->
+    <div id="step-email">
+      <div class="field">
+        <label for="email-input">Work email</label>
+        <input type="email" id="email-input" name="email" placeholder="you@company.com" autocomplete="email" required />
+      </div>
+      <button class="btn" id="btn-send">Send code</button>
+    </div>
+
+    <!-- Step 2: Code -->
+    <div id="step-code">
+      <div class="field">
+        <label for="code-input">6-digit code</label>
+        <input type="text" id="code-input" name="code" placeholder="000000"
+               maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+      </div>
+
+      <div class="timer-row">
+        <span id="timer">Expires in 10:00</span>
+      </div>
+
+      <button class="btn" id="btn-verify">Verify &amp; sign in</button>
+      <button class="btn btn-ghost" id="btn-back">← Use different email</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // Version 1.2 | login.html script
+
+    // Redirect if already logged in
+    if (Auth.isLoggedIn()) window.location.href = 'samples.html';
+
+    const elEmail    = document.getElementById('email-input');
+    const elCode     = document.getElementById('code-input');
+    const elBtnSend  = document.getElementById('btn-send');
+    const elBtnVerify = document.getElementById('btn-verify');
+    const elBtnBack  = document.getElementById('btn-back');
+    const elStatus   = document.getElementById('status-msg');
+    const elStepEmail = document.getElementById('step-email');
+    const elStepCode  = document.getElementById('step-code');
+    const elTimer    = document.getElementById('timer');
+
+    let timerInterval = null;
+    let codeExpiresAt = null;
+
+    function setStatus(msg, type) {
+      elStatus.textContent = msg;
+      elStatus.className = type || '';
+    }
+
+    // ── Step 1: Send Code ──────────────────────────────────────────────────
+
+    elBtnSend.addEventListener('click', async () => {
+      const email = elEmail.value.trim();
+      if (!email) { setStatus('Please enter your email.', 'error'); return; }
+
+      UI.setLoading(elBtnSend, true);
+      setStatus('');
+
+      try {
+        await API.sendAuthCode(email);
+        // Always show code step (generic message for security)
+        setStatus('Check your email for a 6-digit code.', 'success');
+        showCodeStep();
+      } catch (err) {
+        setStatus(err.message, 'error');
+      } finally {
+        UI.setLoading(elBtnSend, false);
+      }
+    });
+
+    // ── Step 2: Verify Code ────────────────────────────────────────────────
+
+    elBtnVerify.addEventListener('click', async () => {
+      const email = elEmail.value.trim();
+      const code  = elCode.value.trim();
+      if (code.length !== 6) { setStatus('Enter the 6-digit code.', 'error'); return; }
+
+      UI.setLoading(elBtnVerify, true);
+      setStatus('');
+
+      try {
+        const data = await API.verifyAuthCode(email, code);
+        // Store session
+        Auth.setSession(data);
+        clearInterval(timerInterval);
+        window.location.href = 'samples.html';
+      } catch (err) {
+        setStatus(err.message, 'error');
+        UI.setLoading(elBtnVerify, false);
+      }
+    });
+
+    // Enter key support
+    elCode.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') elBtnVerify.click();
+    });
+
+    elEmail.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') elBtnSend.click();
+    });
+
+    // ── Back ───────────────────────────────────────────────────────────────
+
+    elBtnBack.addEventListener('click', () => {
+      clearInterval(timerInterval);
+      setStatus('');
+      elStepCode.style.display = 'none';
+      elStepEmail.style.display = '';
+      elCode.value = '';
+    });
+
+    // ── Timer ──────────────────────────────────────────────────────────────
+
+    function showCodeStep() {
+      elStepEmail.style.display = 'none';
+      elStepCode.style.display = '';
+      elCode.focus();
+      codeExpiresAt = Date.now() + 10 * 60 * 1000;
+      startTimer();
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        const remaining = Math.max(0, codeExpiresAt - Date.now());
+        const m = Math.floor(remaining / 60000);
+        const s = Math.floor((remaining % 60000) / 1000);
+        elTimer.textContent = 'Expires in ' + m + ':' + String(s).padStart(2, '0');
+        elTimer.className = remaining < 60000 ? 'urgent' : '';
+        if (remaining === 0) {
+          clearInterval(timerInterval);
+          setStatus('Code expired. Please request a new one.', 'error');
+          elBtnVerify.disabled = true;
+        }
+      }, 1000);
+    }
+  </script>
+
+</body>
+</html>
