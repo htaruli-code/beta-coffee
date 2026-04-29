@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9 | samples.html -->
+<!-- Version 1.9.1 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -313,8 +313,8 @@
     </div>
 
     <!-- Table -->
-    <div class="table-wrap">
-      <table>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table style="min-width:900px">
         <thead>
           <tr>
             <th></th>
@@ -328,7 +328,7 @@
             <th>Tracked</th>
             <th>Received</th>
             <th>Details</th>
-            <th>Actions</th>
+            <th style="position:sticky;right:0;background:var(--surface);z-index:1">Actions</th>
           </tr>
         </thead>
         <tbody id="samples-tbody">
@@ -517,7 +517,7 @@
           <td>${trackedBtn(s)}</td>
           <td>${receivedBtn(s)}</td>
           <td style="font-size:0.75rem;color:var(--muted)">${detCount ? detCount + ' sample' + (detCount > 1 ? 's' : '') : '—'}</td>
-          <td style="white-space:nowrap">
+          <td style="white-space:nowrap;position:sticky;right:0;background:#fff">
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openSendLink(${s.inbound_id})">Link</button>
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openPrices(${s.inbound_id})">Prices</button>
           </td>`;
