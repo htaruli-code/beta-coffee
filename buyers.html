@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9.6 | buyers.html -->
+<!-- Version 1.9.7 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -456,22 +456,17 @@
       document.getElementById('b-email').value   = b.email || '';
       document.getElementById('b-country').value = b.country_id;
       document.getElementById('b-level').value = b.buyer_level || '';
-      // v1.9.6: re-populate then set value — log for diagnosis
+      // v1.9.7: re-populate then set value
       populateWarehouseSelect();
       (function() {
         const sel    = document.getElementById('b-warehouse');
         const target = String(b.warehouse_id || '').trim();
-        const opts   = Array.from(sel.options).map(o => o.value);
-        console.log('[WH DEBUG] buyer warehouse_id:', b.warehouse_id, '| type:', typeof b.warehouse_id, '| target:', target, '| options:', opts);
-        let matched = false;
         for (let i = 0; i < sel.options.length; i++) {
           if (String(sel.options[i].value).trim() === target) {
             sel.selectedIndex = i;
-            matched = true;
             break;
           }
         }
-        console.log('[WH DEBUG] matched:', matched);
       })();
       renderMinimumsGrid(b.buyer_id);  // v1.8
       UI.openModal('modal-buyer');
