@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9.4 | buyers.html -->
+<!-- Version 1.9.5 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -324,7 +324,7 @@
           </select>
         </div>
         <div class="field">
-          <label for="b-warehouse">Home Warehouse <span style="color:var(--error)">*</span> <span id="wh-debug" style="color:var(--muted);font-size:0.65rem;font-family:var(--font-mono)"></span></label>
+          <label for="b-warehouse">Home Warehouse <span style="color:var(--error)">*</span></label>
           <select id="b-warehouse"></select>
         </div>
       </div>
@@ -457,7 +457,6 @@
       document.getElementById('b-country').value = b.country_id;
       document.getElementById('b-level').value = b.buyer_level || '';
       // v1.9.4: re-populate then loop options comparing as strings — handles number/string mismatch
-      document.getElementById('wh-debug').textContent = '(id: ' + b.warehouse_id + ' type: ' + typeof b.warehouse_id + ')';
       populateWarehouseSelect();
       (function() {
         const sel = document.getElementById('b-warehouse');
