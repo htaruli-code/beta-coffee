@@ -29,11 +29,11 @@
     .page { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
-    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: opacity var(--transition); }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn:hover:not(:disabled) { opacity: 0.85; }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); opacity: 1; }
+        .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn:hover:not(:disabled) { background: var(--accent2, #a0611f); }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); }
     .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.7rem; }
     .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
     table { width: 100%; border-collapse: collapse; }
