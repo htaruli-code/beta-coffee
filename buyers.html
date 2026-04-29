@@ -369,6 +369,7 @@
         PAGE_DATA = await API.getBuyersPage();
         renderTable();
         populateCountrySelect();
+        populateWarehouseSelect();  // v1.6 fix — was defined but never called
       } catch (err) {
         document.getElementById('buyers-tbody').innerHTML =
           '<tr><td colspan="7" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
