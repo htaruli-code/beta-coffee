@@ -363,7 +363,7 @@
 
       <!-- Details sub-section -->
       <div class="field">
-        <label>Sample Details</label>
+        <label>Sample Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-family:var(--font-sans);font-size:0.75rem">— optional, supplier can fill via link</span></label>
         <div class="details-list" id="details-list">
           <div class="detail-row detail-header">
             <span>Sample Name</span><span>Origin Code</span><span>Qty (g)</span><span>Coffee Sales Name</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Type</span><span></span>
@@ -562,8 +562,9 @@
       if (!supplierId)  { UI.toastError('Select a supplier.'); return; }
       if (!warehouseId) { UI.toastError('Select a warehouse.'); return; }
 
-      const validDetails = detailRows.filter(d => d.sample_name.trim());
-      if (!validDetails.length) { UI.toastError('Add at least one sample.'); return; }
+      const validDetails = detailRows.filter(d => d.sample_name && d.sample_name.trim());
+      // v1.8.1: details are optional — supplier fills them via secure link
+      // Only save details if user has entered at least one sample name
 
       const btn = document.getElementById('btn-modal-save');
       UI.setLoading(btn, true);
