@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.3 | supplier-submit.html -->
+<!-- Version 1.3.1 | supplier-submit.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -290,8 +290,9 @@
     let sampleRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '' }];  // v1.3
 
     function showState(id) {
+      // v1.3.1: explicit 'block' — clearing to '' lets CSS display:none win
       ['state-loading','state-error','state-success','state-form'].forEach(s => {
-        document.getElementById(s).style.display = s === id ? '' : 'none';
+        document.getElementById(s).style.display = s === id ? 'block' : 'none';
       });
     }
 
