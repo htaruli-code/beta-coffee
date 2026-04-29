@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.2 | login.html -->
+<!-- Version 1.2.1 | login.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -470,7 +470,7 @@
       clearInterval(timerInterval);
       setStatus('');
       elStepCode.style.display = 'none';
-      elStepEmail.style.display = '';
+      elStepEmail.style.display = 'block';  // v1.2.1: explicit block
       elCode.value = '';
     });
 
@@ -478,7 +478,7 @@
 
     function showCodeStep() {
       elStepEmail.style.display = 'none';
-      elStepCode.style.display = '';
+      elStepCode.style.display = 'block';  // v1.2.1: explicit block — clearing '' lets CSS display:none win
       elCode.focus();
       codeExpiresAt = Date.now() + 10 * 60 * 1000;
       startTimer();
