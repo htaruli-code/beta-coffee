@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9.3 | buyers.html -->
+<!-- Version 1.9.4 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -324,7 +324,7 @@
           </select>
         </div>
         <div class="field">
-          <label for="b-warehouse">Home Warehouse <span style="color:var(--error)">*</span></label>
+          <label for="b-warehouse">Home Warehouse <span style="color:var(--error)">*</span> <span id="wh-debug" style="color:var(--muted);font-size:0.65rem;font-family:var(--font-mono)"></span></label>
           <select id="b-warehouse"></select>
         </div>
       </div>
@@ -456,9 +456,19 @@
       document.getElementById('b-email').value   = b.email || '';
       document.getElementById('b-country').value = b.country_id;
       document.getElementById('b-level').value = b.buyer_level || '';
-      // v1.9.3: re-populate warehouse dropdown fresh on every edit open, then set value
+      // v1.9.4: re-populate then loop options comparing as strings — handles number/string mismatch
+      document.getElementById('wh-debug').textContent = '(id: ' + b.warehouse_id + ' type: ' + typeof b.warehouse_id + ')';
       populateWarehouseSelect();
-      document.getElementById('b-warehouse').value = b.warehouse_id ? String(b.warehouse_id) : '';
+      (function() {
+        const sel = document.getElementById('b-warehouse');
+        const target = String(b.warehouse_id || '').trim();
+        for (let i = 0; i < sel.options.length; i++) {
+          if (String(sel.options[i].value).trim() === target) {
+            sel.selectedIndex = i;
+            break;
+          }
+        }
+      })();
       renderMinimumsGrid(b.buyer_id);  // v1.8
       UI.openModal('modal-buyer');
     }
