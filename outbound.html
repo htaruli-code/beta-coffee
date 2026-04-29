@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11 | outbound.html -->
+<!-- Version 1.11.2 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -96,7 +96,7 @@
 
     /* ── Detail rows (outbound) ── */
     .detail-table-header { display: grid; grid-template-columns: 2.5fr 1fr 0.8fr auto; gap: 0.4rem; background: var(--surface2); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.5rem; font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-    .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; margin-bottom: 0.6rem; }
+    .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: visible; margin-bottom: 0.6rem; }
     .detail-row-out { display: grid; grid-template-columns: 2.5fr 1fr 0.8fr auto; gap: 0.4rem; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--border); align-items: center; }
     .detail-row-out:last-child { border-bottom: none; }
     .detail-row-out input { padding: 0.38rem 0.5rem; font-size: 0.78rem; }
@@ -184,7 +184,7 @@
     /* Modal */
     .st-modal { display: none; position: fixed; inset: 0; background: rgba(26,16,8,0.35); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
     .st-modal.open { display: flex; }
-    .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; width: 100%; max-width: 840px; max-height: 90vh; overflow-y: auto; }
+    .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; width: 100%; max-width: 840px; max-height: 90vh; overflow-y: auto; overflow-x: visible; }
     .modal-title { font-size: 1rem; font-weight: 500; color: var(--text); margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
     .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
     .modal-section { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
@@ -198,7 +198,7 @@
 
     /* Outbound detail rows */
     .detail-table-header { display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 0.8fr 0.6fr 2rem; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.6rem; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-    .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; margin-bottom: 0.6rem; }
+    .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: visible; margin-bottom: 0.6rem; }
     .detail-row-out { display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 0.8fr 0.6fr 2rem; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; }
     .detail-row-out:last-child { border-bottom: none; }
 
@@ -272,9 +272,9 @@
     /* ── End Warm Precision ─────────────────────────────────────────────────── */
 
     /* Autocomplete dropdown (v1.11) */
-    .ac-wrap { position: relative; }
+    .ac-wrap { position: relative; overflow: visible; }
     .ac-input { width: 100%; }
-    .ac-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); z-index: 200; max-height: 180px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .ac-dropdown { position: fixed; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); z-index: 9999; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
     .ac-item { padding: 0.5rem 0.75rem; font-size: 0.78rem; cursor: pointer; border-bottom: 1px solid var(--border); }
     .ac-item:last-child { border-bottom: none; }
     .ac-item:hover, .ac-item.ac-active { background: var(--surface2); }
@@ -657,7 +657,13 @@
       if (!value.trim()) { drop.style.display = 'none'; return; }
 
       const matches = getAcMatches(value);
-      if (!matches.length) { drop.innerHTML = '<div class="ac-item" style="color:var(--muted)">No matches</div>'; drop.style.display = 'block'; return; }
+      if (!matches.length) {
+        drop.innerHTML = '<div class="ac-item" style="color:var(--muted)">No matches</div>';
+        const inputEl = document.getElementById('ac-input-' + idx);
+        if (inputEl) { const r = inputEl.getBoundingClientRect(); drop.style.top = (r.bottom + window.scrollY) + 'px'; drop.style.left = r.left + 'px'; drop.style.width = r.width + 'px'; }
+        drop.style.display = 'block';
+        return;
+      }
 
       drop.innerHTML = matches.map((d, mi) => {
         const avail = d.buyer_available !== undefined ? d.buyer_available : (d.available_bags || 0);
@@ -667,6 +673,14 @@
           <div class="ac-item-sub">${UI.esc(d.origin_sample_code || '—')} · ${UI.esc(d.sample_name || '')}</div>
         </div>`;
       }).join('');
+      // v1.11.2: position fixed relative to input — escapes any overflow:hidden parent
+      const inputEl = document.getElementById('ac-input-' + idx);
+      if (inputEl) {
+        const rect = inputEl.getBoundingClientRect();
+        drop.style.top   = (rect.bottom + window.scrollY) + 'px';
+        drop.style.left  = rect.left + 'px';
+        drop.style.width = rect.width + 'px';
+      }
       drop.style.display = 'block';
     }
 
