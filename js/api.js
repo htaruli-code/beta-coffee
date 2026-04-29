@@ -162,8 +162,14 @@ const API = (() => {
     return post({ action: 'saveOutboundDetail', outbound_id: outboundId, detail, session_token: Auth.getToken() });
   }
 
-  async function updateOutboundStatus(outboundId, status) {
-    return post({ action: 'updateOutboundStatus', outbound_id: outboundId, status, session_token: Auth.getToken() });
+  async function updateOutboundStatus(outboundId, status, extraParams) {
+    // v1.11.3: extraParams carries shipping_date, courier, tracking_number when status = Sent
+    return post(Object.assign({
+      action:      'updateOutboundStatus',
+      outbound_id: outboundId,
+      status,
+      session_token: Auth.getToken()
+    }, extraParams || {}));
   }
 
   // ─── Pricing (v1.3) ──────────────────────────────────────────────────────
