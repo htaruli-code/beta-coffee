@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.8 | samples.html -->
+<!-- Version 1.8.1 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -111,7 +111,7 @@
 
     /* ── Details section ── */
     .details-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1rem; }
-    .detail-row { display: grid; grid-template-columns: 1.4fr 1fr 0.6fr 1.2fr 0.6fr 0.6fr 0.7fr 0.8fr auto; gap: 0.4rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
+    .detail-row { display: grid; grid-template-columns: 1.6fr 1.1fr 0.55fr 1.3fr 0.55fr 0.55fr 0.65fr 0.75fr auto; gap: 0.4rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
     .detail-row:last-child { border-bottom: none; }
     .detail-header { background: var(--surface2); font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
@@ -337,26 +337,25 @@
   </div>
 
   <!-- ── Modal: New / Edit Inbound Sample ── -->
-  <div class="st-modal" id="modal-sample">
-    <div class="modal-box">
+  <div class="st-modal" id="modal-sample" style="align-items:flex-start;padding-top:1.5rem">
+    <div class="modal-box" style="max-width:1100px">
       <div class="modal-title" id="modal-sample-title">New Sample Request</div>
 
-      <div class="field">
-        <label for="s-supplier">Supplier <span style="color:var(--error)">*</span></label>
-        <select id="s-supplier" style="width:100%"></select>
-      </div>
-
-      <div class="field">
-        <label for="s-warehouse">Warehouse <span style="color:var(--error)">*</span></label>
-        <select id="s-warehouse" style="width:100%"></select>
-      </div>
-
-      <div class="field-row">
-        <div class="field">
+      <!-- Row 1: Supplier + Warehouse + PO -->
+      <div style="display:grid;grid-template-columns:1.5fr 1.5fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="field" style="margin-bottom:0">
+          <label for="s-supplier">Supplier <span style="color:var(--error)">*</span></label>
+          <select id="s-supplier" style="width:100%"></select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label for="s-warehouse">Warehouse <span style="color:var(--error)">*</span></label>
+          <select id="s-warehouse" style="width:100%"></select>
+        </div>
+        <div class="field" style="margin-bottom:0">
           <label for="s-po">PO Number</label>
           <input type="text" id="s-po" placeholder="Optional" />
         </div>
-        <div class="field">
+        <div class="field" style="margin-bottom:0">
           <label for="s-ref">Supplier Ref</label>
           <input type="text" id="s-ref" placeholder="Optional" />
         </div>
