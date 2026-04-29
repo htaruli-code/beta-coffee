@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.2.1 | login.html -->
+<!-- Version 1.2.2 | login.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -393,6 +393,11 @@
 
     // Redirect if already logged in
     if (Auth.isLoggedIn()) window.location.href = 'samples.html';
+
+    // v1.2.2: Show expired banner if redirected from session expiry
+    if (new URLSearchParams(window.location.search).get('reason') === 'expired') {
+      document.getElementById('expired-banner').style.display = 'block';
+    }
 
     const elEmail    = document.getElementById('email-input');
     const elCode     = document.getElementById('code-input');
