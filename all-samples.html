@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9 | all-samples.html -->
+<!-- Version 1.10 | all-samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -125,6 +125,7 @@
             <th data-col="available_bags">Bags Offered</th>
             <th data-col="bag_size">Bag kg</th>
             <th data-col="cost_price">Cost $</th>
+            <th data-col="cost_price_unit">Unit</th>
             <th data-col="buyer_available">Avail Now</th>
             <th data-col="supplier">Supplier</th>
             <th data-col="warehouse">Warehouse</th>
@@ -220,7 +221,7 @@
         applyFilters();
       } catch (err) {
         document.getElementById('all-samples-tbody').innerHTML =
-          '<tr><td colspan="11" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+          '<tr><td colspan="12" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
     }
 
@@ -286,7 +287,7 @@
 
       tbody.innerHTML = '';
       if (!pageRows.length) {
-        tbody.innerHTML = '<tr><td colspan="11" class="st-empty">No samples found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="st-empty">No samples found.</td></tr>';
         return;
       }
 
@@ -302,6 +303,7 @@
           '<td style="font-family:var(--font-mono)">' + (d.available_bags || '—') + '</td>' +
           '<td style="font-family:var(--font-mono)">' + (d.bag_size ? d.bag_size + ' kg' : '—') + '</td>' +
           '<td style="font-family:var(--font-mono)">' + (d.cost_price ? '$' + parseFloat(d.cost_price).toFixed(2) : '—') + '</td>' +
+          '<td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">' + UI.esc(d.cost_price_unit || 'kg') + '</td>' +
           '<td style="font-family:var(--font-mono);color:var(--accent);font-weight:500">' + (d.buyer_available !== undefined && d.buyer_available !== '' ? d.buyer_available : '—') + '</td>' +
           '<td>' + UI.esc(d.supplier || '—') + '</td>' +
           '<td>' + UI.esc(d.warehouse || '—') + '</td>' +
