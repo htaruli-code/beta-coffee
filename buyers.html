@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.8 | buyers.html -->
+<!-- Version 1.9.1 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -298,7 +298,7 @@
       </div>
 
       <div class="field">
-        <label for="b-country">Country <span style="color:var(--error)">*</span></label>
+        <label for="b-country">Country <span style="color:var(--muted);font-size:0.7rem">(optional)</span></label>
         <select id="b-country"></select>
       </div>
 
@@ -454,7 +454,7 @@
       document.getElementById('b-email').value   = b.email || '';
       document.getElementById('b-country').value = b.country_id;
       document.getElementById('b-level').value     = b.buyer_level  || '';
-      document.getElementById('b-warehouse').value = b.warehouse_id || '';
+      document.getElementById('b-warehouse').value = b.warehouse_id ? String(b.warehouse_id) : '';
       renderMinimumsGrid(b.buyer_id);  // v1.8
       UI.openModal('modal-buyer');
     }
@@ -471,7 +471,6 @@
       const buyerLevel = document.getElementById('b-level').value;
       if (!companyName) { UI.toastError('Company name is required.'); return; }
       if (!address)     { UI.toastError('Address is required.'); return; }
-      if (!countryId)   { UI.toastError('Country is required.'); return; }
       if (!email)       { UI.toastError('Email is required.'); return; }
       if (!buyerLevel)  { UI.toastError('Buyer level is required.'); return; }
       const warehouseId = document.getElementById('b-warehouse').value;
