@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11 | supplier-submit.html -->
+<!-- Version 1.11.1 | supplier-submit.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -283,7 +283,8 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.3 | supplier-submit.html script
+    // Version 1.11.1 | supplier-submit.html script
+    let PAGE_DATA = { countries: [] };  // v1.11: holds countries for origin country dropdown
 
     const token = new URLSearchParams(window.location.search).get('t');
     let sampleRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '' }];  // v1.3
@@ -329,7 +330,7 @@
     }
 
     document.getElementById('btn-add-row').addEventListener('click', () => {
-      sampleRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '' });  // v1.3
+      sampleRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', origin_country_id: '' });
       renderSampleRows();
     });
 
@@ -338,6 +339,7 @@
       showState('state-loading');
       try {
         const data = await API.getSupplierPage(token);
+        PAGE_DATA.countries = data.countries || [];  // v1.11: for origin country dropdown
         document.getElementById('info-supplier').textContent  = data.supplier_name || '—';
         document.getElementById('info-warehouse').textContent = data.warehouse_name || '—';
         document.getElementById('info-address').textContent   = data.warehouse_address || '—';
