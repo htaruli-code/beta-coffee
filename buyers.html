@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9.1 | buyers.html -->
+<!-- Version 1.9.2 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -352,7 +352,7 @@
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-    let PAGE_DATA = { buyers: [], countries: [], buyer_levels: [], coffee_types: [], minimums: [] };  // v1.8: coffee_types + minimums
+    let PAGE_DATA = { buyers: [], countries: [], warehouses: [], buyer_levels: [], coffee_types: [], minimums: [] };  // v1.8: coffee_types + minimums
 
     // ── Init ──────────────────────────────────────────────────────────────────
     (async () => {
@@ -423,8 +423,9 @@
     }
 
     function populateWarehouseSelect() {
-      // v1.6: warehouses come from session — no extra API call needed
-      UI.populateSelect(document.getElementById('b-warehouse'), Auth.getWarehouses(), 'warehouse_id', 'warehouse_name', '— Select warehouse —');
+      // v1.9.2: use PAGE_DATA.warehouses from API (reliable) instead of Auth.getWarehouses()
+      // Auth.getWarehouses() can be empty if session was set before warehouses were added
+      UI.populateSelect(document.getElementById('b-warehouse'), PAGE_DATA.warehouses || [], 'warehouse_id', 'warehouse_name', '— Select warehouse —');
     }
 
     // ── New ───────────────────────────────────────────────────────────────────
@@ -454,7 +455,9 @@
       document.getElementById('b-email').value   = b.email || '';
       document.getElementById('b-country').value = b.country_id;
       document.getElementById('b-level').value     = b.buyer_level  || '';
-      document.getElementById('b-warehouse').value = b.warehouse_id ? String(b.warehouse_id) : '';
+      // v1.9.2: set after a tick to ensure options are rendered
+      const whVal = b.warehouse_id ? String(b.warehouse_id) : '';
+      setTimeout(() => { document.getElementById('b-warehouse').value = whVal; }, 0);
       renderMinimumsGrid(b.buyer_id);  // v1.8
       UI.openModal('modal-buyer');
     }
