@@ -1,6 +1,8 @@
-// Version 1.2
+// Version 1.2.1
 // auth.js — Session management helpers. All session reads/writes go through here.
-// v1.1: No logic changes. Version bump for release consistency.
+// v1.1: No logic changes.
+// v1.2.1: Added Auth.redirectIfExpired() — periodic session check every 60s
+//          Added Auth.handleUnauthorized() — called by api.js on UNAUTHORIZED response
 
 const Auth = (() => {
 
@@ -55,8 +57,30 @@ const Auth = (() => {
       window.location.href = redirectTo || 'login.html';
       return false;
     }
+    // v1.2.1: Start periodic session check — redirects if session expires while on page
+    startExpiryWatch(redirectTo || 'login.html');
     return true;
   }
 
-  return { getSession, setSession, clearSession, getToken, getUser, getCompany, getWarehouses, isLoggedIn, requireAuth };
+  // v1.2.1: Called by api.js when GAS returns UNAUTHORIZED (session expired server-side)
+  function handleUnauthorized(redirectTo) {
+    clearSession();
+    window.location.href = (redirectTo || 'login.html') + '?reason=expired';
+  }
+
+  // v1.2.1: Poll every 60s — redirect if session has expired client-side
+  function startExpiryWatch(redirectTo) {
+    setInterval(function() {
+      if (!isLoggedIn()) {
+        clearSession();
+        window.location.href = (redirectTo || 'login.html') + '?reason=expired';
+      }
+    }, 60 * 1000);
+  }
+
+  return {
+    getSession, setSession, clearSession,
+    getToken, getUser, getCompany, getWarehouses,
+    isLoggedIn, requireAuth, handleUnauthorized
+  };
 })();

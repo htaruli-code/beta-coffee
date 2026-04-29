@@ -1,4 +1,4 @@
-// Version 1.9
+// Version 1.9.1
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -8,6 +8,7 @@
 // v1.7: toggleDetailActive added
 // v1.8: saveBuyerMinimum, updateDetailCoffeeType added
 // v1.9: getAllSamplesPage added
+// v1.9.1: post() intercepts UNAUTHORIZED → Auth.handleUnauthorized() → redirect to login
 
 const API = (() => {
 
