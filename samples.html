@@ -581,7 +581,7 @@
       const isY = String(s.tracked).toUpperCase() === 'Y';
       return '<button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:2px 8px;border-color:' +
         (isY ? 'var(--success)' : 'var(--border)') + ';color:' + (isY ? 'var(--success)' : 'var(--muted)') + '" ' +
-        'onclick="event.stopPropagation();toggleTracking(' + s.inbound_id + ','tracked','' + (isY ? 'N' : 'Y') + '')">' +
+        'onclick="event.stopPropagation();toggleTracking(' + s.inbound_id + ',\'tracked\',\'' + (isY ? 'N' : 'Y') + '\')">' +
         (isY ? '✓ Tracked' : 'Track') + '</button>';
     }
 
@@ -589,7 +589,7 @@
       const isY = String(s.received).toUpperCase() === 'Y';
       return '<button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:2px 8px;border-color:' +
         (isY ? 'var(--success)' : 'var(--border)') + ';color:' + (isY ? 'var(--success)' : 'var(--muted)') + '" ' +
-        'onclick="event.stopPropagation();toggleTracking(' + s.inbound_id + ','received','' + (isY ? 'N' : 'Y') + '')">' +
+        'onclick="event.stopPropagation();toggleTracking(' + s.inbound_id + ',\'received\',\'' + (isY ? 'N' : 'Y') + '\')">' +
         (isY ? '✓ Received' : 'Receive') + '</button>';
     }
 
