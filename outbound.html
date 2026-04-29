@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.2 | outbound.html -->
+<!-- Version 1.11.3 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -404,12 +404,30 @@
 
   <!-- ── Modal: Status Update Confirm ── -->
   <div class="st-modal" id="modal-status">
-    <div class="modal-box" style="max-width:440px">
+    <div class="modal-box" style="max-width:480px">
       <div class="modal-title">Update Status</div>
-      <div id="status-confirm-info" style="font-size:0.85rem;color:var(--muted);margin-bottom:1.5rem;line-height:1.6"></div>
+      <div id="status-confirm-info" style="font-size:0.85rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.6"></div>
+      <!-- Shipping fields — shown only when transitioning to Sent -->
+      <div id="shipping-fields" style="display:none">
+        <div style="height:1px;background:var(--border);margin-bottom:1.25rem"></div>
+        <div class="field-row" style="margin-bottom:0.75rem">
+          <div class="field" style="margin-bottom:0">
+            <label for="st-shipping-date">Shipping Date <span style="color:var(--error)">*</span></label>
+            <input type="date" id="st-shipping-date" />
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="st-courier">Courier <span style="color:var(--error)">*</span></label>
+            <input type="text" id="st-courier" placeholder="e.g. DHL, FedEx" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="st-tracking">Tracking Number <span style="color:var(--error)">*</span></label>
+          <input type="text" id="st-tracking" placeholder="Enter tracking number" />
+        </div>
+      </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="UI.closeModal('modal-status')">Cancel</button>
-        <button class="btn" id="btn-confirm-status">Confirm &amp; Notify</button>
+        <button class="btn" id="btn-confirm-status">Confirm</button>
       </div>
     </div>
   </div>
@@ -428,9 +446,15 @@
     let outboundDetailRows = []; // v1.7: each row = { inbound_detail_id, sample_type, qty_grams }
     let pendingStatus = { outbound_id: null, status: null };
 
-    const STATUS_ORDER = ['Requested', 'Sent', 'Received', 'Dropped Off'];
-    const STATUS_CSS   = { 'Requested': 'badge-requested', 'Sent': 'badge-sent', 'Received': 'badge-received', 'Dropped Off': 'badge-dropped-off' };
-    const BTN_CSS      = { 'Requested': 's-requested', 'Sent': 's-sent', 'Received': 's-received', 'Dropped Off': 's-dropped-off' };
+    const STATUS_CSS = { 'Requested': 'badge-requested', 'Sent': 'badge-sent', 'Received': 'badge-received', 'Dropped Off': 'badge-dropped-off' };
+    const BTN_CSS    = { 'Requested': 's-requested', 'Sent': 's-sent', 'Received': 's-received', 'Dropped Off': 's-dropped-off' };
+    // v1.11.3: Two valid paths — A: Requested→Sent→Received | B: Requested→Dropped Off→Received
+    const TRANSITIONS = {
+      'Requested':   ['Sent', 'Dropped Off'],
+      'Sent':        ['Received'],
+      'Dropped Off': ['Received'],
+      'Received':    []
+    };
 
     // ── Init ──────────────────────────────────────────────────────────────────
     (async () => {
@@ -499,14 +523,13 @@
           : '<span style="color:var(--muted)">—</span>';
 
         const statusClass  = STATUS_CSS[o.status]  || 'badge-requested';
-        const currentIdx   = STATUS_ORDER.indexOf(o.status);
 
-        // Status buttons — only show valid next statuses and current
-        const statusBtns = STATUS_ORDER.map((s, idx) => {
-          const btnClass = BTN_CSS[s] || '';
+        // v1.11.3: Status buttons from TRANSITIONS map
+        const nextStatuses = TRANSITIONS[o.status] || [];
+        const allBtnStatuses = [o.status, ...nextStatuses];
+        const statusBtns = allBtnStatuses.map(s => {
+          const btnClass  = BTN_CSS[s] || '';
           const isCurrent = s === o.status;
-          const isNext    = idx === currentIdx + 1;
-          if (!isCurrent && !isNext) return '';
           const disabled  = isCurrent ? 'disabled' : '';
           return `<button class="btn-status ${btnClass}" ${disabled}
             onclick="openStatusConfirm(${o.outbound_id},'${UI.esc(s)}','${UI.esc(buyerMap[o.buyer_id] || '')}')">
@@ -774,24 +797,52 @@
     // ── Status Update ─────────────────────────────────────────────────────────
     function openStatusConfirm(outboundId, status, buyerName) {
       pendingStatus = { outbound_id: outboundId, status };
-      const notifyMsg = status !== 'Requested'
-        ? 'Buyer <strong>' + UI.esc(buyerName) + '</strong> and the warehouse will be notified by email.'
-        : 'No emails will be sent for this status.';
+
+      // Notify message per status
+      const notifyMsg = status === 'Sent'
+        ? 'Buyer <strong>' + UI.esc(buyerName) + '</strong> will receive an email with sample details and reservation links.'
+        : status === 'Dropped Off' || status === 'Received'
+          ? 'Buyer <strong>' + UI.esc(buyerName) + '</strong> and the warehouse will be notified.'
+          : 'No emails will be sent.';
+
       document.getElementById('status-confirm-info').innerHTML =
-        'Change status of outbound <strong>#' + UI.esc(outboundId) + '</strong> to:<br><br>' +
+        'Change status of outbound <strong>#' + UI.esc(outboundId) + '</strong> to ' +
         '<strong style="font-size:1rem">' + UI.esc(status) + '</strong><br><br>' +
         notifyMsg;
+
+      // v1.11.3: Show shipping fields only when transitioning to Sent
+      const shippingDiv = document.getElementById('shipping-fields');
+      const isSent = status === 'Sent';
+      shippingDiv.style.display = isSent ? 'block' : 'none';
+      if (isSent) {
+        document.getElementById('st-shipping-date').value = '';
+        document.getElementById('st-courier').value       = '';
+        document.getElementById('st-tracking').value      = '';
+      }
+
       UI.openModal('modal-status');
     }
 
     document.getElementById('btn-confirm-status').addEventListener('click', async () => {
       const btn = document.getElementById('btn-confirm-status');
+
+      // v1.11.3: validate + collect shipping fields when transitioning to Sent
+      let extraParams = {};
+      if (pendingStatus.status === 'Sent') {
+        const shippingDate    = document.getElementById('st-shipping-date').value;
+        const courier         = document.getElementById('st-courier').value.trim();
+        const trackingNumber  = document.getElementById('st-tracking').value.trim();
+        if (!shippingDate)   { UI.toastError('Shipping date is required.'); return; }
+        if (!courier)        { UI.toastError('Courier is required.'); return; }
+        if (!trackingNumber) { UI.toastError('Tracking number is required.'); return; }
+        extraParams = { shipping_date: shippingDate, courier, tracking_number: trackingNumber };
+      }
+
       UI.setLoading(btn, true);
       try {
-        await API.updateOutboundStatus(pendingStatus.outbound_id, pendingStatus.status);
+        await API.updateOutboundStatus(pendingStatus.outbound_id, pendingStatus.status, extraParams);
         UI.closeModal('modal-status');
-        const notified = pendingStatus.status !== 'Requested' ? ' Buyer and warehouse notified.' : '';
-        UI.toastSuccess('Status updated to ' + pendingStatus.status + '.' + notified);
+        UI.toastSuccess('Status updated to ' + pendingStatus.status + '.');
         await loadPageData(document.getElementById('filter-warehouse').value || null);
       } catch (err) {
         UI.toastError(err.message);
