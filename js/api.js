@@ -1,4 +1,4 @@
-// Version 1.8
+// Version 1.8.1
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -7,6 +7,9 @@
 // v1.5: saveConfirmedPurchase added
 // v1.7: toggleDetailActive added
 // v1.8: saveBuyerMinimum, updateDetailCoffeeType added
+// v1.8.1: CORS fix — post() sends as application/x-www-form-urlencoded
+//          avoids OPTIONS preflight that GAS cannot handle
+//          payload wrapped in form field named "payload"
 
 const API = (() => {
 
@@ -14,10 +17,15 @@ const API = (() => {
   // Single function for all calls. GAS uses one endpoint, action-based routing.
 
   async function post(payload) {
-    const res = await fetch(APP_CONFIG.GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    // v1.8.1: CORS fix — send as form-urlencoded instead of JSON.
+    // form-urlencoded is a browser "simple request" — no OPTIONS preflight.
+    // GAS cannot respond to OPTIONS so JSON content-type was being blocked.
+    // Code.gs reads it via: JSON.parse(e.parameter.payload)
+    const body = new URLSearchParams({ payload: JSON.stringify(payload) });
+    const res  = await fetch(APP_CONFIG.GAS_URL, {
+      method:   'POST',
+      redirect: 'follow',
+      body:     body,
     });
     if (!res.ok) throw new Error('Network error: ' + res.status);
     const data = await res.json();
