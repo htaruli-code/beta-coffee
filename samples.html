@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11 | samples.html -->
+<!-- Version 1.12 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -377,11 +377,18 @@
         <label>Sample Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-family:var(--font-sans);font-size:0.75rem">— optional, supplier can fill via link</span></label>
         <div class="details-list" id="details-list">
           <div class="detail-row detail-header">
-            <span>Sample Name</span><span>Origin Code</span><span>Qty (g)</span><span>Coffee Sales Name</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Type</span><span>Origin Country</span><span></span>
+            <span>Sample Name</span><span>Origin Code</span><span>Qty (g)</span><span>Coffee Sales Name</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Type</span><span></span>
           </div>
           <div id="details-rows"></div>
         </div>
         <button class="btn btn-ghost btn-sm" id="btn-add-detail" type="button">+ Add Sample</button>
+      </div>
+
+      <!-- Notes v1.12 -->
+      <div class="field" style="margin-top:0.5rem">
+        <label for="s-notes">Notes <span style="color:var(--muted);font-size:0.7rem">(optional · max 250 chars)</span></label>
+        <textarea id="s-notes" maxlength="250" rows="3" placeholder="Any notes for the warehouse or internal reference…" style="resize:vertical;width:100%;background:#fff;border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:0.85rem;padding:0.55rem 0.875rem;border-radius:var(--radius);outline:none"></textarea>
+        <div id="s-notes-count" style="font-size:0.7rem;color:var(--muted);text-align:right;margin-top:2px">0 / 250</div>
       </div>
 
       <div class="modal-footer">
@@ -417,7 +424,7 @@
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
     // ── State ─────────────────────────────────────────────────────────────────
-    let PAGE_DATA = { samples: [], details: [], prices: [], tiers: [], reservedMap: {}, suppliers: [], warehouses: [], coffeeTypes: [], countries: [] };  // v1.11: countries added
+    let PAGE_DATA = { samples: [], details: [], prices: [], tiers: [], reservedMap: {}, suppliers: [], warehouses: [], coffeeTypes: [] };  // v1.8: coffeeTypes added
     let editingInboundId = null;
     let pendingLinkInboundId = null;
     let detailRows = []; // temp detail buffer for modal
@@ -451,8 +458,7 @@
     async function loadPageData(warehouseId) {
       try {
         PAGE_DATA = await API.getSamplesPage(warehouseId);
-        if (!PAGE_DATA.coffeeTypes) PAGE_DATA.coffeeTypes = ['Microlot', 'Blend'];
-        if (!PAGE_DATA.countries) PAGE_DATA.countries = [];
+        if (!PAGE_DATA.coffeeTypes) PAGE_DATA.coffeeTypes = ['Microlot', 'Blend']; // fallback
         renderTable();
         populateModalDropdowns();
       } catch (err) {
@@ -532,6 +538,12 @@
         tbody.appendChild(tr);
 
         // Expanded detail rows
+        // Show notes on inbound row (v1.12)
+        if (s.notes) {
+          const notesTr = document.createElement('tr');
+          notesTr.innerHTML = '<td colspan="12" style="padding:4px 1rem 6px 2.5rem;font-size:0.78rem;color:var(--muted);font-style:italic;background:var(--surface)">📝 ' + UI.esc(s.notes) + '</td>';
+          tbody.appendChild(notesTr);
+        }
         if (isOpen && detCount > 0) {
           const detTr = document.createElement('tr');
           detTr.style.background = 'var(--surface)';
@@ -616,11 +628,13 @@
     // ── Modal: New Sample ─────────────────────────────────────────────────────
     document.getElementById('btn-new-sample').addEventListener('click', () => {
       editingInboundId = null;
-      detailRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', coffee_type: '', origin_country_id: '' }];
+      detailRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', coffee_type: '' }];  // v1.3/v1.8
       document.getElementById('modal-sample-title').textContent = 'New Sample Request';
       document.getElementById('s-po').value = '';
       document.getElementById('s-ref').value = '';
       renderDetailRows();
+      document.getElementById('s-notes').value = '';
+      document.getElementById('s-notes-count').textContent = '0 / 250';
       UI.openModal('modal-sample');
     });
 
@@ -647,13 +661,9 @@
           <input type="number" placeholder="0" min="0" value="${UI.esc(d.available_bags || '')}" onchange="detailRows[${i}].available_bags=this.value" title="Available bags" />
           <input type="number" placeholder="0" min="0" step="0.1" value="${UI.esc(d.bag_size || '')}" onchange="detailRows[${i}].bag_size=this.value" title="Bag size (kg)" />
           <input type="number" placeholder="0.00" min="0" step="0.01" value="${UI.esc(d.cost_price || '')}" onchange="detailRows[${i}].cost_price=this.value" title="Cost price per kg" />
-          <select onchange="detailRows[${i}].coffee_type=this.value" title="Coffee type">
+          <select onchange="detailRows[${i}].coffee_type=this.value" title="Coffee type (internal — not shown to supplier)">
             <option value="">—</option>
             ${(PAGE_DATA.coffeeTypes || ['Microlot','Blend']).map(t => '<option value="' + t + '"' + (d.coffee_type === t ? ' selected' : '') + '>' + t + '</option>').join('')}
-          </select>
-          <select onchange="detailRows[${i}].origin_country_id=this.value" title="Coffee origin country (v1.11)">
-            <option value="">— Origin —</option>
-            ${(PAGE_DATA.countries || []).map(c => '<option value="' + c.country_id + '"' + (String(d.origin_country_id) === String(c.country_id) ? ' selected' : '') + '>' + c.country_code + ' – ' + c.country_name + '</option>').join('')}
           </select>
           <button class="btn btn-ghost btn-sm" onclick="removeDetailRow(${i})">✕</button>`;
         container.appendChild(row);
@@ -666,11 +676,16 @@
     }
 
     document.getElementById('btn-add-detail').addEventListener('click', () => {
-      detailRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', coffee_type: '', origin_country_id: '' });
+      detailRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', coffee_type: '' });  // v1.3/v1.8
       renderDetailRows();
     });
 
     // ── Save Inbound ──────────────────────────────────────────────────────────
+    // Notes char counter
+    document.getElementById('s-notes').addEventListener('input', function() {
+      document.getElementById('s-notes-count').textContent = this.value.length + ' / 250';
+    });
+
     document.getElementById('btn-modal-save').addEventListener('click', async () => {
       const supplierId  = document.getElementById('s-supplier').value;
       const warehouseId = document.getElementById('s-warehouse').value;

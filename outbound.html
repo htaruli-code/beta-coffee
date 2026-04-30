@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.3 | outbound.html -->
+<!-- Version 1.12 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -395,6 +395,13 @@
       <div class="detail-rows-wrap" id="outbound-detail-rows"></div>
       <button class="btn-add-row" id="btn-add-detail-row" type="button">+ Add Sample Row</button>
 
+      <!-- Notes v1.12 -->
+      <div class="field" style="margin-top:1rem">
+        <label for="o-notes">Notes <span style="color:var(--muted);font-size:0.7rem">(optional · max 250 chars)</span></label>
+        <textarea id="o-notes" maxlength="250" rows="3" placeholder="Any notes for the warehouse or buyer…" style="resize:vertical;width:100%;background:#fff;border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:0.85rem;padding:0.55rem 0.875rem;border-radius:var(--radius);outline:none"></textarea>
+        <div id="o-notes-count" style="font-size:0.7rem;color:var(--muted);text-align:right;margin-top:2px">0 / 250</div>
+      </div>
+
       <div class="modal-footer">
         <button class="btn btn-ghost" id="btn-cancel-outbound">Cancel</button>
         <button class="btn" id="btn-save-outbound">Create &amp; Notify Warehouse</button>
@@ -542,6 +549,7 @@
           <td>${UI.esc(buyerMap[o.buyer_id] || '—')}</td>
           <td>${UI.esc(whMap[o.warehouse_id] || '—')}</td>
           <td>${beansBadge(o.beans)}</td>
+          ${o.notes ? '<td colspan="3" style="font-size:0.75rem;color:var(--muted);font-style:italic">📝 ' + UI.esc(o.notes) + '</td>' : '<td></td><td></td><td></td>'}
           <td>${UI.formatDate(o.shipping_date) || '—'}</td>
           <td>${UI.esc(o.courier || '—')}</td>
           <td>${UI.esc(o.tracking_number || '—')}</td>
@@ -563,6 +571,11 @@
       UI.populateSelect(document.getElementById('o-warehouse'), Auth.getWarehouses(), 'warehouse_id', 'warehouse_name', '— Select warehouse —');
     }
 
+    // Notes char counter (v1.12)
+    document.getElementById('o-notes').addEventListener('input', function() {
+      document.getElementById('o-notes-count').textContent = this.value.length + ' / 250';
+    });
+
     // v1.6: Auto-fill warehouse when buyer selected | v1.7: re-render picker (prices change per level)
     document.getElementById('o-buyer').addEventListener('change', function() {
       const buyerId = this.value;
@@ -583,6 +596,8 @@
       document.getElementById('o-shipping-date').value = '';
       document.getElementById('o-courier').value       = '';
       document.getElementById('o-tracking').value      = '';
+      document.getElementById('o-notes').value         = '';
+      document.getElementById('o-notes-count').textContent = '0 / 250';
       renderOutboundDetailRows();
       UI.openModal('modal-outbound');
     });
@@ -767,13 +782,14 @@
 
       try {
         const outboundData = {
-          buyer_id:      buyerId,
-          warehouse_id:  warehouseId,
-          beans:         beans,
-          shipping_date: document.getElementById('o-shipping-date').value,
-          courier:       document.getElementById('o-courier').value.trim(),
+          buyer_id:        buyerId,
+          warehouse_id:    warehouseId,
+          beans:           beans,
+          shipping_date:   document.getElementById('o-shipping-date').value,
+          courier:         document.getElementById('o-courier').value.trim(),
           tracking_number: document.getElementById('o-tracking').value.trim(),
-          status:        'Requested'
+          notes:           document.getElementById('o-notes').value.trim().substring(0, 250),  // v1.12
+          status:          'Requested'
         };
 
         // Single call — passes details in payload so GAS can email warehouse with full info
