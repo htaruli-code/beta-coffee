@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12 | outbound.html -->
+<!-- Version 1.12.1 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -320,6 +320,7 @@
       <table>
         <thead>
           <tr>
+            <th style="width:28px"></th>
             <th>ID</th>
             <th>Buyer</th>
             <th>Warehouse</th>
@@ -333,7 +334,7 @@
           </tr>
         </thead>
         <tbody id="outbound-tbody">
-          <tr><td colspan="10" class="st-empty"><div class="st-spinner"></div></td></tr>
+          <tr><td colspan="11" class="st-empty"><div class="st-spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -495,7 +496,7 @@
         renderTable(PAGE_DATA.outbounds);
       } catch (err) {
         document.getElementById('outbound-tbody').innerHTML =
-          '<tr><td colspan="10" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+          '<tr><td colspan="11" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
     }
 
@@ -509,6 +510,9 @@
     }
 
     // ── Render Table ──────────────────────────────────────────────────────────
+    // v1.12.1: expanded row state
+    let expandedOutbounds = new Set();
+
     function renderTable(outbounds) {
       const tbody = document.getElementById('outbound-tbody');
       const buyerMap = {};
@@ -516,47 +520,85 @@
       const whMap = {};
       Auth.getWarehouses().forEach(w => whMap[w.warehouse_id] = w.warehouse_name);
 
-      // Group details by outbound_id
       const detailMap = {};
       PAGE_DATA.details.forEach(d => {
         if (!detailMap[d.outbound_id]) detailMap[d.outbound_id] = [];
         detailMap[d.outbound_id].push(d);
       });
 
-      UI.buildTable(tbody, outbounds, (o) => {
-        const dets = detailMap[o.outbound_id] || [];
-        const detSummary = dets.length
-          ? `<span class="detail-summary">${dets.length} sample${dets.length > 1 ? 's' : ''}</span>`
-          : '<span style="color:var(--muted)">—</span>';
+      tbody.innerHTML = '';
 
-        const statusClass  = STATUS_CSS[o.status]  || 'badge-requested';
-
-        // v1.11.3: Status buttons from TRANSITIONS map
-        const nextStatuses = TRANSITIONS[o.status] || [];
+      outbounds.forEach(o => {
+        const dets      = detailMap[o.outbound_id] || [];
+        const isOpen    = expandedOutbounds.has(o.outbound_id);
+        const statusClass    = STATUS_CSS[o.status] || 'badge-requested';
+        const nextStatuses   = TRANSITIONS[o.status] || [];
         const allBtnStatuses = [o.status, ...nextStatuses];
+
         const statusBtns = allBtnStatuses.map(s => {
-          const btnClass  = BTN_CSS[s] || '';
           const isCurrent = s === o.status;
-          const disabled  = isCurrent ? 'disabled' : '';
-          return `<button class="btn-status ${btnClass}" ${disabled}
-            onclick="openStatusConfirm(${o.outbound_id},'${UI.esc(s)}','${UI.esc(buyerMap[o.buyer_id] || '')}')">
-            ${isCurrent ? '● ' : ''}${UI.esc(s)}
-          </button>`;
+          return `<button class="btn-status ${BTN_CSS[s] || ''}" ${isCurrent ? 'disabled' : ''}
+            onclick="event.stopPropagation();openStatusConfirm(${o.outbound_id},'${UI.esc(s)}','${UI.esc(buyerMap[o.buyer_id] || '')}')">
+            ${isCurrent ? '\u25cf ' : ''}${UI.esc(s)}</button>`;
         }).join('');
 
-        return `
+        const tr = document.createElement('tr');
+        tr.style.cursor = dets.length ? 'pointer' : 'default';
+        tr.innerHTML = `
+          <td style="width:28px;text-align:center;color:var(--accent);font-size:0.9rem;user-select:none">${dets.length ? (isOpen ? '\u25be' : '\u25b8') : ''}</td>
           <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">#${UI.esc(o.outbound_id)}</td>
-          <td>${UI.esc(buyerMap[o.buyer_id] || '—')}</td>
-          <td>${UI.esc(whMap[o.warehouse_id] || '—')}</td>
+          <td>${UI.esc(buyerMap[o.buyer_id] || '\u2014')}</td>
+          <td>${UI.esc(whMap[o.warehouse_id] || '\u2014')}</td>
           <td>${beansBadge(o.beans)}</td>
-          ${o.notes ? '<td colspan="3" style="font-size:0.75rem;color:var(--muted);font-style:italic">📝 ' + UI.esc(o.notes) + '</td>' : '<td></td><td></td><td></td>'}
-          <td>${UI.formatDate(o.shipping_date) || '—'}</td>
-          <td>${UI.esc(o.courier || '—')}</td>
-          <td>${UI.esc(o.tracking_number || '—')}</td>
-          <td>${detSummary}</td>
+          <td>${UI.formatDate(o.shipping_date) || '\u2014'}</td>
+          <td>${UI.esc(o.courier || '\u2014')}</td>
+          <td>${UI.esc(o.tracking_number || '\u2014')}</td>
+          <td style="font-size:0.78rem;color:var(--muted)">${dets.length ? dets.length + ' sample' + (dets.length > 1 ? 's' : '') : '\u2014'}</td>
           <td><span class="badge ${statusClass}">${UI.esc(o.status)}</span></td>
-          <td><div class="status-btns">${statusBtns}</div></td>`;
+          <td>
+            <div class="status-btns">${statusBtns}</div>
+            ${o.notes ? '<div style="font-size:0.72rem;color:var(--muted);font-style:italic;margin-top:4px">\ud83d\udcdd ' + UI.esc(o.notes) + '</div>' : ''}
+          </td>`;
+
+        if (dets.length) {
+          tr.addEventListener('click', () => {
+            if (expandedOutbounds.has(o.outbound_id)) expandedOutbounds.delete(o.outbound_id);
+            else expandedOutbounds.add(o.outbound_id);
+            renderTable(outbounds);
+          });
+        }
+        tbody.appendChild(tr);
+
+        // Expanded detail sub-table
+        if (isOpen && dets.length) {
+          const detTr = document.createElement('tr');
+          detTr.style.background = 'var(--surface)';
+          let h = '<td colspan="11" style="padding:0.75rem 1rem 1rem 2.5rem">';
+          h += '<div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Sample Details</div>';
+          h += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
+          h += '<thead><tr style="background:var(--surface2)">';
+          ['Sample Code','Name','Origin Code','Type','Qty (g)'].forEach(col => {
+            h += `<th style="text-align:left;padding:4px 8px;font-size:0.65rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)">${col}</th>`;
+          });
+          h += '</tr></thead><tbody>';
+          dets.forEach(d => {
+            h += `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem;color:var(--accent)">${UI.esc(d.sample_code||'\u2014')}</td>
+              <td style="padding:5px 8px">${UI.esc(d.sample_name||'\u2014')}</td>
+              <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem">${UI.esc(d.origin_sample_code||'\u2014')}</td>
+              <td style="padding:5px 8px">${UI.esc(d.sample_type||'\u2014')}</td>
+              <td style="padding:5px 8px;font-family:var(--font-mono)">${d.qty_grams ? d.qty_grams+'g' : '\u2014'}</td>
+            </tr>`;
+          });
+          h += '</tbody></table></td>';
+          detTr.innerHTML = h;
+          tbody.appendChild(detTr);
+        }
       });
+
+      if (!outbounds.length) {
+        tbody.innerHTML = '<tr><td colspan="11" class="st-empty">No outbound samples found.</td></tr>';
+      }
     }
 
     function beansBadge(beans) {
