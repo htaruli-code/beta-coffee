@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.4 | samples.html -->
+<!-- Version 1.12.5 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -114,6 +114,14 @@
     .detail-row { display: grid; grid-template-columns: 1.6fr 1.1fr 0.55fr 1.3fr 0.55fr 0.55fr 0.65fr 0.75fr auto; gap: 0.4rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
     .detail-row:last-child { border-bottom: none; }
     .detail-header { background: var(--surface2); font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+    /* ── Inline Edit ── */
+    .ie-cell { position: relative; cursor: pointer; }
+    .ie-cell:hover .ie-val { background: var(--surface); border-radius: 3px; outline: 1px solid var(--border); }
+    .ie-cell:hover .ie-hint { opacity: 1; }
+    .ie-hint { opacity: 0; font-size: 0.6rem; color: var(--muted); margin-left: 4px; transition: opacity 0.15s; user-select: none; }
+    .ie-input { font-family: var(--font-sans); font-size: 0.78rem; padding: 2px 6px; border: 1px solid var(--accent); border-radius: 3px; background: #fff; color: var(--text); width: 100%; box-sizing: border-box; outline: none; }
+    .ie-select { font-family: var(--font-sans); font-size: 0.78rem; padding: 2px 6px; border: 1px solid var(--accent); border-radius: 3px; background: #fff; color: var(--text); }
 
     /* ── Spinner ── */
     .st-spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
@@ -424,7 +432,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.4 | samples.html script
+    // Version 1.12.5 | samples.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -590,23 +598,28 @@
           detHtml += '<div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Sample Details</div>';
           detHtml += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
           detHtml += '<thead><tr style="background:var(--surface2)">';
-          ['Sample ID','Name','Origin Code','Type','Bags','Bag kg','Cost $','Available','Active'].forEach(h => {
+          ['Sample ID','Name','Origin Code','Sales Name','Type','Qty(g)','Bags','Bag kg','Cost $','Active'].forEach(h => {
             detHtml += '<th style="text-align:left;padding:4px 8px;font-size:0.65rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)">' + h + '</th>';
           });
           detHtml += '</tr></thead><tbody>';
           dets.forEach(d => {
             const inactive = d.is_active === false || d.is_active === 'FALSE';
-            const style = inactive ? 'opacity:0.45;' : '';
-            detHtml += '<tr style="border-bottom:1px solid var(--border);' + style + '">';
-            detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem;color:var(--accent)">' + UI.esc(d.sample_id) + '</td>';
-            detHtml += '<td style="padding:5px 8px">' + UI.esc(d.sample_name) + '</td>';
-            detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem">' + UI.esc(d.origin_sample_code || '—') + '</td>';
-            detHtml += '<td style="padding:5px 8px">' + UI.esc(d.coffee_type || '—') + '</td>';
-            detHtml += '<td style="padding:5px 8px">' + (d.available_bags || '—') + '</td>';
-            detHtml += '<td style="padding:5px 8px">' + (d.bag_size ? d.bag_size + ' kg' : '—') + '</td>';
-            detHtml += '<td style="padding:5px 8px;font-family:var(--font-mono)">' + (d.cost_price ? '$' + parseFloat(d.cost_price).toFixed(2) + '/' + (d.cost_price_unit || 'kg') : '—') + '</td>';
-            detHtml += '<td style="padding:5px 8px;color:var(--accent);font-weight:500">' + (d.buyer_available !== undefined ? d.buyer_available : '—') + '</td>';
-            detHtml += '<td style="padding:5px 8px">';
+            const rowStyle = inactive ? 'opacity:0.45;' : '';
+            const P = 'padding:5px 8px;';
+            detHtml += '<tr style="border-bottom:1px solid var(--border);' + rowStyle + '">';
+            // Sample ID — read only
+            detHtml += '<td style="' + P + 'font-family:var(--font-mono);font-size:0.72rem;color:var(--accent)">' + UI.esc(d.sample_id) + '</td>';
+            // Inline-edit fields
+            detHtml += ieCell(d.detail_id, 'sample_name',        d.sample_name,        'text',   P);
+            detHtml += ieCell(d.detail_id, 'origin_sample_code', d.origin_sample_code, 'text',   P + 'font-family:var(--font-mono);font-size:0.72rem');
+            detHtml += ieCell(d.detail_id, 'coffee_sales_name',  d.coffee_sales_name,  'text',   P);
+            detHtml += ieCellSelect(d.detail_id, 'coffee_type',  d.coffee_type, PAGE_DATA.coffeeTypes, P);
+            detHtml += ieCell(d.detail_id, 'qty_grams',          d.qty_grams,          'number', P);
+            detHtml += ieCell(d.detail_id, 'available_bags',     d.available_bags,     'number', P);
+            detHtml += ieCell(d.detail_id, 'bag_size',           d.bag_size,           'number', P);
+            detHtml += ieCell(d.detail_id, 'cost_price',         d.cost_price,         'number', P);
+            // Active toggle
+            detHtml += '<td style="' + P + '">';
             detHtml += '<button onclick="event.stopPropagation();toggleActive(' + d.detail_id + ',' + inactive + ')" class="btn btn-ghost btn-sm" style="font-size:0.65rem;padding:2px 8px;border-color:' + (inactive ? 'var(--error)' : 'var(--success)') + ';color:' + (inactive ? 'var(--error)' : 'var(--success)') + '">' + (inactive ? 'Inactive' : 'Active') + '</button>';
             detHtml += '</td></tr>';
           });
@@ -658,6 +671,86 @@
       } catch (err) {
         UI.toastError(err.message);
       }
+    }
+
+    // ── Inline Edit Helpers ─────────────────────────────────────────────────
+    // v1.12.5: ieCell / ieCellSelect / commitField — inline editing for detail rows
+
+    function ieCell(detailId, field, val, type, tdStyle) {
+      const display = (val !== null && val !== undefined && val !== '') ? String(val) : '—';
+      return '<td style="' + tdStyle + '" class="ie-cell" onclick="event.stopPropagation();startEdit(this,' + detailId + ','' + field + '','' + type + '')">' +
+        '<span class="ie-val">' + UI.esc(display) + '</span>' +
+        '<span class="ie-hint">✎</span>' +
+        '</td>';
+    }
+
+    function ieCellSelect(detailId, field, val, options, tdStyle) {
+      const display = val || '—';
+      return '<td style="' + tdStyle + '" class="ie-cell" onclick="event.stopPropagation();startEditSelect(this,' + detailId + ','' + field + '',[' + options.map(o => '''+o+''').join(',') + '])">' +
+        '<span class="ie-val">' + UI.esc(display) + '</span>' +
+        '<span class="ie-hint">✎</span>' +
+        '</td>';
+    }
+
+    function startEdit(td, detailId, field, type) {
+      const span = td.querySelector('.ie-val');
+      const cur  = span.textContent === '—' ? '' : span.textContent;
+      const input = document.createElement('input');
+      input.type  = type || 'text';
+      input.value = cur;
+      input.className = 'ie-input';
+      input.style.width = Math.max(td.offsetWidth - 16, 60) + 'px';
+      td.innerHTML = '';
+      td.appendChild(input);
+      input.focus();
+      input.select();
+      const commit = async () => {
+        const newVal = input.value.trim();
+        if (newVal === cur) { renderTable(); return; }
+        try {
+          const res = await API.saveDetailField(detailId, field, newVal);
+          // Update local data
+          const d = PAGE_DATA.details.find(x => String(x.detail_id) === String(detailId));
+          if (d) d[field] = res.value;
+          UI.toastSuccess('Saved.');
+        } catch (err) {
+          UI.toastError(err.message);
+        }
+        renderTable();
+      };
+      input.addEventListener('blur',  commit);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { input.blur(); }
+        if (e.key === 'Escape') { renderTable(); }
+        e.stopPropagation();
+      });
+    }
+
+    function startEditSelect(td, detailId, field, options) {
+      const span = td.querySelector('.ie-val');
+      const cur  = span.textContent === '—' ? '' : span.textContent;
+      const sel  = document.createElement('select');
+      sel.className = 'ie-select';
+      sel.innerHTML = '<option value="">—</option>' + options.map(o => '<option value="'+o+'"'+(o===cur?' selected':'')+'>'+o+'</option>').join('');
+      td.innerHTML = '';
+      td.appendChild(sel);
+      sel.focus();
+      const commit = async () => {
+        const newVal = sel.value;
+        if (newVal === cur) { renderTable(); return; }
+        try {
+          const res = await API.saveDetailField(detailId, field, newVal);
+          const d = PAGE_DATA.details.find(x => String(x.detail_id) === String(detailId));
+          if (d) d[field] = res.value;
+          UI.toastSuccess('Saved.');
+        } catch (err) {
+          UI.toastError(err.message);
+        }
+        renderTable();
+      };
+      sel.addEventListener('change', commit);
+      sel.addEventListener('blur',   () => { if (!sel.dataset.committed) renderTable(); });
+      sel.addEventListener('keydown', e => { if (e.key === 'Escape') renderTable(); e.stopPropagation(); });
     }
 
     // Pagination buttons
