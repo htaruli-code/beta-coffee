@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.1 | buyer-reserve.html -->
+<!-- Version 1.11.2 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -153,7 +153,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11.1 | buyer-reserve.html script
+    // Version 1.11.2 | buyer-reserve.html script
 
     const token = new URLSearchParams(window.location.search).get('t');
     let PAGE_DATA = null;
@@ -189,15 +189,12 @@
         renderMinimumsUpdate();  // v1.8
 
         // Availability
-        const total     = PAGE_DATA.available_bags   || 0;
-        const reserved  = PAGE_DATA.total_reserved   || 0;
-        const available = PAGE_DATA.available_now    || 0;
+        const total     = PAGE_DATA.buyer_available || 0;  // v1.11.2: ceiling respects confirmed_purchase
+        const reserved  = PAGE_DATA.total_reserved  || 0;
+        const available = PAGE_DATA.available_now   || 0;
         const myPrev    = PAGE_DATA.already_reserved || 0;
 
-        // v1.5: available_now comes from buyer_available (cached field on inbound_detail)
-        // ceiling = confirmed_purchase if set, else available_bags
-        const confirmed = PAGE_DATA.confirmed_purchase || 0;
-        document.getElementById('info-total-bags').textContent = total + ' bags (offered by supplier)' + (confirmed > 0 ? ' · ' + confirmed + ' confirmed purchase' : '');
+        document.getElementById('info-total-bags').textContent = total + ' bags';
         document.getElementById('info-reserved').textContent   = reserved + ' bags';
         document.getElementById('info-available').textContent  = available + ' bags';
 
