@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.3 | samples.html -->
+<!-- Version 1.12.4 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -310,6 +310,11 @@
       <select id="filter-warehouse">
         <option value="">All Warehouses</option>
       </select>
+      <div style="position:relative;flex:1;max-width:320px">
+        <input type="text" id="search-samples" placeholder="Search Sample ID, Name, Origin Code…"
+          style="width:100%;padding:0.4rem 2rem 0.4rem 0.75rem;background:#fff;border:1px solid var(--border);border-radius:var(--radius);font-size:0.82rem;color:var(--text);font-family:var(--font-sans);" />
+        <button id="search-clear" title="Clear" style="display:none;position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;line-height:1;padding:0">✕</button>
+      </div>
     </div>
 
     <!-- Table -->
@@ -419,7 +424,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.3 | samples.html script
+    // Version 1.12.4 | samples.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -450,6 +455,21 @@
       });
 
       filterWH.addEventListener('change', () => loadPageData(filterWH.value));
+
+      // v1.12.4: search input wiring
+      const searchInput = document.getElementById('search-samples');
+      const searchClear = document.getElementById('search-clear');
+      searchInput.addEventListener('input', () => {
+        searchClear.style.display = searchInput.value ? 'block' : 'none';
+        currentPage = 1;
+        renderTable();
+      });
+      searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        searchClear.style.display = 'none';
+        currentPage = 1;
+        renderTable();
+      });
 
       await loadPageData(null);
     })();
@@ -490,12 +510,28 @@
       // v1.12.3: sort descending by inbound_id (newest first)
       PAGE_DATA.samples.sort((a, b) => Number(b.inbound_id) - Number(a.inbound_id));
 
+      // v1.12.4: search filter — Sample ID, Name, Origin Code across details
+      const searchQuery = (document.getElementById('search-samples').value || '').toLowerCase().trim();
+      let filteredSamples = PAGE_DATA.samples;
+      if (searchQuery) {
+        filteredSamples = PAGE_DATA.samples.filter(sm => {
+          const dets = detailMap[sm.inbound_id] || [];
+          return dets.some(d =>
+            (d.sample_id          || '').toLowerCase().includes(searchQuery) ||
+            (d.sample_name        || '').toLowerCase().includes(searchQuery) ||
+            (d.origin_sample_code || '').toLowerCase().includes(searchQuery)
+          );
+        });
+        // Auto-expand matched rows
+        filteredSamples.forEach(sm => expandedRows.add(sm.inbound_id));
+      }
+
       // Paginate
-      const total     = PAGE_DATA.samples.length;
+      const total     = filteredSamples.length;
       const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
       if (currentPage > totalPages) currentPage = totalPages;
       const start   = (currentPage - 1) * PAGE_SIZE;
-      const pageRows = PAGE_DATA.samples.slice(start, start + PAGE_SIZE);
+      const pageRows = filteredSamples.slice(start, start + PAGE_SIZE);
 
       // Pagination info
       document.getElementById('pagination-info').textContent =
