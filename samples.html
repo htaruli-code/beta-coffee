@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.2 | samples.html -->
+<!-- Version 1.12.3 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -419,7 +419,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.2 | samples.html script
+    // Version 1.12.3 | samples.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -486,6 +486,9 @@
         if (!detailMap[d.inbound_id]) detailMap[d.inbound_id] = [];
         detailMap[d.inbound_id].push(d);
       });
+
+      // v1.12.3: sort descending by inbound_id (newest first)
+      PAGE_DATA.samples.sort((a, b) => Number(b.inbound_id) - Number(a.inbound_id));
 
       // Paginate
       const total     = PAGE_DATA.samples.length;
@@ -710,7 +713,6 @@
           warehouse_id: warehouseId,
           po_number:    po,
           supplier_ref: ref,
-          notes:        document.getElementById('s-notes').value.trim(),  // v1.12.2
         });
 
         // 2. Save each detail (one call per detail — unavoidable for sample_id gen)

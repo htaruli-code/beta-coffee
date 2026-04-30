@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.2 | outbound.html -->
+<!-- Version 1.12.3 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -525,6 +525,9 @@
         if (!detailMap[d.outbound_id]) detailMap[d.outbound_id] = [];
         detailMap[d.outbound_id].push(d);
       });
+
+      // v1.12.3: sort descending by outbound_id (newest first)
+      outbounds = outbounds.slice().sort((a, b) => Number(b.outbound_id) - Number(a.outbound_id));
 
       tbody.innerHTML = '';
 
