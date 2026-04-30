@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.10 | all-samples.html -->
+<!-- Version 1.11 | all-samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -17,10 +17,10 @@
       --font-mono: 'IBM Plex Mono', monospace;
       --font-sans: 'Inter', sans-serif;
       --radius: 6px; --transition: 160ms ease;
+      --panel-w: 380px;
     }
-    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); }
-    /* Nav */
-    .nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 52px; gap: 2rem; position: sticky; top: 0; z-index: 100; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); overflow-x: hidden; }
+    .nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 52px; gap: 2rem; position: sticky; top: 0; z-index: 200; }
     .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
     .nav-links { display: flex; gap: 0.25rem; flex: 1; }
     .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
@@ -28,48 +28,76 @@
     .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
     .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; }
     .nav-user:hover { color: var(--accent); }
-    /* Page */
-    .page { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .layout { display: flex; min-height: calc(100vh - 52px); }
+    .main { flex: 1; min-width: 0; padding: 2rem; transition: padding-right 0.22s ease; }
+    .main.panel-open { padding-right: calc(var(--panel-w) + 2.5rem); }
     .page::before { content: ''; display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, #f0e8da 60%, transparent 100%); margin-bottom: 1.75rem; border-radius: 1px; }
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; }
     .page-title { font-size: 1.3rem; font-weight: 500; letter-spacing: -0.01em; }
     .page-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
-    /* Toolbar */
     .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; flex-wrap: wrap; }
     .toolbar select, .toolbar input { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); font-family: var(--font-sans); outline: none; }
     .toolbar select:focus, .toolbar input:focus { border-color: var(--accent); }
     .toolbar-spacer { flex: 1; }
-    /* Table */
     .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     thead tr { background: var(--surface); }
     th { text-align: left; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0.65rem 0.875rem; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
     th:hover { color: var(--accent); }
-    th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+    th.sort-asc::after  { content: ' ↑'; color: var(--accent); }
     th.sort-desc::after { content: ' ↓'; color: var(--accent); }
     td { padding: 0.65rem 0.875rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
     tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover { background: var(--surface); }
+    tbody tr:hover { background: var(--surface); cursor: pointer; }
+    tbody tr.row-selected { background: #fef5e8 !important; }
     .st-empty { text-align: center; color: var(--muted); padding: 3rem; font-size: 0.83rem; }
-    /* Badges */
-    .sample-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+    .sample-id  { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; }
+    .detail-id  { font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent); font-weight: 600; }
     .badge { display: inline-block; font-size: 0.7rem; font-weight: 500; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono); }
-    .badge-active   { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
-    .badge-inactive { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
-    .badge-type { background: var(--surface2); color: var(--accent); border: 1px solid var(--border); }
-    /* Buttons */
+    .badge-type      { background: var(--surface2); color: var(--accent); border: 1px solid var(--border); }
+    .badge-active    { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .badge-inactive  { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .badge-approved  { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
+    .badge-rejected  { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; }
+    .badge-pending   { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
     .btn { background: var(--accent); color: #fff; border: none; font-family: var(--font-sans); font-size: 0.83rem; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); }
     .btn:hover { background: var(--accent2); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
     .btn-ghost:hover { background: var(--surface); border-color: var(--border2); }
     .btn-sm { font-size: 0.75rem; padding: 0.3rem 0.75rem; }
-    /* Pagination */
+    .btn-approve { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; font-family: var(--font-sans); font-size: 0.83rem; font-weight: 500; padding: 0.5rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); }
+    .btn-approve:hover { background: #d4f0e2; }
+    .btn-approve:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-reject  { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; font-family: var(--font-sans); font-size: 0.83rem; font-weight: 500; padding: 0.5rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); }
+    .btn-reject:hover  { background: #fae0dc; }
+    .btn-reject:disabled { opacity: 0.4; cursor: not-allowed; }
     .pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
-    /* Spinner */
+    /* Panel */
+    .panel { position: fixed; top: 52px; right: 0; bottom: 0; width: var(--panel-w); background: #fff; border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.22s ease; z-index: 160; }
+    .panel.open { transform: translateX(0); }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+    .panel-title { font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; }
+    .panel-close { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 1.2rem; line-height: 1; padding: 0.2rem; }
+    .panel-close:hover { color: var(--error); }
+    .panel-body { flex: 1; overflow-y: auto; padding: 1.25rem; }
+    .panel-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+    .prow { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+    .prow:last-child { border-bottom: none; }
+    .plabel { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--font-mono); width: 48%; flex-shrink: 0; }
+    .pval { color: var(--text); text-align: right; }
+    .psection { font-family: var(--font-mono); font-size: 0.67rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 2px solid var(--border); }
+    .inbound-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 1rem; font-size: 0.78rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.7; }
+    .inbound-bar strong { color: var(--text); }
+    .eval-notes-wrap { display: none; }
+    .eval-notes-wrap.show { display: block; }
+    .eval-notes { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-sans); font-size: 0.82rem; color: var(--text); resize: vertical; min-height: 64px; background: #fff; }
+    .eval-notes:focus { outline: none; border-color: var(--accent); }
+    .btn-send-eval { width: 100%; background: var(--accent); color: #fff; border: none; font-family: var(--font-sans); font-size: 0.82rem; font-weight: 500; padding: 0.6rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); }
+    .btn-send-eval:hover { background: var(--accent2); }
+    .btn-send-eval:disabled { opacity: 0.4; cursor: not-allowed; }
     .st-spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    /* Toast */
     .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.8rem; padding: 0.75rem 1.25rem; z-index: 9999; box-shadow: 0 2px 8px rgba(0,0,0,0.08); animation: fadeIn 0.2s ease; }
     .st-toast--error { border-color: #f5c6c6; color: #a32d2d; background: #fdf0ee; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
@@ -89,60 +117,82 @@
     <span class="nav-user" id="nav-user"></span>
   </nav>
 
-  <div class="page">
-    <div class="page-header">
-      <div>
-        <div class="page-title">All Samples</div>
-        <div class="page-sub" id="company-name"></div>
-      </div>
-    </div>
+  <div class="layout">
+    <div class="main" id="main">
+      <div class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">All Samples</div>
+            <div class="page-sub" id="company-name"></div>
+          </div>
+        </div>
 
-    <div class="toolbar">
-      <select id="filter-warehouse">
-        <option value="">All Warehouses</option>
-      </select>
-      <select id="filter-coffee-type">
-        <option value="">All Types</option>
-      </select>
-      <select id="filter-active">
-        <option value="">Active + Inactive</option>
-        <option value="active">Active only</option>
-        <option value="inactive">Inactive only</option>
-      </select>
-      <input type="text" id="filter-search" placeholder="Search sample ID or name…" style="min-width:200px" />
-      <span class="toolbar-spacer"></span>
-      <span id="result-count" style="font-size:0.8rem;color:var(--muted)"></span>
-    </div>
+        <div class="toolbar">
+          <select id="filter-warehouse"><option value="">All Warehouses</option></select>
+          <select id="filter-coffee-type"><option value="">All Types</option></select>
+          <select id="filter-eval">
+            <option value="">All Evaluations</option>
+            <option value="pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+          <select id="filter-active">
+            <option value="">Active + Inactive</option>
+            <option value="active">Active only</option>
+            <option value="inactive">Inactive only</option>
+          </select>
+          <input type="text" id="filter-search" placeholder="Search ID, name, origin code…" style="min-width:190px" />
+          <span class="toolbar-spacer"></span>
+          <span id="result-count" style="font-size:0.8rem;color:var(--muted)"></span>
+        </div>
 
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th data-col="sample_id">Sample ID</th>
-            <th data-col="sample_name">Name</th>
-            <th data-col="origin_sample_code">Origin Code</th>
-            <th data-col="coffee_type">Type</th>
-            <th data-col="available_bags">Bags Offered</th>
-            <th data-col="bag_size">Bag kg</th>
-            <th data-col="cost_price">Cost $</th>
-            <th data-col="cost_price_unit">Unit</th>
-            <th data-col="buyer_available">Avail Now</th>
-            <th data-col="supplier">Supplier</th>
-            <th data-col="warehouse">Warehouse</th>
-            <th data-col="is_active">Status</th>
-          </tr>
-        </thead>
-        <tbody id="all-samples-tbody">
-          <tr><td colspan="11" class="st-empty"><div class="st-spinner"></div></td></tr>
-        </tbody>
-      </table>
-      <div class="pagination-bar">
-        <span id="pagination-info"></span>
-        <div style="display:flex;gap:0.5rem">
-          <button class="btn btn-ghost btn-sm" id="btn-prev">← Prev</button>
-          <button class="btn btn-ghost btn-sm" id="btn-next">Next →</button>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-col="detail_id">ID</th>
+                <th data-col="sample_id">Sample ID</th>
+                <th data-col="sample_name">Name</th>
+                <th data-col="origin_sample_code">Origin Code</th>
+                <th data-col="coffee_type">Type</th>
+                <th data-col="available_bags">Bags</th>
+                <th data-col="buyer_available">Avail Now</th>
+                <th data-col="supplier">Supplier</th>
+                <th data-col="eval_status">Evaluation</th>
+              </tr>
+            </thead>
+            <tbody id="all-samples-tbody">
+              <tr><td colspan="9" class="st-empty"><div class="st-spinner"></div></td></tr>
+            </tbody>
+          </table>
+          <div class="pagination-bar">
+            <span id="pagination-info"></span>
+            <div style="display:flex;gap:0.5rem">
+              <button class="btn btn-ghost btn-sm" id="btn-prev">← Prev</button>
+              <button class="btn btn-ghost btn-sm" id="btn-next">Next →</button>
+            </div>
+          </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Slide-out Detail Panel -->
+  <div class="panel" id="detail-panel">
+    <div class="panel-header">
+      <span class="panel-title" id="panel-title">Sample Detail</span>
+      <button class="panel-close" id="panel-close">✕</button>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+    <div class="panel-footer">
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn-approve" id="btn-approve" style="flex:1">✓ Approve</button>
+        <button class="btn-reject"  id="btn-reject"  style="flex:1">✗ Reject</button>
+      </div>
+      <div class="eval-notes-wrap" id="eval-notes-wrap">
+        <textarea class="eval-notes" id="eval-notes" placeholder="Rejection reason (optional)…" maxlength="250"></textarea>
+      </div>
+      <button class="btn-send-eval" id="btn-send-eval" style="display:none">✉ Send Evaluation to Supplier</button>
     </div>
   </div>
 
@@ -151,15 +201,16 @@
   <script src="js/auth.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.9 | all-samples.html script
+    // Version 1.11 | all-samples.html script
     Auth.requireAuth('login.html');
 
     const PAGE_SIZE = 20;
-    let currentPage = 1;
-    let sortCol     = 'sample_id';
-    let sortDir     = 'asc';
-    let PAGE_DATA   = { details: [], inboundMap: {}, suppliers: [], warehouses: [], coffeeTypes: [] };
-    let filtered    = [];
+    let currentPage      = 1;
+    let sortCol          = 'detail_id';
+    let sortDir          = 'desc';
+    let PAGE_DATA        = { details: [], inboundMap: {}, suppliers: [], warehouses: [], coffeeTypes: [] };
+    let filtered         = [];
+    let selectedDetailId = null;
 
     // ── Init ──────────────────────────────────────────────────────────────────
     (async () => {
@@ -172,56 +223,58 @@
       document.getElementById('nav-user').textContent     = (user ? user.name : '') + ' · Sign out';
       document.getElementById('nav-user').addEventListener('click', UI.logout);
 
-      // Populate warehouse filter from session
       const filterWH = document.getElementById('filter-warehouse');
       whs.forEach(wh => {
         const opt = document.createElement('option');
-        opt.value = wh.warehouse_id;
-        opt.textContent = wh.warehouse_name;
+        opt.value = wh.warehouse_id; opt.textContent = wh.warehouse_name;
         filterWH.appendChild(opt);
       });
 
       await loadData(null);
 
-      // Filter listeners
-      filterWH.addEventListener('change', () => loadData(filterWH.value || null));
+      filterWH.addEventListener('change',                                    () => loadData(filterWH.value || null));
       document.getElementById('filter-coffee-type').addEventListener('change', applyFilters);
-      document.getElementById('filter-active').addEventListener('change', applyFilters);
-      document.getElementById('filter-search').addEventListener('input', applyFilters);
+      document.getElementById('filter-eval').addEventListener('change',        applyFilters);
+      document.getElementById('filter-active').addEventListener('change',      applyFilters);
+      document.getElementById('filter-search').addEventListener('input',       applyFilters);
 
-      // Sort listeners
       document.querySelectorAll('th[data-col]').forEach(th => {
         th.addEventListener('click', () => {
           const col = th.dataset.col;
           if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-          else { sortCol = col; sortDir = 'asc'; }
+          else { sortCol = col; sortDir = (col === 'detail_id') ? 'desc' : 'asc'; }
           document.querySelectorAll('th[data-col]').forEach(t => t.classList.remove('sort-asc','sort-desc'));
           th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
           applyFilters();
         });
       });
+      document.querySelector('th[data-col="detail_id"]').classList.add('sort-desc');
 
-      // Pagination
-      document.getElementById('btn-prev').addEventListener('click', () => { currentPage--; renderTable(); });
-      document.getElementById('btn-next').addEventListener('click', () => { currentPage++; renderTable(); });
+      document.getElementById('btn-prev').addEventListener('click',      () => { currentPage--; renderTable(); });
+      document.getElementById('btn-next').addEventListener('click',      () => { currentPage++; renderTable(); });
+      document.getElementById('panel-close').addEventListener('click',   closePanel);
+      document.getElementById('btn-approve').addEventListener('click',   () => submitEval('Approved'));
+      document.getElementById('btn-reject').addEventListener('click',    () => {
+        document.getElementById('eval-notes-wrap').classList.add('show');
+        submitEval('Rejected');
+      });
+      document.getElementById('btn-send-eval').addEventListener('click', sendEvaluation);
     })();
 
     // ── Load Data ─────────────────────────────────────────────────────────────
     async function loadData(warehouseId) {
       try {
         PAGE_DATA = await API.getAllSamplesPage(warehouseId);
-        // Populate coffee type filter
         const ctSel = document.getElementById('filter-coffee-type');
         ctSel.innerHTML = '<option value="">All Types</option>';
         (PAGE_DATA.coffeeTypes || []).forEach(t => {
-          const o = document.createElement('option');
-          o.value = t; o.textContent = t;
+          const o = document.createElement('option'); o.value = t; o.textContent = t;
           ctSel.appendChild(o);
         });
         applyFilters();
       } catch (err) {
         document.getElementById('all-samples-tbody').innerHTML =
-          '<tr><td colspan="12" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+          '<tr><td colspan="9" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
     }
 
@@ -229,38 +282,42 @@
     function applyFilters() {
       currentPage = 1;
       const typeFilter   = document.getElementById('filter-coffee-type').value;
+      const evalFilter   = document.getElementById('filter-eval').value;
       const activeFilter = document.getElementById('filter-active').value;
       const search       = document.getElementById('filter-search').value.toLowerCase().trim();
 
-      // Build enriched rows
       const supplierMap = {};
-      (PAGE_DATA.suppliers || []).forEach(s => supplierMap[s.supplier_id] = s.supplier_name);
+      (PAGE_DATA.suppliers  || []).forEach(s => supplierMap[s.supplier_id] = s.supplier_name);
       const whMap = {};
-      (PAGE_DATA.warehouses || []).forEach(w => whMap[w.warehouse_id] = w.warehouse_name);
+      (PAGE_DATA.warehouses || []).forEach(w => whMap[w.warehouse_id]      = w.warehouse_name);
 
       let rows = (PAGE_DATA.details || []).map(d => {
-        const inbound = (PAGE_DATA.inboundMap || {})[d.inbound_id] || {};
+        const inb = (PAGE_DATA.inboundMap || {})[d.inbound_id] || {};
         return Object.assign({}, d, {
-          supplier: supplierMap[inbound.supplier_id] || '—',
-          warehouse: whMap[inbound.warehouse_id]     || '—',
+          supplier:  supplierMap[inb.supplier_id]  || '—',
+          warehouse: whMap[inb.warehouse_id]        || '—',
         });
       });
 
-      // Filter
-      if (typeFilter)   rows = rows.filter(d => d.coffee_type === typeFilter);
-      if (activeFilter === 'active')   rows = rows.filter(d => d.is_active !== false && d.is_active !== 'FALSE');
+      if (typeFilter)                rows = rows.filter(d => d.coffee_type === typeFilter);
+      if (activeFilter === 'active') rows = rows.filter(d => d.is_active !== false && d.is_active !== 'FALSE');
       if (activeFilter === 'inactive') rows = rows.filter(d => d.is_active === false || d.is_active === 'FALSE');
+      if (evalFilter === 'pending')  rows = rows.filter(d => !d.eval_status);
+      else if (evalFilter)           rows = rows.filter(d => d.eval_status === evalFilter);
       if (search) rows = rows.filter(d =>
-        (d.sample_id    || '').toLowerCase().includes(search) ||
-        (d.sample_name  || '').toLowerCase().includes(search) ||
-        (d.coffee_type  || '').toLowerCase().includes(search) ||
-        (d.supplier     || '').toLowerCase().includes(search)
+        String(d.detail_id           || '').toLowerCase().includes(search) ||
+        (d.sample_id                 || '').toLowerCase().includes(search) ||
+        (d.sample_name               || '').toLowerCase().includes(search) ||
+        (d.origin_sample_code        || '').toLowerCase().includes(search) ||
+        (d.supplier                  || '').toLowerCase().includes(search)
       );
 
-      // Sort
       rows.sort((a, b) => {
         let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
-        if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av;
+        if (sortCol === 'detail_id' || sortCol === 'available_bags' || sortCol === 'buyer_available') {
+          av = Number(av) || 0; bv = Number(bv) || 0;
+          return sortDir === 'asc' ? av - bv : bv - av;
+        }
         return sortDir === 'asc'
           ? String(av).localeCompare(String(bv))
           : String(bv).localeCompare(String(av));
@@ -272,6 +329,13 @@
     }
 
     // ── Render Table ──────────────────────────────────────────────────────────
+    function evalBadge(status) {
+      if (!status) return '<span class="badge badge-pending">Pending</span>';
+      return status === 'Approved'
+        ? '<span class="badge badge-approved">✓ Approved</span>'
+        : '<span class="badge badge-rejected">✗ Rejected</span>';
+    }
+
     function renderTable() {
       const tbody = document.getElementById('all-samples-tbody');
       const total = filtered.length;
@@ -287,7 +351,7 @@
 
       tbody.innerHTML = '';
       if (!pageRows.length) {
-        tbody.innerHTML = '<tr><td colspan="12" class="st-empty">No samples found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="st-empty">No samples found.</td></tr>';
         return;
       }
 
@@ -295,23 +359,133 @@
         const inactive = d.is_active === false || d.is_active === 'FALSE';
         const tr = document.createElement('tr');
         if (inactive) tr.style.opacity = '0.55';
+        if (String(d.detail_id) === String(selectedDetailId)) tr.classList.add('row-selected');
         tr.innerHTML =
-          '<td><span class="sample-id">' + UI.esc(d.sample_id || '—') + '</span></td>' +
+          '<td><span class="detail-id">#' + UI.esc(String(d.detail_id)) + '</span></td>' +
+          '<td><span class="sample-id">'  + UI.esc(d.sample_id || '—') + '</span></td>' +
           '<td>' + UI.esc(d.sample_name || '—') + '</td>' +
           '<td style="font-family:var(--font-mono);font-size:0.72rem">' + UI.esc(d.origin_sample_code || '—') + '</td>' +
           '<td>' + (d.coffee_type ? '<span class="badge badge-type">' + UI.esc(d.coffee_type) + '</span>' : '<span style="color:var(--muted)">—</span>') + '</td>' +
           '<td style="font-family:var(--font-mono)">' + (d.available_bags || '—') + '</td>' +
-          '<td style="font-family:var(--font-mono)">' + (d.bag_size ? d.bag_size + ' kg' : '—') + '</td>' +
-          '<td style="font-family:var(--font-mono)">' + (d.cost_price ? '$' + parseFloat(d.cost_price).toFixed(2) : '—') + '</td>' +
-          '<td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">' + UI.esc(d.cost_price_unit || 'kg') + '</td>' +
           '<td style="font-family:var(--font-mono);color:var(--accent);font-weight:500">' + (d.buyer_available !== undefined && d.buyer_available !== '' ? d.buyer_available : '—') + '</td>' +
           '<td>' + UI.esc(d.supplier || '—') + '</td>' +
-          '<td>' + UI.esc(d.warehouse || '—') + '</td>' +
-          '<td>' + (inactive
-            ? '<span class="badge badge-inactive">Inactive</span>'
-            : '<span class="badge badge-active">Active</span>') + '</td>';
+          '<td>' + evalBadge(d.eval_status) + '</td>';
+        tr.addEventListener('click', () => openPanel(d.detail_id));
         tbody.appendChild(tr);
       });
+    }
+
+    // ── Panel ─────────────────────────────────────────────────────────────────
+    function openPanel(detailId) {
+      const d = (PAGE_DATA.details || []).find(x => String(x.detail_id) === String(detailId));
+      if (!d) return;
+      selectedDetailId = detailId;
+      renderTable();
+
+      const supplierMap = {};
+      (PAGE_DATA.suppliers  || []).forEach(s => supplierMap[s.supplier_id] = s.supplier_name);
+      const whMap = {};
+      (PAGE_DATA.warehouses || []).forEach(w => whMap[w.warehouse_id]      = w.warehouse_name);
+      const inb      = (PAGE_DATA.inboundMap || {})[d.inbound_id] || {};
+      const supplier  = supplierMap[inb.supplier_id] || '—';
+      const warehouse = whMap[inb.warehouse_id]      || '—';
+
+      const siblings       = (PAGE_DATA.details || []).filter(x => String(x.inbound_id) === String(d.inbound_id));
+      const evaluatedCount = siblings.filter(x => x.eval_status).length;
+      const totalCount     = siblings.length;
+
+      document.getElementById('panel-title').textContent = '#' + detailId;
+
+      document.getElementById('panel-body').innerHTML =
+        '<div class="inbound-bar">' +
+          '<strong>Inbound #' + UI.esc(String(d.inbound_id)) + '</strong> · ' + UI.esc(supplier) + ' → ' + UI.esc(warehouse) + '<br>' +
+          evaluatedCount + ' of ' + totalCount + ' sample' + (totalCount !== 1 ? 's' : '') + ' evaluated in this batch' +
+        '</div>' +
+
+        '<div class="psection">Sample Info</div>' +
+        prow('Detail ID',   '<span class="detail-id">#' + UI.esc(String(d.detail_id)) + '</span>') +
+        prow('Sample ID',   '<span style="font-family:var(--font-mono);color:var(--accent)">' + UI.esc(d.sample_id || '—') + '</span>') +
+        prow('Name',         UI.esc(d.sample_name || '—')) +
+        prow('Origin Code',  '<span style="font-family:var(--font-mono)">' + UI.esc(d.origin_sample_code || '—') + '</span>') +
+        prow('Coffee Type',  d.coffee_type ? '<span class="badge badge-type">' + UI.esc(d.coffee_type) + '</span>' : '—') +
+        prow('Sales Name',   UI.esc(d.coffee_sales_name || '—')) +
+
+        '<div class="psection">Stock</div>' +
+        prow('Available Bags',     '<span style="font-family:var(--font-mono)">' + (d.available_bags || '—') + '</span>') +
+        prow('Buyer Available',    '<span style="font-family:var(--font-mono);color:var(--accent);font-weight:600">' + (d.buyer_available !== undefined && d.buyer_available !== '' ? d.buyer_available : '—') + '</span>') +
+        prow('Confirmed Purchase', '<span style="font-family:var(--font-mono)">' + (d.confirmed_purchase || '—') + '</span>') +
+        prow('Bag Size',           '<span style="font-family:var(--font-mono)">' + (d.bag_size ? d.bag_size + ' kg' : '—') + '</span>') +
+        prow('Sample Qty',         '<span style="font-family:var(--font-mono)">' + (d.qty_grams ? d.qty_grams + 'g' : '—') + '</span>') +
+
+        '<div class="psection">Pricing</div>' +
+        prow('Cost Price', '<span style="font-family:var(--font-mono)">' + (d.cost_price ? '$' + parseFloat(d.cost_price).toFixed(2) + ' / ' + (d.cost_price_unit || 'kg') : '—') + '</span>') +
+
+        '<div class="psection">Status</div>' +
+        prow('Active',     d.is_active !== false && d.is_active !== 'FALSE' ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-inactive">Inactive</span>') +
+        prow('Evaluation', evalBadge(d.eval_status)) +
+        (d.eval_notes ? prow('Eval Notes', UI.esc(d.eval_notes)) : '');
+
+      // Pre-fill notes; show if already rejected
+      document.getElementById('eval-notes').value = d.eval_notes || '';
+      document.getElementById('eval-notes-wrap').classList.toggle('show', d.eval_status === 'Rejected');
+
+      // Send eval button
+      const sendBtn = document.getElementById('btn-send-eval');
+      sendBtn.style.display    = evaluatedCount > 0 ? 'block' : 'none';
+      sendBtn.dataset.inboundId = d.inbound_id;
+
+      document.getElementById('detail-panel').classList.add('open');
+      document.getElementById('main').classList.add('panel-open');
+    }
+
+    function prow(label, valueHtml) {
+      return '<div class="prow"><span class="plabel">' + label + '</span><span class="pval">' + valueHtml + '</span></div>';
+    }
+
+    function closePanel() {
+      document.getElementById('detail-panel').classList.remove('open');
+      document.getElementById('main').classList.remove('panel-open');
+      selectedDetailId = null;
+      renderTable();
+    }
+
+    // ── Evaluate ──────────────────────────────────────────────────────────────
+    async function submitEval(evalStatus) {
+      if (!selectedDetailId) return;
+      const notes   = document.getElementById('eval-notes').value.trim();
+      const btnA    = document.getElementById('btn-approve');
+      const btnR    = document.getElementById('btn-reject');
+      btnA.disabled = true; btnR.disabled = true;
+      try {
+        await API.saveEvaluation(selectedDetailId, evalStatus, notes);
+        const d = (PAGE_DATA.details || []).find(x => String(x.detail_id) === String(selectedDetailId));
+        if (d) { d.eval_status = evalStatus; d.eval_notes = notes; }
+        UI.toastSuccess(evalStatus === 'Approved' ? 'Approved.' : 'Rejected.');
+        openPanel(selectedDetailId);
+        applyFilters();
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        btnA.disabled = false; btnR.disabled = false;
+      }
+    }
+
+    // ── Send Evaluation ───────────────────────────────────────────────────────
+    async function sendEvaluation() {
+      const btn       = document.getElementById('btn-send-eval');
+      const inboundId = btn.dataset.inboundId;
+      if (!inboundId) return;
+      btn.disabled    = true;
+      btn.textContent = 'Sending…';
+      try {
+        await API.sendEvaluation(inboundId);
+        UI.toastSuccess('Evaluation sent to supplier.');
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = '✉ Send Evaluation to Supplier';
+      }
     }
   </script>
 </body>
