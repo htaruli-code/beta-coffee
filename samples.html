@@ -713,6 +713,7 @@
           warehouse_id: warehouseId,
           po_number:    po,
           supplier_ref: ref,
+          notes:        document.getElementById('s-notes').value.trim(),  // v1.12.3: pass notes to GAS
         });
 
         // 2. Save each detail (one call per detail — unavoidable for sample_id gen)
