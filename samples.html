@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.1 | samples.html -->
+<!-- Version 1.12.2 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -303,10 +303,6 @@
         <div class="page-sub" id="company-name"></div>
       </div>
       <button class="btn" id="btn-new-sample">+ New Sample Request</button>
-      <input type="text" id="search-samples" placeholder="Search sample ID, name, origin…"
-        style="font-size:0.82rem;border:1px solid var(--border);border-radius:var(--radius);padding:0.4rem 0.75rem;font-family:var(--font-sans);outline:none;min-width:240px;background:#fff;color:var(--text)"
-        oninput="onSampleSearch(this.value)" />
-      <button class="btn btn-ghost btn-sm" id="btn-clear-search" style="display:none" onclick="clearSearch()">✕ Clear</button>
     </div>
 
     <!-- Toolbar / filter -->
@@ -423,7 +419,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.8 | samples.html script
+    // Version 1.12.2 | samples.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -471,76 +467,6 @@
       }
     }
 
-
-    // ── Search (v1.12.1) ──────────────────────────────────────────────────────
-    // Searches across detail fields: sample_id, sample_name, origin_sample_code
-    // Filters PAGE_DATA.samples to only those with at least one matching detail.
-    // Auto-expands matched inbound rows so details are immediately visible.
-
-    let searchTerm = '';
-
-    function onSampleSearch(val) {
-      searchTerm = val.toLowerCase().trim();
-      document.getElementById('btn-clear-search').style.display = searchTerm ? 'inline-block' : 'none';
-      currentPage = 1;
-      applySearch();
-    }
-
-    function clearSearch() {
-      document.getElementById('search-samples').value = '';
-      searchTerm = '';
-      document.getElementById('btn-clear-search').style.display = 'none';
-      expandedRows.clear();
-      currentPage = 1;
-      renderTable();
-    }
-
-    function applySearch() {
-      if (!searchTerm) {
-        expandedRows.clear();
-        renderTable();
-        return;
-      }
-
-      // Build detail map
-      const detailMap = {};
-      (PAGE_DATA.details || []).forEach(d => {
-        if (!detailMap[d.inbound_id]) detailMap[d.inbound_id] = [];
-        detailMap[d.inbound_id].push(d);
-      });
-
-      // Find matching inbound IDs
-      const matchingInboundIds = new Set();
-      (PAGE_DATA.details || []).forEach(d => {
-        if (
-          (d.sample_id           || '').toLowerCase().includes(searchTerm) ||
-          (d.sample_name         || '').toLowerCase().includes(searchTerm) ||
-          (d.origin_sample_code  || '').toLowerCase().includes(searchTerm) ||
-          (d.coffee_sales_name   || '').toLowerCase().includes(searchTerm) ||
-          (d.coffee_type         || '').toLowerCase().includes(searchTerm)
-        ) {
-          matchingInboundIds.add(String(d.inbound_id));
-        }
-      });
-
-      // Also match on supplier name
-      const supplierMap = {};
-      (PAGE_DATA.suppliers || []).forEach(s => supplierMap[s.supplier_id] = (s.supplier_name || '').toLowerCase());
-      (PAGE_DATA.samples || []).forEach(s => {
-        const supName = supplierMap[s.supplier_id] || '';
-        if (supName.includes(searchTerm)) matchingInboundIds.add(String(s.inbound_id));
-      });
-
-      // Filter samples list + auto-expand matches
-      PAGE_DATA._filteredSamples = (PAGE_DATA.samples || []).filter(s =>
-        matchingInboundIds.has(String(s.inbound_id))
-      );
-      // Auto-expand all matched rows so user sees details immediately
-      PAGE_DATA._filteredSamples.forEach(s => expandedRows.add(s.inbound_id));
-
-      renderTable();
-    }
-
     // ── Pagination state ─────────────────────────────────────────────────────
     const PAGE_SIZE = 20;
     let currentPage = 1;
@@ -562,12 +488,11 @@
       });
 
       // Paginate
-      const rows      = searchTerm ? (PAGE_DATA._filteredSamples || []) : (PAGE_DATA.samples || []);
-      const total     = rows.length;
+      const total     = PAGE_DATA.samples.length;
       const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
       if (currentPage > totalPages) currentPage = totalPages;
       const start   = (currentPage - 1) * PAGE_SIZE;
-      const pageRows = rows.slice(start, start + PAGE_SIZE);
+      const pageRows = PAGE_DATA.samples.slice(start, start + PAGE_SIZE);
 
       // Pagination info
       document.getElementById('pagination-info').textContent =
@@ -785,6 +710,7 @@
           warehouse_id: warehouseId,
           po_number:    po,
           supplier_ref: ref,
+          notes:        document.getElementById('s-notes').value.trim(),  // v1.12.2
         });
 
         // 2. Save each detail (one call per detail — unavoidable for sample_id gen)
