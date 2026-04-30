@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.1 | outbound.html -->
+<!-- Version 1.12.2 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -577,17 +577,21 @@
           h += '<div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Sample Details</div>';
           h += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
           h += '<thead><tr style="background:var(--surface2)">';
-          ['Sample Code','Name','Origin Code','Type','Qty (g)'].forEach(col => {
+          ['Sample Code','Name','Origin Code','Type','Qty (g)','Price Sent'].forEach(col => {
             h += `<th style="text-align:left;padding:4px 8px;font-size:0.65rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)">${col}</th>`;
           });
           h += '</tr></thead><tbody>';
           dets.forEach(d => {
+            const priceSent = d.sale_price_sent
+              ? '$' + parseFloat(d.sale_price_sent).toFixed(2) + '/' + (d.sale_price_unit_sent || 'kg')
+              : '\u2014';
             h += `<tr style="border-bottom:1px solid var(--border)">
               <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem;color:var(--accent)">${UI.esc(d.sample_code||'\u2014')}</td>
               <td style="padding:5px 8px">${UI.esc(d.sample_name||'\u2014')}</td>
               <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem">${UI.esc(d.origin_sample_code||'\u2014')}</td>
               <td style="padding:5px 8px">${UI.esc(d.sample_type||'\u2014')}</td>
               <td style="padding:5px 8px;font-family:var(--font-mono)">${d.qty_grams ? d.qty_grams+'g' : '\u2014'}</td>
+              <td style="padding:5px 8px;font-family:var(--font-mono);color:var(--accent);font-weight:500">${priceSent}</td>
             </tr>`;
           });
           h += '</tbody></table></td>';
