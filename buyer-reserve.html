@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.2 | buyer-reserve.html -->
+<!-- Version 1.11.3 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -153,7 +153,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11.2 | buyer-reserve.html script
+    // Version 1.11.3 | buyer-reserve.html script
 
     const token = new URLSearchParams(window.location.search).get('t');
     let PAGE_DATA = null;
@@ -275,8 +275,11 @@
       if (!bags || bags < 1)    { toastError('Please enter the number of bags to reserve.'); return; }
       if (bags > available)     { toastError('Only ' + available + ' bag' + (available === 1 ? '' : 's') + ' available.'); return; }
       // v1.8: client-side minimum check (server also validates)
+      // v1.11.3: minimum is advisory — warn but allow reservation to proceed
       const minReq = PAGE_DATA ? (PAGE_DATA.min_bags_required || 0) : 0;
-      if (minReq > 0 && bags < minReq) { toastError('Your minimum order for ' + (PAGE_DATA.coffee_type || 'this coffee') + ' is ' + minReq + ' bags.'); return; }
+      if (minReq > 0 && bags < minReq) {
+        toastError('Note: your usual minimum for ' + (PAGE_DATA.coffee_type || 'this coffee') + ' is ' + minReq + ' bags.');
+      }
 
       const btn = document.getElementById('btn-reserve');
       btn.disabled = true;
@@ -332,7 +335,7 @@
           if (!input || input.value.trim() === '') continue;
           const bags = parseInt(input.value);
           if (isNaN(bags) || bags < 0) continue;
-          await API.saveBuyerMinimum(PAGE_DATA.buyer_id, t, bags);
+          await API.saveBuyerMinimumPublic(PAGE_DATA.buyer_id, token, t, bags);  // v1.11.3: public — uses reservation token
           if (!PAGE_DATA.minimums) PAGE_DATA.minimums = {};
           PAGE_DATA.minimums[t] = bags;
           // Update min_bags_required if it's the current coffee type
