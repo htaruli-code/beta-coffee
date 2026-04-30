@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.3 | outbound.html -->
+<!-- Version 1.12.4 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -51,8 +51,8 @@
     .status-btns { display: flex; gap: 0.35rem; flex-wrap: wrap; }
     .btn-status { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.28rem 0.6rem; cursor: pointer; border-radius: var(--radius); transition: all var(--transition); white-space: nowrap; }
     .btn-status:hover:not(:disabled)   { color: var(--text); border-color: var(--text); }
-    .btn-status:disabled { opacity: 0.3; cursor: default; }
-    .btn-status.s-requested  { border-color: var(--muted);   color: var(--muted); }
+    .btn-status:disabled { opacity: 0.45; cursor: default; }
+    .btn-status.s-requested  { border-color: var(--accent);  color: var(--accent); }
     .btn-status.s-sent       { border-color: var(--warn);    color: var(--warn); }
     .btn-status.s-received   { border-color: #7ab8ff;        color: #7ab8ff; }
     .btn-status.s-dropped-off { border-color: var(--success); color: var(--success); }
@@ -445,7 +445,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.2 | outbound.html script
+    // Version 1.12.4 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -549,7 +549,7 @@
         tr.style.cursor = dets.length ? 'pointer' : 'default';
         tr.innerHTML = `
           <td style="width:28px;text-align:center;color:var(--accent);font-size:0.9rem;user-select:none">${dets.length ? (isOpen ? '\u25be' : '\u25b8') : ''}</td>
-          <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">#${UI.esc(o.outbound_id)}</td>
+          <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent)">#${UI.esc(o.outbound_id)}</td>
           <td>${UI.esc(buyerMap[o.buyer_id] || '\u2014')}</td>
           <td>${UI.esc(whMap[o.warehouse_id] || '\u2014')}</td>
           <td>${beansBadge(o.beans)}</td>
