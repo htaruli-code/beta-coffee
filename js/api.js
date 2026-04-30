@@ -1,4 +1,4 @@
-// Version 1.11.4
+// Version 1.11.5
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -10,7 +10,8 @@
 // v1.9: getAllSamplesPage added
 // v1.9.1: post() intercepts UNAUTHORIZED
 // v1.11.3: updateOutboundStatus accepts extraParams
-// v1.11.4: saveBuyerMinimumPublic — public version for buyer-reserve.html (uses reservation token, no session) (shipping_date, courier, tracking_number for Sent) → Auth.handleUnauthorized() → redirect to login
+// v1.11.4: saveBuyerMinimumPublic — public version for buyer-reserve.html
+// v1.11.5: saveEvaluation + sendEvaluation (uses reservation token, no session) (shipping_date, courier, tracking_number for Sent) → Auth.handleUnauthorized() → redirect to login
 
 const API = (() => {
 
@@ -268,7 +269,26 @@ const API = (() => {
     });
   }
 
-  return {
+  // v1.11.5: Evaluation functions for all-samples.html
+  async function saveEvaluation(detailId, evalStatus, evalNotes) {
+    return post({
+      action: 'saveEvaluation',
+      detail_id:   detailId,
+      eval_status: evalStatus,
+      eval_notes:  evalNotes || '',
+      session_token: Auth.getToken()
+    });
+  }
+
+  async function sendEvaluation(inboundId) {
+    return post({
+      action: 'sendEvaluation',
+      inbound_id:    inboundId,
+      session_token: Auth.getToken()
+    });
+  }
+
+    return {
     sendAuthCode, verifyAuthCode,
     getSamplesPage, getSuppliersPage, getInboundDetailPage,
     saveSupplier, saveInbound, saveDetail, sendSupplierLink, updateTracking,
@@ -280,6 +300,7 @@ const API = (() => {
     saveConfirmedPurchase,                        // v1.5
     toggleDetailActive,                           // v1.7
     saveBuyerMinimum, saveBuyerMinimumPublic,      // v1.8 / v1.11.4
+    saveEvaluation, sendEvaluation,            // v1.11.5
     updateDetailCoffeeType,
     getAllSamplesPage                              // v1.9
   };
