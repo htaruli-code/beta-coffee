@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11 | buyer-reserve.html -->
+<!-- Version 1.11.1 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -153,14 +153,15 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11 | buyer-reserve.html script
+    // Version 1.11.1 | buyer-reserve.html script
 
     const token = new URLSearchParams(window.location.search).get('t');
     let PAGE_DATA = null;
 
     function showState(id) {
+      // v1.11: must use 'block' not '' — empty string lets CSS display:none rule win
       ['state-loading','state-error','state-success','state-form','state-full'].forEach(s => {
-        document.getElementById(s).style.display = s === id ? '' : 'none';
+        document.getElementById(s).style.display = s === id ? 'block' : 'none';
       });
     }
 
