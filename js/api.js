@@ -1,4 +1,4 @@
-// Version 1.11.3
+// Version 1.11.4
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -9,7 +9,8 @@
 // v1.8: saveBuyerMinimum, updateDetailCoffeeType added
 // v1.9: getAllSamplesPage added
 // v1.9.1: post() intercepts UNAUTHORIZED
-// v1.11.3: updateOutboundStatus accepts extraParams (shipping_date, courier, tracking_number for Sent) → Auth.handleUnauthorized() → redirect to login
+// v1.11.3: updateOutboundStatus accepts extraParams
+// v1.11.4: saveBuyerMinimumPublic — public version for buyer-reserve.html (uses reservation token, no session) (shipping_date, courier, tracking_number for Sent) → Auth.handleUnauthorized() → redirect to login
 
 const API = (() => {
 
@@ -205,6 +206,17 @@ const API = (() => {
     });
   }
 
+  // v1.11.4: Public version for buyer-reserve.html — authenticates via reservation token
+  async function saveBuyerMinimumPublic(buyerId, reservationToken, coffeeType, minBags) {
+    return post({
+      action: 'saveBuyerMinimumPublic',
+      buyer_id: buyerId,
+      token: reservationToken,
+      coffee_type: coffeeType,
+      min_bags: minBags
+    });
+  }
+
   async function updateDetailCoffeeType(detailId, coffeeType) {
     return post({
       action: 'updateDetailCoffeeType',
@@ -267,7 +279,8 @@ const API = (() => {
     getBuyerReservePage, submitReservation,       // v1.4
     saveConfirmedPurchase,                        // v1.5
     toggleDetailActive,                           // v1.7
-    saveBuyerMinimum, updateDetailCoffeeType,     // v1.8
+    saveBuyerMinimum, saveBuyerMinimumPublic,      // v1.8 / v1.11.4
+    updateDetailCoffeeType,
     getAllSamplesPage                              // v1.9
   };
 })();
