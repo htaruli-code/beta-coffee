@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.5 | samples.html -->
+<!-- Version 1.12.6 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -432,7 +432,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.5 | samples.html script
+    // Version 1.12.6 | samples.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -678,7 +678,7 @@
 
     function ieCell(detailId, field, val, type, tdStyle) {
       const display = (val !== null && val !== undefined && val !== '') ? String(val) : '—';
-      return '<td style="' + tdStyle + '" class="ie-cell" onclick="event.stopPropagation();startEdit(this,' + detailId + ','' + field + '','' + type + '')">' +
+      return '<td style="' + tdStyle + '" class="ie-cell" data-detail-id="' + detailId + '" data-field="' + field + '" data-type="' + (type||'text') + '">' +
         '<span class="ie-val">' + UI.esc(display) + '</span>' +
         '<span class="ie-hint">✎</span>' +
         '</td>';
@@ -686,11 +686,28 @@
 
     function ieCellSelect(detailId, field, val, options, tdStyle) {
       const display = val || '—';
-      return '<td style="' + tdStyle + '" class="ie-cell" onclick="event.stopPropagation();startEditSelect(this,' + detailId + ','' + field + '',[' + options.map(o => '''+o+''').join(',') + '])">' +
+      return '<td style="' + tdStyle + '" class="ie-cell ie-select-cell" data-detail-id="' + detailId + '" data-field="' + field + '" data-options="' + options.join(',') + '">' +
         '<span class="ie-val">' + UI.esc(display) + '</span>' +
         '<span class="ie-hint">✎</span>' +
         '</td>';
     }
+
+    // v1.12.5: event delegation for ie-cell clicks — avoids inline onclick quoting issues
+    document.addEventListener('click', function(e) {
+      const td = e.target.closest('td.ie-cell');
+      if (!td || e.target.closest('input,select')) return;
+      e.stopPropagation();
+      const detailId = td.dataset.detailId;
+      const field    = td.dataset.field;
+      if (!detailId || !field) return;
+      if (td.classList.contains('ie-select-cell')) {
+        const opts = (td.dataset.options || '').split(',').filter(Boolean);
+        startEditSelect(td, detailId, field, opts);
+      } else {
+        startEdit(td, detailId, field, td.dataset.type || 'text');
+      }
+    });
+
 
     function startEdit(td, detailId, field, type) {
       const span = td.querySelector('.ie-val');
