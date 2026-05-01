@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.7 | buyer-reserve.html -->
+<!-- Version 1.11.8 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -106,7 +106,6 @@
         <div class="info-row"><span class="info-label">Origin Code</span><span class="info-value" id="info-origin-code">—</span></div>
         <div class="info-row"><span class="info-label">Bag Size</span><span class="info-value" id="info-bag-size">—</span></div>
         <div class="info-row"><span class="info-label">Your Price</span><span class="info-value accent" id="info-price">—</span></div>
-        <div class="info-row"><span class="info-label">Your Level</span><span class="info-value" id="info-level">—</span></div>
         <div class="info-row"><span class="info-label">Coffee Type</span><span class="info-value" id="info-coffee-type">—</span></div>
         <div class="info-row"><span class="info-label">Your Minimum</span><span class="info-value warn" id="info-min-bags">—</span></div>
       </div>
@@ -153,7 +152,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11.7 | buyer-reserve.html script
+    // Version 1.11.8 | buyer-reserve.html script
 
     const token = new URLSearchParams(window.location.search).get('t');
     let PAGE_DATA = null;
@@ -182,7 +181,7 @@
         document.getElementById('info-origin-code').textContent = PAGE_DATA.origin_sample_code || '—';
         document.getElementById('info-bag-size').textContent    = PAGE_DATA.bag_size ? PAGE_DATA.bag_size + ' kg' : '—';
         document.getElementById('info-price').textContent       = PAGE_DATA.sale_price_label ? PAGE_DATA.sale_price_label : (PAGE_DATA.sale_price ? '$' + parseFloat(PAGE_DATA.sale_price).toFixed(2) + '/kg' : '—');
-        document.getElementById('info-level').textContent       = PAGE_DATA.buyer_level || '—';
+        // v1.11.8: buyer level hidden from buyer view
         document.getElementById('info-coffee-type').textContent  = PAGE_DATA.coffee_type || '—';  // v1.8
         const minRequired = PAGE_DATA.min_bags_required || 0;
         document.getElementById('info-min-bags').textContent    = minRequired > 0 ? minRequired + ' bags minimum' : 'No minimum set';  // v1.8
@@ -268,7 +267,7 @@
         preview.innerHTML =
           '<div>' + bags + ' bags × ' + bagSize + ' kg = ' + totalKg + ' kg</div>' +
           '<div class="total">Estimated Total: $' + total + '</div>' +
-          '<div class="muted" style="margin-top:4px">@ $' + parseFloat(price).toFixed(2) + '/kg (' + (PAGE_DATA.buyer_level || '') + ' rate)</div>';
+          '<div class="muted" style="margin-top:4px">@ $' + parseFloat(price).toFixed(2) + ' / kg</div>';
       } else {
         preview.innerHTML =
           '<div>' + bags + ' bags × ' + bagSize + ' kg = ' + totalKg + ' kg</div>' +
@@ -305,7 +304,7 @@
         const bagSize   = result.bag_size   || 0;
         const totalKg   = result.total_kg   || (bags * bagSize);
         const priceText = result.total_price
-          ? '<strong>$' + result.total_price + '</strong> estimated (' + result.buyer_level + ' rate)'
+          ? '<strong>$' + result.total_price + '</strong> estimated'
           : 'Contact us for pricing';
         document.getElementById('success-detail').innerHTML =
           'You have reserved <strong>' + bags + ' bag' + (bags === 1 ? '' : 's') + '</strong>' +
