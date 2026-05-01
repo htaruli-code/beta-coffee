@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.13.1 | samples.html -->
+<!-- Version 1.13.2 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -1058,29 +1058,35 @@
         input.value = converted.toFixed(2);
       });
 
-      // v1.13.1: Save all 4 prices immediately with new unit.
-      // Unit toggle is persisted on toggle, not deferred to individual field edits.
-      try {
-        for (const level of LEVELS) {
+      // v1.13.2: one API call for all 4 levels — replaces 4 sequential calls
+      const pricePayload = LEVELS
+        .map(level => {
           const input = document.getElementById('price-input-' + detailId + '-' + level);
-          if (!input) continue;
+          if (!input) return null;
           const val = parseFloat(input.value);
-          if (isNaN(val) || val <= 0) continue;
-          await API.saveSamplePrice(detailId, level, val, newUnit);
-          // Update local PAGE_DATA state
-          const existing = (PAGE_DATA.prices || []).find(p =>
-            String(p.detail_id) === String(detailId) && p.level === level);
-          if (existing) { existing.sale_price = val; existing.sale_price_unit = newUnit; }
-          else {
-            PAGE_DATA.prices = PAGE_DATA.prices || [];
-            PAGE_DATA.prices.push({ detail_id: detailId, level, sale_price: val, is_manual: false, sale_price_unit: newUnit });
-          }
+          if (isNaN(val) || val <= 0) return null;
+          return { level, sale_price: val, sale_unit: newUnit };
+        })
+        .filter(Boolean);
+
+      try {
+        if (pricePayload.length) {
+          await API.saveSamplePricesAll(detailId, pricePayload);
+          // Update local PAGE_DATA state for all levels
+          pricePayload.forEach(p => {
+            const existing = (PAGE_DATA.prices || []).find(x =>
+              String(x.detail_id) === String(detailId) && x.level === p.level);
+            if (existing) { existing.sale_price = p.sale_price; existing.sale_price_unit = newUnit; }
+            else {
+              PAGE_DATA.prices = PAGE_DATA.prices || [];
+              PAGE_DATA.prices.push({ detail_id: detailId, level: p.level, sale_price: p.sale_price, is_manual: false, sale_price_unit: newUnit });
+            }
+          });
         }
         UI.toastSuccess('Prices saved in ' + newUnit + '.');
       } catch (err) {
         UI.toastError('Unit change failed: ' + err.message);
       } finally {
-        // Re-enable toggle buttons
         ['kg','lb'].forEach(u => {
           const btn = document.getElementById('unit-btn-' + detailId + '-' + u);
           if (btn) btn.disabled = false;
