@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.13.5 | samples.html -->
+<!-- Version 1.13.6 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -1038,17 +1038,10 @@
     }
 
     // v1.13: switch unit for all 4 tier prices on a detail — recalculates prices proportionally
-    // v1.13.5: unit toggle — NO price recalculation. User enters prices manually.
-    // Toggling kg/lb only changes the unit label saved against the prices.
-    // Price values stay exactly as typed — user is responsible for correct amounts.
-    async function setSalePriceUnit(detailId, newUnit, clickedBtn) {
-      // Disable buttons during save
-      ['kg','lb'].forEach(u => {
-        const btn = document.getElementById('unit-btn-' + detailId + '-' + u);
-        if (btn) btn.disabled = true;
-      });
-
-      // Update toggle button styles
+    // v1.13.6: unit toggle — visual only, no API call, no recalculation.
+    // Updates toggle button styles + data-unit on all inputs only.
+    // Persisted only when user clicks SAVE PRICES.
+    function setSalePriceUnit(detailId, newUnit) {
       ['kg','lb'].forEach(u => {
         const btn = document.getElementById('unit-btn-' + detailId + '-' + u);
         if (!btn) return;
@@ -1057,43 +1050,12 @@
         btn.style.color      = active ? '#fff' : 'var(--muted)';
       });
 
-      // Update data-unit on all inputs — no value change
+      // Update data-unit on all inputs so SAVE PRICES reads the correct unit
       const LEVELS = ['Large', 'Medium', 'Small', 'Micro'];
       LEVELS.forEach(level => {
         const input = document.getElementById('price-input-' + detailId + '-' + level);
         if (input) input.dataset.unit = newUnit;
       });
-
-      // Save unit change with current price values — one API call
-      const pricePayload = LEVELS.map(level => {
-        const input = document.getElementById('price-input-' + detailId + '-' + level);
-        if (!input) return null;
-        const val = parseFloat(input.value) || 0;
-        return { level, sale_price: val, sale_unit: newUnit };
-      }).filter(Boolean);
-
-      try {
-        if (pricePayload.length) {
-          await API.saveSamplePricesAll(detailId, pricePayload);
-          pricePayload.forEach(p => {
-            const existing = (PAGE_DATA.prices || []).find(x =>
-              String(x.detail_id) === String(detailId) && x.level === p.level);
-            if (existing) { existing.sale_price_unit = newUnit; }
-            else {
-              PAGE_DATA.prices = PAGE_DATA.prices || [];
-              PAGE_DATA.prices.push({ detail_id: detailId, level: p.level, sale_price: p.sale_price, is_manual: false, sale_price_unit: newUnit });
-            }
-          });
-        }
-        UI.toastSuccess('Unit changed to ' + newUnit + '.');
-      } catch (err) {
-        UI.toastError('Unit change failed: ' + err.message);
-      } finally {
-        ['kg','lb'].forEach(u => {
-          const btn = document.getElementById('unit-btn-' + detailId + '-' + u);
-          if (btn) btn.disabled = false;
-        });
-      }
     }
 
     // v1.13.4: Save all 4 tier prices for a detail in one API call.
