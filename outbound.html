@@ -639,7 +639,7 @@
         }
         tbody.appendChild(tr);
 
-        // Notes row — same pattern as samples.html (v1.14.5)
+        // Notes row — separate TR, same pattern as samples.html (v1.14.5)
         if (o.notes) {
           const notesTr = document.createElement('tr');
           notesTr.innerHTML = '<td colspan="11" style="padding:4px 1rem 6px 2.5rem;font-size:0.78rem;color:var(--muted);font-style:italic;background:var(--surface)">\ud83d\udcdd ' + UI.esc(o.notes) + '</td>';
