@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.7 | outbound.html -->
+<!-- Version 1.12.8 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -445,7 +445,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.7 | outbound.html script
+    // Version 1.12.8 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -956,11 +956,52 @@
         UI.setLoading(btn, false);
       }
     });
+
+    // ── Reserve Modal (v1.12.7) ───────────────────────────────────────────────
+    let reservingDetailId = null;
+
+    function openReserveModal(detailId, sampleName, currentReserved) {
+      reservingDetailId = detailId;
+      document.getElementById('reserve-sample-name').textContent = sampleName || 'Sample';
+      document.getElementById('reserve-current').textContent     = currentReserved
+        ? 'Currently reserved: ' + currentReserved + ' bag' + (currentReserved > 1 ? 's' : '')
+        : 'No bags reserved yet';
+      document.getElementById('reserve-bags').value = currentReserved || '';
+      const overlay = document.getElementById('modal-reserve');
+      overlay.style.display = 'flex';
+      setTimeout(() => document.getElementById('reserve-bags').focus(), 80);
+    }
+
+    document.getElementById('btn-confirm-reserve').addEventListener('click', async () => {
+      const bags = parseInt(document.getElementById('reserve-bags').value);
+      if (!bags || bags < 1) { UI.toastError('Enter a valid number of bags.'); return; }
+      const btn = document.getElementById('btn-confirm-reserve');
+      UI.setLoading(btn, true);
+      try {
+        await API.submitReservationInternal(reservingDetailId, bags);
+        document.getElementById('modal-reserve').style.display = 'none';
+        UI.toastSuccess('Reserved ' + bags + ' bag' + (bags > 1 ? 's' : '') + '.');
+        // Update local PAGE_DATA so expanded row reflects new value immediately
+        const allDets = Object.values(detailMap).flat();
+        const det = allDets.find(d => String(d.outbound_detail_id) === String(reservingDetailId));
+        if (det) det.bags_reserved = bags;
+        renderTable();
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
+
+    document.getElementById('modal-reserve').addEventListener('click', function(e) {
+      if (e.target === this) this.style.display = 'none';
+    });
+
   </script>
 
 
   <!-- Reserve Modal (v1.12.6) -->
-  <div class="modal-overlay" id="modal-reserve">
+  <div class="modal-overlay" id="modal-reserve" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(26,16,8,0.35);align-items:center;justify-content:center;padding:1rem">
     <div class="modal" style="max-width:360px">
       <div class="modal-header">
         <span class="modal-title">Reserve Bags</span>
