@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.8 | buyer-reserve.html -->
+<!-- Version 1.13 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -152,7 +152,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11.8 | buyer-reserve.html script
+    // Version 1.13 | buyer-reserve.html script
 
     const token = new URLSearchParams(window.location.search).get('t');
     let PAGE_DATA = null;
@@ -179,8 +179,19 @@
         document.getElementById('info-sample-code').textContent = PAGE_DATA.sample_code || '—';
         document.getElementById('info-sample-name').textContent = PAGE_DATA.sample_name || '—';
         document.getElementById('info-origin-code').textContent = PAGE_DATA.origin_sample_code || '—';
-        document.getElementById('info-bag-size').textContent    = PAGE_DATA.bag_size ? PAGE_DATA.bag_size + ' kg' : '—';
-        document.getElementById('info-price').textContent       = PAGE_DATA.sale_price_label ? PAGE_DATA.sale_price_label : (PAGE_DATA.sale_price ? '$' + parseFloat(PAGE_DATA.sale_price).toFixed(2) + '/kg' : '—');
+
+        // v1.13: show bag size in the same unit as the sale price
+        const priceUnit = PAGE_DATA.sale_price_unit || 'kg';
+        const bagSizeKg = PAGE_DATA.bag_size || 0;
+        const bagSizeDisp = (priceUnit === 'lb')
+          ? (bagSizeKg * 2.2046).toFixed(1) + ' lb'
+          : bagSizeKg + ' kg';
+        document.getElementById('info-bag-size').textContent = bagSizeKg ? bagSizeDisp : '—';
+
+        // v1.13: build price label from real unit — no longer relies on sale_price_label
+        document.getElementById('info-price').textContent = PAGE_DATA.sale_price
+          ? '$' + parseFloat(PAGE_DATA.sale_price).toFixed(2) + ' / ' + priceUnit
+          : '—';
         // v1.11.8: buyer level hidden from buyer view
         document.getElementById('info-coffee-type').textContent  = PAGE_DATA.coffee_type || '—';  // v1.8
         const minRequired = PAGE_DATA.min_bags_required || 0;
@@ -246,6 +257,7 @@
       const bags     = parseInt(document.getElementById('bags-input').value) || 0;
       const bagSize      = PAGE_DATA ? (PAGE_DATA.bag_size   || 0) : 0;
       const price        = PAGE_DATA ? (PAGE_DATA.sale_price || null) : null;
+      const priceUnit    = PAGE_DATA ? (PAGE_DATA.sale_price_unit || 'kg') : 'kg';
       // v1.11.6: use maxReservable (total - othersReserved) not available_now
       const confirmed    = PAGE_DATA ? (PAGE_DATA.confirmed_purchase || PAGE_DATA.available_bags || 0) : 0;
       const alreadyRes   = PAGE_DATA ? (PAGE_DATA.already_reserved   || 0) : 0;
@@ -261,16 +273,27 @@
         preview.innerHTML = '<div class="muted" style="color:var(--error)">Exceeds available bags (' + maxReserv + ')</div>';
         return;
       }
-      const totalKg = bags * bagSize;
+
+      // v1.13: bag_size is always stored in kg — convert weight display to match price unit
+      const totalKg  = bags * bagSize;
+      const weightDisp = (priceUnit === 'lb')
+        ? (totalKg * 2.2046).toFixed(1) + ' lb'
+        : totalKg + ' kg';
+      const bagSizeDisp = (priceUnit === 'lb')
+        ? (bagSize * 2.2046).toFixed(1) + ' lb'
+        : bagSize + ' kg';
+
       if (price) {
-        const total = (totalKg * price).toFixed(2);
+        // v1.13: price is stored in priceUnit — multiply by weight in same unit
+        const weightForCalc = (priceUnit === 'lb') ? (totalKg * 2.2046) : totalKg;
+        const total = (weightForCalc * price).toFixed(2);
         preview.innerHTML =
-          '<div>' + bags + ' bags × ' + bagSize + ' kg = ' + totalKg + ' kg</div>' +
+          '<div>' + bags + ' bags × ' + bagSizeDisp + ' = ' + weightDisp + '</div>' +
           '<div class="total">Estimated Total: $' + total + '</div>' +
-          '<div class="muted" style="margin-top:4px">@ $' + parseFloat(price).toFixed(2) + ' / kg</div>';
+          '<div class="muted" style="margin-top:4px">@ $' + parseFloat(price).toFixed(2) + ' / ' + priceUnit + '</div>';
       } else {
         preview.innerHTML =
-          '<div>' + bags + ' bags × ' + bagSize + ' kg = ' + totalKg + ' kg</div>' +
+          '<div>' + bags + ' bags × ' + bagSizeDisp + ' = ' + weightDisp + '</div>' +
           '<div class="muted" style="margin-top:4px">Contact us for pricing</div>';
       }
     }
@@ -303,13 +326,18 @@
         // Show success
         const bagSize   = result.bag_size   || 0;
         const totalKg   = result.total_kg   || (bags * bagSize);
+        // v1.13: display weight in the same unit as the sale price
+        const unit      = PAGE_DATA ? (PAGE_DATA.sale_price_unit || 'kg') : 'kg';
+        const weightDisp = (unit === 'lb')
+          ? (totalKg * 2.2046).toFixed(1) + ' lb total'
+          : totalKg + ' kg total';
         const priceText = result.total_price
           ? '<strong>$' + result.total_price + '</strong> estimated'
           : 'Contact us for pricing';
         document.getElementById('success-detail').innerHTML =
           'You have reserved <strong>' + bags + ' bag' + (bags === 1 ? '' : 's') + '</strong>' +
           ' of <strong>' + UI.esc(result.sample_name || '') + '</strong><br>' +
-          totalKg + ' kg total &nbsp;·&nbsp; ' + priceText + '<br><br>' +
+          weightDisp + ' &nbsp;·&nbsp; ' + priceText + '<br><br>' +
           'A confirmation email has been sent to you.';
         showState('state-success');
       } catch (err) {
