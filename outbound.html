@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.13 | outbound.html -->
+<!-- Version 1.12.14 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -452,7 +452,7 @@
       <div style="padding:1.25rem">
         <div id="reserve-sample-code" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--accent);margin-bottom:0.2rem"></div>
         <div id="reserve-sample-name" style="font-size:0.9rem;font-weight:500;margin-bottom:0.25rem"></div>
-        <div id="reserve-available" style="font-size:0.8rem;color:var(--success);font-weight:500;margin-bottom:0.2rem"></div>
+        <div id="reserve-available" style="font-size:0.82rem;color:var(--success);font-weight:600;margin-bottom:0.2rem"></div>
         <div id="reserve-current" style="font-size:0.8rem;color:var(--muted);margin-bottom:1.25rem"></div>
         <label class="form-label">Bags to Reserve</label>
         <input type="number" id="reserve-bags" class="form-input" min="1" step="1" placeholder="Enter number of bags" />
@@ -469,7 +469,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.13 | outbound.html script
+    // Version 1.12.14 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -996,7 +996,8 @@
       reservingDetailId = detailId;
       document.getElementById('reserve-sample-code').textContent = sampleCode || '';
       document.getElementById('reserve-sample-name').textContent = sampleName || 'Sample';
-      document.getElementById('reserve-available').textContent  = 'Available: ' + (availableBags || 0) + ' bag' + (availableBags !== 1 ? 's' : '');
+      const maxReservable = (availableBags || 0) + (currentReserved || 0);
+      document.getElementById('reserve-available').textContent = 'You can reserve up to ' + maxReservable + ' bag' + (maxReservable !== 1 ? 's' : '');
       document.getElementById('reserve-current').textContent     = currentReserved
         ? 'Currently reserved: ' + currentReserved + ' bag' + (currentReserved > 1 ? 's' : '')
         : 'No bags reserved yet';
