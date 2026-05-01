@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.6 | outbound.html -->
+<!-- Version 1.12.7 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -445,7 +445,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.6 | outbound.html script
+    // Version 1.12.7 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -578,37 +578,68 @@
         if (isOpen && dets.length) {
           const detTr = document.createElement('tr');
           detTr.style.background = 'var(--surface)';
-          let h = '<td colspan="11" style="padding:0.75rem 1rem 1rem 2.5rem">';
-          h += '<div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Sample Details</div>';
-          h += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
-          h += '<thead><tr style="background:var(--surface2)">';
+          const detTd = document.createElement('td');
+          detTd.setAttribute('colspan', '11');
+          detTd.style.cssText = 'padding:0.75rem 1rem 1rem 2.5rem';
+
+          const detLabel = document.createElement('div');
+          detLabel.style.cssText = 'font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem';
+          detLabel.textContent = 'Sample Details';
+          detTd.appendChild(detLabel);
+
+          const detTable = document.createElement('table');
+          detTable.style.cssText = 'width:100%;border-collapse:collapse;font-size:0.78rem';
+          const detThead = document.createElement('thead');
+          const detHeadTr = document.createElement('tr');
+          detHeadTr.style.background = 'var(--surface2)';
           ['Sample Code','Name','Origin Code','Type','Qty (g)','Price Sent','Reserved',''].forEach(col => {
-            h += `<th style="text-align:left;padding:4px 8px;font-size:0.65rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)">${col}</th>`;
+            const th = document.createElement('th');
+            th.style.cssText = 'text-align:left;padding:4px 8px;font-size:0.65rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)';
+            th.textContent = col;
+            detHeadTr.appendChild(th);
           });
-          h += '</tr></thead><tbody>';
+          detThead.appendChild(detHeadTr);
+          detTable.appendChild(detThead);
+          const detTbody = document.createElement('tbody');
           dets.forEach(d => {
             const priceSent = d.sale_price_sent
               ? '$' + parseFloat(d.sale_price_sent).toFixed(2) + '/' + (d.sale_price_unit_sent || 'kg')
               : '\u2014';
             const reserved = d.bags_reserved ? d.bags_reserved + ' bag' + (d.bags_reserved > 1 ? 's' : '') : '\u2014';
-            h += `<tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem;color:var(--accent)">${UI.esc(d.sample_code||'\u2014')}</td>
-              <td style="padding:5px 8px">${UI.esc(d.sample_name||'\u2014')}</td>
-              <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem">${UI.esc(d.origin_sample_code||'\u2014')}</td>
-              <td style="padding:5px 8px">${UI.esc(d.sample_type||'\u2014')}</td>
-              <td style="padding:5px 8px;font-family:var(--font-mono)">${d.qty_grams ? d.qty_grams+'g' : '\u2014'}</td>
-              <td style="padding:5px 8px;font-family:var(--font-mono);color:var(--accent);font-weight:500">${priceSent}</td>
-              <td style="padding:5px 8px;font-family:var(--font-mono)">${reserved}</td>
-              <td style="padding:5px 8px">
-                <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:2px 10px"
-                  onclick="event.stopPropagation();openReserveModal(${d.outbound_detail_id},'${UI.esc(d.sample_name||'')}',${d.bags_reserved||0})">
-                  Reserve
-                </button>
-              </td>
-            </tr>`;
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            const tdReserveBtn = document.createElement('td');
+            tdReserveBtn.style.padding = '5px 8px';
+            const reserveBtn = document.createElement('button');
+            reserveBtn.className = 'btn btn-ghost btn-sm';
+            reserveBtn.style.cssText = 'font-size:0.7rem;padding:2px 10px';
+            reserveBtn.textContent = 'Reserve';
+            reserveBtn.dataset.detailId     = d.outbound_detail_id;
+            reserveBtn.dataset.sampleName   = d.sample_name || '';
+            reserveBtn.dataset.bagsReserved = d.bags_reserved || 0;
+            reserveBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              openReserveModal(
+                this.dataset.detailId,
+                this.dataset.sampleName,
+                parseInt(this.dataset.bagsReserved) || 0
+              );
+            });
+            tdReserveBtn.appendChild(reserveBtn);
+            tr.innerHTML =
+              '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem;color:var(--accent)">' + UI.esc(d.sample_code||'\u2014') + '</td>' +
+              '<td style="padding:5px 8px">' + UI.esc(d.sample_name||'\u2014') + '</td>' +
+              '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem">' + UI.esc(d.origin_sample_code||'\u2014') + '</td>' +
+              '<td style="padding:5px 8px">' + UI.esc(d.sample_type||'\u2014') + '</td>' +
+              '<td style="padding:5px 8px;font-family:var(--font-mono)">' + (d.qty_grams ? d.qty_grams+'g' : '\u2014') + '</td>' +
+              '<td style="padding:5px 8px;font-family:var(--font-mono);color:var(--accent);font-weight:500">' + priceSent + '</td>' +
+              '<td style="padding:5px 8px;font-family:var(--font-mono)">' + reserved + '</td>';
+            tr.appendChild(tdReserveBtn);
+            detTbody.appendChild(tr);
           });
-          h += '</tbody></table></td>';
-          detTr.innerHTML = h;
+          detTable.appendChild(detTbody);
+          detTd.appendChild(detTable);
+          detTr.appendChild(detTd);
           tbody.appendChild(detTr);
         }
       });
