@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.6 | samples.html -->
+<!-- Version 1.13 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -947,11 +947,15 @@
         const activeColor = isActive ? 'var(--success)' : 'var(--error)';
         const activeLabel = isActive ? 'ACTIVE' : 'INACTIVE';
 
+        // v1.13: resolve current unit for this detail — from first price row, fallback to cost_price_unit
+        const firstPrice  = priceMap[d.detail_id] ? priceMap[d.detail_id][LEVELS[0]] : null;
+        const currentUnit = (firstPrice && firstPrice.sale_price_unit) ? firstPrice.sale_price_unit : (d.cost_price_unit || 'kg');
+
         let html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem">';
         html += '<div>';
         html += '<div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--accent);font-weight:500">' + UI.esc(d.sample_id) + '</div>';
         html += '<div style="font-size:0.82rem;color:var(--text);margin-top:2px">' + UI.esc(d.sample_name) + (d.coffee_sales_name ? ' <span style="color:var(--muted)">· ' + UI.esc(d.coffee_sales_name) + '</span>' : '') + '</div>';
-        html += (d.cost_price ? '<div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent);margin-top:3px">Cost: $' + parseFloat(d.cost_price).toFixed(2) + '/' + (d.cost_price_unit || 'kg') + ' · $' + (parseFloat(d.cost_price) / (d.cost_price_unit === 'lb' ? 0.453592 : 1)).toFixed(2) + '/kg normalised</div>' : '');
+        html += (d.cost_price ? '<div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent);margin-top:3px">Cost: $' + parseFloat(d.cost_price).toFixed(2) + '/' + (d.cost_price_unit || 'kg') + '</div>' : '');
         html += '</div>';
         html += '<button id="toggle-btn-' + d.detail_id + '" '
           + 'style="font-family:var(--font-mono);font-size:0.65rem;padding:3px 10px;border:1px solid ' + activeColor + ';color:' + activeColor + ';background:transparent;cursor:pointer;letter-spacing:0.06em" '
@@ -977,13 +981,30 @@
           + '<option value="">— pick —</option>' + ctOpts + '</select></div>';
         html += '</div>';
 
+        // v1.13: unit toggle — kg / lb — applies to all 4 tier prices for this detail
+        html += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem">';
+        html += '<span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase">Sale Price Unit</span>';
+        html += '<div style="display:flex;gap:0">';
+        ['kg','lb'].forEach(u => {
+          const active = currentUnit === u;
+          html += `<button id="unit-btn-${d.detail_id}-${u}"
+            onclick="setSalePriceUnit(${d.detail_id}, '${u}', this)"
+            style="font-family:var(--font-mono);font-size:0.7rem;padding:3px 12px;border:1px solid var(--border);
+              background:${active ? 'var(--accent)' : 'transparent'};
+              color:${active ? '#fff' : 'var(--muted)'};
+              cursor:pointer;letter-spacing:0.06em;
+              border-radius:${u === 'kg' ? '3px 0 0 3px' : '0 3px 3px 0'}">${u}</button>`;
+        });
+        html += '</div></div>';
+
+        // 4-tier price inputs
         html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.5rem">';
 
         LEVELS.forEach(level => {
           const priceObj = priceMap[d.detail_id] ? priceMap[d.detail_id][level] : null;
           const val      = priceObj ? parseFloat(priceObj.sale_price).toFixed(2) : '0.00';
           const isManual = priceObj && priceObj.is_manual;
-          const color    = LEVEL_COLORS[level];  // now warm readable colors
+          const color    = LEVEL_COLORS[level];
           html += `<div>
             <div style="font-size:0.65rem;font-family:var(--font-mono);color:${color};margin-bottom:3px">
               ${UI.esc(level)}${isManual ? ' <span title="Manually set">★</span>' : ''}
@@ -991,6 +1012,7 @@
             <div style="display:flex;align-items:center;gap:4px">
               <span style="font-size:0.75rem;color:var(--muted)">$</span>
               <input type="number" min="0" step="0.01"
+                id="price-input-${d.detail_id}-${level}"
                 value="${val}"
                 style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 6px;font-size:0.82rem;font-family:var(--font-mono)"
                 onchange="savePriceOverride(${d.detail_id}, '${level}', this.value, this)" />
@@ -1006,19 +1028,52 @@
       UI.openModal('modal-prices');
     }
 
+    // v1.13: switch unit for all 4 tier prices on a detail — recalculates prices proportionally
+    function setSalePriceUnit(detailId, newUnit, clickedBtn) {
+      // Update toggle button styles
+      ['kg','lb'].forEach(u => {
+        const btn = document.getElementById('unit-btn-' + detailId + '-' + u);
+        if (!btn) return;
+        const active = u === newUnit;
+        btn.style.background = active ? 'var(--accent)' : 'transparent';
+        btn.style.color      = active ? '#fff' : 'var(--muted)';
+      });
+
+      // Convert all 4 tier price inputs proportionally
+      const LEVELS = ['Large', 'Medium', 'Small', 'Micro'];
+      LEVELS.forEach(level => {
+        const input = document.getElementById('price-input-' + detailId + '-' + level);
+        if (!input) return;
+        const current = parseFloat(input.value) || 0;
+        if (current === 0) return;
+        let converted;
+        if (newUnit === 'lb') {
+          converted = Math.round((current / 2.2046) * 100) / 100;  // /kg → /lb
+        } else {
+          converted = Math.round(current * 2.2046 * 100) / 100;    // /lb → /kg
+        }
+        input.value = converted.toFixed(2);
+      });
+    }
+
     async function savePriceOverride(detailId, level, value, inputEl) {
       const salePrice = parseFloat(value);
       if (isNaN(salePrice) || salePrice < 0) { UI.toastError('Invalid price.'); return; }
+
+      // v1.13: read active unit from toggle buttons
+      const kgBtn = document.getElementById('unit-btn-' + detailId + '-kg');
+      const saleUnit = (kgBtn && kgBtn.style.background.includes('accent')) ? 'kg' : 'lb';
+
       try {
-        await API.saveSamplePrice(detailId, level, salePrice);
-        // Mark field as manually set in local state
+        await API.saveSamplePrice(detailId, level, salePrice, saleUnit);
+        // Update local state
         const existing = (PAGE_DATA.prices || []).find(p => String(p.detail_id) === String(detailId) && p.level === level);
-        if (existing) { existing.sale_price = salePrice; existing.is_manual = true; }
-        else { PAGE_DATA.prices = PAGE_DATA.prices || []; PAGE_DATA.prices.push({ detail_id: detailId, level, sale_price: salePrice, is_manual: true }); }
+        if (existing) { existing.sale_price = salePrice; existing.is_manual = true; existing.sale_price_unit = saleUnit; }
+        else { PAGE_DATA.prices = PAGE_DATA.prices || []; PAGE_DATA.prices.push({ detail_id: detailId, level, sale_price: salePrice, is_manual: true, sale_price_unit: saleUnit }); }
         // Add star indicator
         const label = inputEl.closest('div').previousElementSibling;
         if (label && !label.textContent.includes('★')) label.innerHTML += ' <span title="Manually set">★</span>';
-        UI.toastSuccess(level + ' price saved.');
+        UI.toastSuccess(level + ' price saved (' + saleUnit + ').');
       } catch (err) {
         UI.toastError(err.message);
       }
@@ -1100,7 +1155,7 @@
     <div class="modal-box" style="max-width:720px">
       <div class="modal-title">Sale Prices — <span id="price-modal-sample-id" style="color:var(--accent)"></span></div>
       <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem">
-        Auto-filled from cost × tier multiplier. Edit any field to override.
+        Auto-filled from cost × tier multiplier. Toggle <strong>kg / lb</strong> per lot to match your market. Edit any field to override.
         <span style="color:var(--accent)">★</span> = manually set.
       </p>
       <div id="price-rows-container"></div>
