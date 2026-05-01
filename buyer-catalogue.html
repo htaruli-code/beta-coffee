@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<!-- Version 1.14 | buyer-catalogue.html -->
+<!-- Public page — token-authenticated. No login required. -->
+<!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sample Catalogue — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --surface2: #faf3ea;
+      --border: #f0e8da; --border2: #e8d8c4; --accent: #c47a2b; --accent2: #a0611f;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 6px; --transition: 160ms ease;
+    }
+    body { background: var(--surface); color: var(--text); font-family: var(--font-sans); min-height: 100vh; padding: 2rem 1rem; }
+    .wrap { max-width: 680px; margin: 0 auto; }
+    .card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; margin-bottom: 1.25rem; }
+    .card-logo { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 1.5rem; }
+    .card-title { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .card-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.6; }
+
+    /* Info block */
+    .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; margin-bottom: 1.5rem; }
+    .info-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .info-value { font-size: 0.82rem; color: var(--text); text-align: right; }
+
+    /* Section label */
+    .section-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .section-label span { color: var(--accent); }
+
+    /* Lot cards */
+    .lot-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 0.75rem; cursor: pointer; transition: border-color var(--transition); }
+    .lot-card:hover { border-color: var(--accent); }
+    .lot-card.selected { border-color: var(--accent); background: #fffcf7; }
+    .lot-card-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .lot-card.selected .lot-card-header { background: #fef5e7; }
+    .lot-checkbox { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+    .lot-sample-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); font-weight: 500; }
+    .lot-name { font-size: 0.85rem; color: var(--text); font-weight: 500; flex: 1; }
+    .lot-body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; }
+    .lot-stat { padding: 0.6rem 1rem; border-right: 1px solid var(--border); }
+    .lot-stat:last-child { border-right: none; }
+    .lot-stat-label { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .lot-stat-value { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text); font-weight: 500; }
+    .lot-stat-value.price { color: var(--accent); }
+
+    /* Form fields */
+    .field { margin-bottom: 1.25rem; }
+    label { display: block; font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.45rem; }
+    select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--font-sans); font-size: 0.85rem; padding: 0.65rem 0.875rem; outline: none; border-radius: var(--radius); transition: border-color var(--transition); }
+    select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; line-height: 1.6; }
+
+    /* Buttons */
+    .btn { width: 100%; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.875rem 1rem; cursor: pointer; border-radius: var(--radius); transition: opacity var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { opacity: 0.85; }
+
+    /* States */
+    #state-loading, #state-error, #state-success, #state-form { display: none; }
+    .st-spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2.5rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-msg { font-family: var(--font-mono); font-size: 0.82rem; color: var(--error); text-align: center; padding: 1rem 0; line-height: 1.6; }
+    .success-icon { font-size: 2.5rem; text-align: center; margin-bottom: 1rem; }
+    .success-title { font-family: var(--font-mono); font-size: 1rem; font-weight: 600; text-align: center; color: var(--success); margin-bottom: 0.75rem; }
+    .success-detail { font-size: 0.82rem; color: var(--muted); text-align: center; line-height: 1.7; }
+    .success-detail strong { color: var(--text); }
+
+    /* Toast */
+    .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; z-index: 9999; border-radius: var(--radius); animation: fadeIn 0.2s ease; }
+    .st-toast--error { border-color: var(--error); color: var(--error); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* Empty lots */
+    .no-lots { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card-logo" style="margin-bottom:1.5rem">Sample Tracker</div>
+
+    <!-- Loading -->
+    <div id="state-loading">
+      <div class="card">
+        <div class="st-spinner"></div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="state-error">
+      <div class="card">
+        <div class="card-title">Link Invalid</div>
+        <div class="error-msg" id="error-msg">This link has expired or is invalid.<br>Please contact us to request a new catalogue link.</div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div id="state-form">
+      <!-- Header card -->
+      <div class="card">
+        <div class="card-title" id="form-title">Coffee Sample Catalogue</div>
+        <div class="card-sub" id="form-sub"></div>
+        <div class="info-block">
+          <div class="info-row">
+            <span class="info-label">Warehouse</span>
+            <span class="info-value" id="info-warehouse">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Buyer Level</span>
+            <span class="info-value" id="info-level">—</span>
+          </div>
+        </div>
+
+        <!-- Lot selection -->
+        <div class="section-label">
+          <span>Available Lots</span>
+          <span id="selected-count"></span>
+        </div>
+        <div id="lot-list"></div>
+      </div>
+
+      <!-- Submission card -->
+      <div class="card">
+        <div class="field">
+          <label for="sel-beans">Beans Type <span style="color:var(--error)">*</span></label>
+          <select id="sel-beans">
+            <option value="">— Select —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sel-notes">Notes <span style="color:var(--muted);font-size:0.65rem">(optional)</span></label>
+          <textarea id="sel-notes" rows="3" maxlength="250" placeholder="Any notes for the team…"></textarea>
+        </div>
+        <button class="btn" id="btn-submit" disabled>Submit Selection</button>
+      </div>
+    </div>
+
+    <!-- Success -->
+    <div id="state-success">
+      <div class="card">
+        <div class="success-icon">✓</div>
+        <div class="success-title">Selection Submitted</div>
+        <div class="success-detail" id="success-detail"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    // Version 1.14 | buyer-catalogue.html script
+
+    // ── Dependency check ──────────────────────────────────────────────────────
+    if (typeof APP_CONFIG === 'undefined' || !APP_CONFIG.GAS_URL) {
+      document.getElementById('state-loading').style.display = 'none';
+      document.getElementById('state-error').style.display   = 'block';
+      document.getElementById('error-msg').textContent = 'Configuration error. Please contact support.';
+      throw new Error('APP_CONFIG not loaded');
+    }
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let PAGE_DATA = null;
+    let TOKEN     = null;
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function esc(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showState(name) {
+      ['loading','error','form','success'].forEach(s => {
+        document.getElementById('state-' + s).style.display = s === name ? 'block' : 'none';
+      });
+    }
+
+    function toast(msg, isError) {
+      const el = document.createElement('div');
+      el.className = 'st-toast' + (isError ? ' st-toast--error' : '');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+
+    async function post(payload) {
+      const body = new URLSearchParams({ payload: JSON.stringify(payload) });
+      const res  = await fetch(APP_CONFIG.GAS_URL, { method: 'POST', redirect: 'follow', body });
+      if (!res.ok) throw new Error('Network error: ' + res.status);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Unknown error');
+      return data.data;
+    }
+
+    // ── Init — one API call: getCataloguePage ─────────────────────────────────
+    (async () => {
+      showState('loading');
+
+      const params = new URLSearchParams(window.location.search);
+      TOKEN = params.get('t');
+
+      if (!TOKEN) {
+        document.getElementById('error-msg').textContent = 'No catalogue token found. Please use the link from your email.';
+        showState('error');
+        return;
+      }
+
+      try {
+        PAGE_DATA = await post({ action: 'getCataloguePage', token: TOKEN });
+      } catch (err) {
+        document.getElementById('error-msg').textContent = err.message || 'This link is invalid or has expired.';
+        showState('error');
+        return;
+      }
+
+      renderForm();
+      showState('form');
+    })();
+
+    // ── Render form ───────────────────────────────────────────────────────────
+    function renderForm() {
+      document.getElementById('form-title').textContent =
+        'Coffee Sample Catalogue — ' + esc(PAGE_DATA.buyer_company);
+      document.getElementById('form-sub').textContent =
+        'Browse the lots below and select the ones you\'re interested in, then submit your selection.';
+      document.getElementById('info-warehouse').textContent = PAGE_DATA.warehouse_name || '—';
+      document.getElementById('info-level').textContent     = PAGE_DATA.buyer_level    || '—';
+
+      // Beans options
+      const beansSel = document.getElementById('sel-beans');
+      (PAGE_DATA.beans_options || ['Green','Roasted']).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b; opt.textContent = b;
+        beansSel.appendChild(opt);
+      });
+
+      renderLots();
+    }
+
+    function renderLots() {
+      const listEl = document.getElementById('lot-list');
+      const lots   = PAGE_DATA.lots || [];
+
+      if (!lots.length) {
+        listEl.innerHTML = '<div class="no-lots">No lots available in this catalogue.</div>';
+        return;
+      }
+
+      listEl.innerHTML = '';
+      lots.forEach(lot => {
+        const priceStr = lot.sale_price
+          ? '$' + parseFloat(lot.sale_price).toFixed(2) + ' / ' + (lot.sale_price_unit || 'kg')
+          : '—';
+        const bagSize  = lot.bag_size ? lot.bag_size + ' kg' : '—';
+        const avail    = lot.available_bags !== null && lot.available_bags !== undefined
+          ? lot.available_bags + ' bags' : '—';
+
+        const card = document.createElement('div');
+        card.className   = 'lot-card';
+        card.dataset.id  = lot.detail_id;
+        card.innerHTML = `
+          <div class="lot-card-header">
+            <input type="checkbox" class="lot-checkbox" id="lot-cb-${esc(lot.detail_id)}"
+              value="${esc(lot.detail_id)}" onchange="onLotCheck()" />
+            <span class="lot-sample-id">${esc(lot.sample_id)}</span>
+            <span class="lot-name">${esc(lot.sample_name)}</span>
+          </div>
+          <div class="lot-body">
+            <div class="lot-stat">
+              <div class="lot-stat-label">Available</div>
+              <div class="lot-stat-value">${esc(avail)}</div>
+            </div>
+            <div class="lot-stat">
+              <div class="lot-stat-label">Bag Size</div>
+              <div class="lot-stat-value">${esc(bagSize)}</div>
+            </div>
+            <div class="lot-stat">
+              <div class="lot-stat-label">Your Price</div>
+              <div class="lot-stat-value price">${esc(priceStr)}</div>
+            </div>
+          </div>`;
+
+        // Clicking card toggles checkbox
+        card.addEventListener('click', e => {
+          if (e.target.type === 'checkbox') return;
+          const cb = card.querySelector('.lot-checkbox');
+          cb.checked = !cb.checked;
+          onLotCheck();
+        });
+
+        listEl.appendChild(card);
+      });
+    }
+
+    function onLotCheck() {
+      const checked = document.querySelectorAll('.lot-checkbox:checked');
+
+      // Update card selected style
+      document.querySelectorAll('.lot-card').forEach(card => {
+        const cb = card.querySelector('.lot-checkbox');
+        card.classList.toggle('selected', cb && cb.checked);
+      });
+
+      // Update count label
+      const countEl  = document.getElementById('selected-count');
+      countEl.textContent = checked.length ? checked.length + ' selected' : '';
+
+      // Enable/disable submit
+      document.getElementById('btn-submit').disabled = checked.length === 0;
+    }
+
+    // ── Submit — one API call: submitCatalogueSelection ───────────────────────
+    document.getElementById('btn-submit').addEventListener('click', async () => {
+      const selectedIds = Array.from(
+        document.querySelectorAll('.lot-checkbox:checked')
+      ).map(cb => cb.value);
+
+      const beans = document.getElementById('sel-beans').value;
+      const notes = document.getElementById('sel-notes').value.trim();
+
+      if (!selectedIds.length) { toast('Select at least one lot.', true); return; }
+      if (!beans)              { toast('Please select a beans type.', true); return; }
+
+      const btn = document.getElementById('btn-submit');
+      btn.disabled    = true;
+      btn.textContent = 'SUBMITTING…';
+
+      try {
+        const result = await post({
+          action:              'submitCatalogueSelection',
+          token:               TOKEN,
+          selected_detail_ids: selectedIds,
+          beans,
+          notes
+        });
+
+        // Success state
+        document.getElementById('success-detail').innerHTML =
+          'Thank you, <strong>' + esc(PAGE_DATA.buyer_name) + '</strong>.<br><br>' +
+          'We have received your selection of <strong>' + result.lot_count + ' lot' +
+          (result.lot_count === 1 ? '' : 's') + '</strong>.<br>' +
+          'Our team will be in touch shortly to confirm and arrange dispatch.<br><br>' +
+          '<span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted)">Reference: Outbound #' + result.outbound_id + '</span>';
+
+        showState('success');
+      } catch (err) {
+        toast(err.message || 'Submission failed. Please try again.', true);
+        btn.disabled    = false;
+        btn.textContent = 'SUBMIT SELECTION';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.14 | outbound.html -->
+<!-- Version 1.14 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -300,7 +300,10 @@
   <div class="page">
     <div class="page-header">
       <div class="page-title">Outbound Samples</div>
-      <button class="btn" id="btn-new">+ New Outbound</button>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn btn-ghost" id="btn-catalogue">✉ Send Catalogue</button>
+        <button class="btn" id="btn-new">+ New Outbound</button>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -1029,8 +1032,191 @@
       if (e.target === this) this.style.display = 'none';
     });
 
+    // ── Send Catalogue (v1.14) ────────────────────────────────────────────────
+    // Employee picks buyer + lots → sendCatalogueLink (1 API call) → buyer gets email.
+
+    document.getElementById('btn-catalogue').addEventListener('click', () => {
+      // Reset modal state
+      document.getElementById('cat-buyer').value    = '';
+      document.getElementById('cat-warehouse').value = '';
+      document.getElementById('cat-lot-count').textContent = '';
+      document.getElementById('cat-lot-list').innerHTML =
+        '<div style="padding:1rem;color:var(--muted);font-size:0.82rem;text-align:center">Select a buyer to see available lots.</div>';
+      document.getElementById('btn-catalogue-send').disabled = true;
+
+      // Populate buyer dropdown — reuse PAGE_DATA
+      const buyerSel = document.getElementById('cat-buyer');
+      buyerSel.innerHTML = '<option value="">— Select buyer —</option>';
+      (PAGE_DATA.buyers || []).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value       = b.buyer_id;
+        opt.textContent = b.company_name;
+        buyerSel.appendChild(opt);
+      });
+
+      UI.openModal('modal-catalogue');
+    });
+
+    document.getElementById('btn-catalogue-cancel').addEventListener('click', () => {
+      UI.closeModal('modal-catalogue');
+    });
+
+    // When buyer changes — auto-fill warehouse + render lot checklist
+    document.getElementById('cat-buyer').addEventListener('change', function() {
+      const buyerId = this.value;
+      if (!buyerId) {
+        document.getElementById('cat-warehouse').value = '';
+        document.getElementById('cat-lot-list').innerHTML =
+          '<div style="padding:1rem;color:var(--muted);font-size:0.82rem;text-align:center">Select a buyer to see available lots.</div>';
+        document.getElementById('cat-lot-count').textContent = '';
+        document.getElementById('btn-catalogue-send').disabled = true;
+        return;
+      }
+
+      const buyer = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(buyerId));
+      const warehouseId = buyer ? buyer.warehouse_id : null;
+      const warehouse   = warehouseId
+        ? (PAGE_DATA.warehouses || Auth.getWarehouses()).find(w => String(w.warehouse_id) === String(warehouseId))
+        : null;
+      document.getElementById('cat-warehouse').value = warehouse ? warehouse.warehouse_name : '—';
+
+      // Render lot checklist — active inbound_details for this warehouse
+      renderCatalogueLotList(buyer, warehouseId);
+    });
+
+    function renderCatalogueLotList(buyer, warehouseId) {
+      const listEl    = document.getElementById('cat-lot-list');
+      const countEl   = document.getElementById('cat-lot-count');
+      const sendBtn   = document.getElementById('btn-catalogue-send');
+      const buyerLevel = buyer ? (buyer.buyer_level || 'Small') : 'Small';
+
+      // Filter active inbound_details for this warehouse
+      const lots = (PAGE_DATA.inboundDetails || []).filter(d => {
+        const active = d.is_active !== false && d.is_active !== 'FALSE';
+        const wh     = !warehouseId || String(d.warehouse_id) === String(warehouseId);
+        return active && wh;
+      });
+
+      if (!lots.length) {
+        listEl.innerHTML = '<div style="padding:1rem;color:var(--muted);font-size:0.82rem;text-align:center">No active lots for this warehouse.</div>';
+        countEl.textContent = '';
+        sendBtn.disabled = true;
+        return;
+      }
+
+      // Build price lookup for buyer's level
+      const priceMap = {};
+      (PAGE_DATA.samplePrices || [])
+        .filter(p => p.level === buyerLevel)
+        .forEach(p => { priceMap[String(p.detail_id)] = p; });
+
+      listEl.innerHTML = '';
+      lots.forEach(d => {
+        const priceRow  = priceMap[String(d.detail_id)];
+        const priceStr  = priceRow && priceRow.sale_price
+          ? '$' + parseFloat(priceRow.sale_price).toFixed(2) + ' / ' + (priceRow.sale_price_unit || 'kg')
+          : '—';
+        const avail     = d.buyer_available !== undefined ? d.buyer_available : (d.available_bags || 0);
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.875rem;border-bottom:1px solid var(--border);cursor:pointer';
+        row.innerHTML = `
+          <input type="checkbox" id="cat-lot-${d.detail_id}" value="${d.detail_id}"
+            style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;flex-shrink:0"
+            onchange="updateCatalogueCount()" />
+          <label for="cat-lot-${d.detail_id}" style="flex:1;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:0.75rem">
+            <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--accent);white-space:nowrap">${UI.esc(d.sample_id || '')}</span>
+            <span style="font-size:0.82rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${UI.esc(d.sample_name || '')}</span>
+            <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);white-space:nowrap">${avail} bags</span>
+            <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--accent);white-space:nowrap">${UI.esc(priceStr)}</span>
+          </label>`;
+        row.addEventListener('click', e => {
+          if (e.target.tagName === 'INPUT') return; // let checkbox handle itself
+          const cb = row.querySelector('input[type="checkbox"]');
+          cb.checked = !cb.checked;
+          updateCatalogueCount();
+        });
+        listEl.appendChild(row);
+      });
+
+      updateCatalogueCount();
+    }
+
+    function updateCatalogueCount() {
+      const checked = document.querySelectorAll('#cat-lot-list input[type="checkbox"]:checked');
+      const countEl = document.getElementById('cat-lot-count');
+      const sendBtn = document.getElementById('btn-catalogue-send');
+      countEl.textContent = checked.length ? checked.length + ' selected' : '';
+      sendBtn.disabled = checked.length === 0;
+    }
+
+    document.getElementById('btn-catalogue-send').addEventListener('click', async () => {
+      const buyerId     = document.getElementById('cat-buyer').value;
+      const buyer       = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(buyerId));
+      const warehouseId = buyer ? buyer.warehouse_id : null;
+
+      if (!buyerId)     { UI.toastError('Select a buyer.'); return; }
+      if (!warehouseId) { UI.toastError('Buyer has no warehouse assigned.'); return; }
+
+      const checked = Array.from(
+        document.querySelectorAll('#cat-lot-list input[type="checkbox"]:checked')
+      ).map(cb => cb.value);
+
+      if (!checked.length) { UI.toastError('Select at least one lot.'); return; }
+
+      const btn = document.getElementById('btn-catalogue-send');
+      UI.setLoading(btn, true);
+      try {
+        const result = await API.sendCatalogueLink(buyerId, warehouseId, checked);
+        UI.closeModal('modal-catalogue');
+        UI.toastSuccess('Catalogue sent to buyer (' + result.lot_count + ' lot' + (result.lot_count === 1 ? '' : 's') + ').');
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
+
   </script>
 
+
+
+  <!-- ── Modal: Send Catalogue (v1.14) ── -->
+  <!-- Buyer-initiated: employee picks buyer + lots → emails token link -->
+  <div class="st-modal" id="modal-catalogue">
+    <div class="modal-box" style="max-width:680px">
+      <div class="modal-title">Send Sample Catalogue</div>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1.25rem">
+        Select a buyer and the lots to include. The buyer will receive a link to browse and submit their selection.
+        Link expires in 7 days.
+      </p>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="cat-buyer">Buyer <span style="color:var(--error)">*</span></label>
+          <select id="cat-buyer" style="width:100%"></select>
+        </div>
+        <div class="field">
+          <label for="cat-warehouse">Warehouse</label>
+          <input type="text" id="cat-warehouse" readonly
+            style="background:var(--surface);color:var(--muted);border:1px solid var(--border);padding:0.5rem 0.75rem;width:100%;font-family:var(--font-mono);font-size:0.78rem" />
+        </div>
+      </div>
+
+      <div class="modal-section" style="margin-bottom:0.75rem">
+        Select Lots <span style="color:var(--error)">*</span>
+        <span id="cat-lot-count" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--accent);margin-left:0.5rem"></span>
+      </div>
+      <div id="cat-lot-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">
+        <div style="padding:1rem;color:var(--muted);font-size:0.82rem;text-align:center">Select a buyer to see available lots.</div>
+      </div>
+
+      <div class="modal-footer" style="margin-top:1.25rem">
+        <button class="btn btn-ghost" id="btn-catalogue-cancel">Cancel</button>
+        <button class="btn" id="btn-catalogue-send" disabled>Send Catalogue</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
