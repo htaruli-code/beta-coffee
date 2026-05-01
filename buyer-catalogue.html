@@ -2,6 +2,8 @@
 <!-- Version 1.16 | buyer-catalogue.html -->
 <!-- Public page — token-authenticated. No login required. -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
+<!-- v1.15: js/config.js path fixed. getCataloguePage + submitCatalogueSelection added to Code.gs public block. -->
+<!-- v1.16: Buyer Level removed. Send To + Address added to info block. Notes tooltip added. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -28,10 +30,10 @@
 
     /* Info block */
     .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; margin-bottom: 1.5rem; }
-    .info-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+    .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
     .info-row:last-child { border-bottom: none; }
-    .info-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-    .info-value { font-size: 0.82rem; color: var(--text); text-align: right; }
+    .info-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding-top: 0.1rem; flex-shrink: 0; }
+    .info-value { font-size: 0.82rem; color: var(--text); text-align: right; max-width: 65%; }
 
     /* Section label */
     .section-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
@@ -82,12 +84,13 @@
 
     /* Empty lots */
     .no-lots { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; }
-  </style>
+
+    /* Tooltip — v1.16 */
     .tooltip-wrap { position: relative; display: inline-flex; align-items: center; gap: 0.35rem; }
-    .tooltip-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border2); color: var(--muted); font-size: 0.6rem; font-family: var(--font-mono); cursor: default; flex-shrink: 0; }
+    .tooltip-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border2); color: var(--muted); font-size: 0.6rem; font-family: var(--font-mono); cursor: default; flex-shrink: 0; user-select: none; }
     .tooltip-icon:hover + .tooltip-box,
     .tooltip-icon:focus + .tooltip-box { opacity: 1; pointer-events: auto; }
-    .tooltip-box { position: absolute; bottom: calc(100% + 6px); left: 0; background: var(--text); color: #fff; font-family: var(--font-sans); font-size: 0.75rem; line-height: 1.5; padding: 0.5rem 0.75rem; border-radius: var(--radius); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 120ms ease; z-index: 100; max-width: 240px; white-space: normal; }
+    .tooltip-box { position: absolute; bottom: calc(100% + 6px); left: 0; background: var(--text); color: #fff; font-family: var(--font-sans); font-size: 0.75rem; line-height: 1.5; padding: 0.5rem 0.75rem; border-radius: var(--radius); opacity: 0; pointer-events: none; transition: opacity 120ms ease; z-index: 100; width: 230px; white-space: normal; }
     .tooltip-box::after { content: ''; position: absolute; top: 100%; left: 12px; border: 5px solid transparent; border-top-color: var(--text); }
   </style>
 </head>
@@ -150,9 +153,9 @@
         <div class="field">
           <label for="sel-notes">
             <span class="tooltip-wrap">
-              Notes <span style="color:var(--muted);font-size:0.65rem">(optional)</span>
+              Notes <span style="color:var(--muted);font-size:0.65rem;text-transform:none">(optional)</span>
               <span class="tooltip-icon" tabindex="0">?</span>
-              <span class="tooltip-box">Include any special instructions, e.g. how many grams per lot, preferred packaging, or any other notes for our team.</span>
+              <span class="tooltip-box">Include any special instructions — e.g. how many grams per lot, preferred packaging, or any other notes for our team.</span>
             </span>
           </label>
           <textarea id="sel-notes" rows="3" maxlength="250" placeholder="e.g. 200g per lot, vacuum packed…"></textarea>
@@ -275,14 +278,14 @@
         const priceStr = lot.sale_price
           ? '$' + parseFloat(lot.sale_price).toFixed(2) + ' / ' + (lot.sale_price_unit || 'kg')
           : '—';
-        const bagSize  = lot.bag_size ? lot.bag_size + ' kg' : '—';
-        const avail    = lot.available_bags !== null && lot.available_bags !== undefined
+        const bagSize = lot.bag_size ? lot.bag_size + ' kg' : '—';
+        const avail   = lot.available_bags !== null && lot.available_bags !== undefined
           ? lot.available_bags + ' bags' : '—';
 
         const card = document.createElement('div');
-        card.className   = 'lot-card';
-        card.dataset.id  = lot.detail_id;
-        card.innerHTML = `
+        card.className  = 'lot-card';
+        card.dataset.id = lot.detail_id;
+        card.innerHTML  = `
           <div class="lot-card-header">
             <input type="checkbox" class="lot-checkbox" id="lot-cb-${esc(lot.detail_id)}"
               value="${esc(lot.detail_id)}" onchange="onLotCheck()" />
@@ -326,7 +329,7 @@
       });
 
       // Update count label
-      const countEl  = document.getElementById('selected-count');
+      const countEl = document.getElementById('selected-count');
       countEl.textContent = checked.length ? checked.length + ' selected' : '';
 
       // Enable/disable submit
