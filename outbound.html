@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.14.1 | outbound.html -->
+<!-- Version 1.14.2 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -1074,11 +1074,14 @@
       }
 
       const buyer = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(buyerId));
-      const warehouseId = buyer ? buyer.warehouse_id : null;
+      // v1.14.2: use Auth.getWarehouses() — same source as rest of outbound.html
+      // PAGE_DATA.warehouses is a different scope; Auth warehouses are already in session
+      const warehouseId = buyer ? String(buyer.warehouse_id || '').trim() : '';
+      const allWarehouses = Auth.getWarehouses();
       const warehouse   = warehouseId
-        ? (PAGE_DATA.warehouses || []).find(w => String(w.warehouse_id) === String(warehouseId))
+        ? allWarehouses.find(w => String(w.warehouse_id) === warehouseId)
         : null;
-      document.getElementById('cat-warehouse').value = warehouse ? warehouse.warehouse_name : '—';
+      document.getElementById('cat-warehouse').value = warehouse ? warehouse.warehouse_name : (warehouseId ? warehouseId : '—');
 
       // Render lot checklist
       renderCatalogueLotList(buyer, warehouseId);
@@ -1161,9 +1164,11 @@
       const buyerId     = document.getElementById('cat-buyer').value;
       const buyer       = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(buyerId));
       // v1.14.1: warehouseId from buyer record; fall back to first warehouse in PAGE_DATA
+      // v1.14.2: resolve warehouse from Auth session — consistent source
+      const allWarehouses = Auth.getWarehouses();
       const warehouseId = (buyer && buyer.warehouse_id)
-        ? buyer.warehouse_id
-        : (PAGE_DATA.warehouses && PAGE_DATA.warehouses[0] ? PAGE_DATA.warehouses[0].warehouse_id : null);
+        ? String(buyer.warehouse_id).trim()
+        : (allWarehouses.length ? String(allWarehouses[0].warehouse_id) : null);
 
       if (!buyerId)     { UI.toastError('Select a buyer.'); return; }
       if (!warehouseId) { UI.toastError('No warehouse found. Please assign a warehouse to this buyer.'); return; }
