@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.5 | buyer-reserve.html -->
+<!-- Version 1.11.6 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -153,7 +153,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11.5 | buyer-reserve.html script
+    // Version 1.11.6 | buyer-reserve.html script
 
     const token = new URLSearchParams(window.location.search).get('t');
     let PAGE_DATA = null;
@@ -245,16 +245,21 @@
     function updatePricePreview() {
       const preview  = document.getElementById('price-preview');
       const bags     = parseInt(document.getElementById('bags-input').value) || 0;
-      const bagSize  = PAGE_DATA ? (PAGE_DATA.bag_size   || 0) : 0;
-      const price    = PAGE_DATA ? (PAGE_DATA.sale_price || null) : null;
-      const available = PAGE_DATA ? (PAGE_DATA.available_now || 0) : 0;
+      const bagSize      = PAGE_DATA ? (PAGE_DATA.bag_size   || 0) : 0;
+      const price        = PAGE_DATA ? (PAGE_DATA.sale_price || null) : null;
+      // v1.11.6: use maxReservable (total - othersReserved) not available_now
+      const confirmed    = PAGE_DATA ? (PAGE_DATA.confirmed_purchase || PAGE_DATA.available_bags || 0) : 0;
+      const alreadyRes   = PAGE_DATA ? (PAGE_DATA.already_reserved   || 0) : 0;
+      const totalRes     = PAGE_DATA ? (PAGE_DATA.total_reserved      || 0) : 0;
+      const othersRes    = Math.max(0, totalRes - alreadyRes);
+      const maxReserv    = Math.max(0, confirmed - othersRes);
 
       if (bags <= 0) {
         preview.innerHTML = '<div class="muted">Enter bag quantity to see price estimate</div>';
         return;
       }
-      if (bags > available) {
-        preview.innerHTML = '<div class="muted" style="color:var(--error)">Exceeds available bags (' + available + ')</div>';
+      if (bags > maxReserv) {
+        preview.innerHTML = '<div class="muted" style="color:var(--error)">Exceeds available bags (' + maxReserv + ')</div>';
         return;
       }
       const totalKg = bags * bagSize;
