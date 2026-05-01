@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.13.2 | samples.html -->
+<!-- Version 1.13.4 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -908,8 +908,7 @@
 
     // ── Prices Modal (v1.3) ───────────────────────────────────────────────────
     // Shows 4-tier sale prices for every detail on an inbound.
-    // Prices are auto-calculated: cost_price × tier multiplier.
-    // User can override any price — saved individually per detail+level.
+    // v1.13.3: Prices are entered manually. Auto-calculation from cost × multiplier disabled.
 
     // btn-prices-close uses inline onclick — no addEventListener needed
 
@@ -998,29 +997,39 @@
         html += '</div></div>';
 
         // 4-tier price inputs
-        html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.5rem">';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.75rem">';
 
         LEVELS.forEach(level => {
           const priceObj = priceMap[d.detail_id] ? priceMap[d.detail_id][level] : null;
           const val      = priceObj ? parseFloat(priceObj.sale_price).toFixed(2) : '0.00';
-          const isManual = priceObj && priceObj.is_manual;
-          const color    = LEVEL_COLORS[level];
+          const color = LEVEL_COLORS[level];
+          // v1.13.4: data-unit stored on input — single source of truth for unit, no DOM button inspection
           html += `<div>
             <div style="font-size:0.65rem;font-family:var(--font-mono);color:${color};margin-bottom:3px">
-              ${UI.esc(level)}${isManual ? ' <span title="Manually set">★</span>' : ''}
+              ${UI.esc(level)}
             </div>
             <div style="display:flex;align-items:center;gap:4px">
               <span style="font-size:0.75rem;color:var(--muted)">$</span>
               <input type="number" min="0" step="0.01"
                 id="price-input-${d.detail_id}-${level}"
+                data-unit="${currentUnit}"
                 value="${val}"
-                style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 6px;font-size:0.82rem;font-family:var(--font-mono)"
-                onchange="savePriceOverride(${d.detail_id}, '${level}', this.value, this)" />
+                style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 6px;font-size:0.82rem;font-family:var(--font-mono)" />
             </div>
           </div>`;
         });
 
         html += '</div>';
+
+        // v1.13.4: explicit Save Prices button per detail — one call (saveSamplePricesAll)
+        html += `<div style="display:flex;justify-content:flex-end;margin-top:0.25rem">
+          <button
+            id="save-prices-btn-${d.detail_id}"
+            onclick="savePricesForDetail(${d.detail_id})"
+            style="font-family:var(--font-mono);font-size:0.7rem;padding:5px 18px;background:var(--accent);color:#fff;border:none;cursor:pointer;letter-spacing:0.06em;font-weight:600">
+            SAVE PRICES
+          </button>
+        </div>`;
         block.innerHTML = html;
         container.appendChild(block);
       });
@@ -1045,11 +1054,12 @@
         btn.style.color      = active ? '#fff' : 'var(--muted)';
       });
 
-      // Convert all 4 tier price inputs proportionally
+      // Convert all 4 tier price inputs proportionally + update data-unit
       const LEVELS = ['Large', 'Medium', 'Small', 'Micro'];
       LEVELS.forEach(level => {
         const input = document.getElementById('price-input-' + detailId + '-' + level);
         if (!input) return;
+        input.dataset.unit = newUnit;  // v1.13.4: keep data-unit in sync with toggle
         const current = parseFloat(input.value) || 0;
         if (current === 0) return;
         const converted = (newUnit === 'lb')
@@ -1094,26 +1104,46 @@
       }
     }
 
-    async function savePriceOverride(detailId, level, value, inputEl) {
-      const salePrice = parseFloat(value);
-      if (isNaN(salePrice) || salePrice < 0) { UI.toastError('Invalid price.'); return; }
+    // v1.13.4: Save all 4 tier prices for a detail in one API call.
+    // Replaces per-field onchange savePriceOverride — user edits freely, clicks SAVE PRICES.
+    // Unit is read from data-unit on each input (set on render + updated by unit toggle).
+    async function savePricesForDetail(detailId) {
+      const LEVELS = ['Large', 'Medium', 'Small', 'Micro'];
+      const btn = document.getElementById('save-prices-btn-' + detailId);
 
-      // v1.13: read active unit from toggle buttons
-      const kgBtn = document.getElementById('unit-btn-' + detailId + '-kg');
-      const saleUnit = (kgBtn && kgBtn.style.background.includes('accent')) ? 'kg' : 'lb';
+      const pricePayload = LEVELS.map(level => {
+        const input = document.getElementById('price-input-' + detailId + '-' + level);
+        if (!input) return null;
+        const val  = parseFloat(input.value);
+        const unit = input.dataset.unit || 'kg';  // always reliable — set on render + toggle
+        if (isNaN(val) || val < 0) return null;
+        return { level, sale_price: val, sale_unit: unit };
+      }).filter(Boolean);
 
+      if (!pricePayload.length) { UI.toastError('No valid prices to save.'); return; }
+
+      if (btn) { btn.disabled = true; btn.textContent = 'SAVING…'; }
       try {
-        await API.saveSamplePrice(detailId, level, salePrice, saleUnit);
-        // Update local state
-        const existing = (PAGE_DATA.prices || []).find(p => String(p.detail_id) === String(detailId) && p.level === level);
-        if (existing) { existing.sale_price = salePrice; existing.is_manual = true; existing.sale_price_unit = saleUnit; }
-        else { PAGE_DATA.prices = PAGE_DATA.prices || []; PAGE_DATA.prices.push({ detail_id: detailId, level, sale_price: salePrice, is_manual: true, sale_price_unit: saleUnit }); }
-        // Add star indicator
-        const label = inputEl.closest('div').previousElementSibling;
-        if (label && !label.textContent.includes('★')) label.innerHTML += ' <span title="Manually set">★</span>';
-        UI.toastSuccess(level + ' price saved (' + saleUnit + ').');
+        await API.saveSamplePricesAll(detailId, pricePayload);
+        // Update local PAGE_DATA state
+        pricePayload.forEach(p => {
+          const existing = (PAGE_DATA.prices || []).find(x =>
+            String(x.detail_id) === String(detailId) && x.level === p.level);
+          if (existing) {
+            existing.sale_price = p.sale_price;
+            existing.is_manual  = true;
+            existing.sale_price_unit = p.sale_unit;
+          } else {
+            PAGE_DATA.prices = PAGE_DATA.prices || [];
+            PAGE_DATA.prices.push({ detail_id: detailId, level: p.level, sale_price: p.sale_price, is_manual: true, sale_price_unit: p.sale_unit });
+          }
+        });
+        const unit = pricePayload[0].sale_unit;
+        UI.toastSuccess('Prices saved (' + unit + ').');
       } catch (err) {
         UI.toastError(err.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'SAVE PRICES'; }
       }
     }
 
@@ -1193,8 +1223,7 @@
     <div class="modal-box" style="max-width:720px">
       <div class="modal-title">Sale Prices — <span id="price-modal-sample-id" style="color:var(--accent)"></span></div>
       <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem">
-        Auto-filled from cost × tier multiplier. Toggle <strong>kg / lb</strong> per lot to match your market. Edit any field to override.
-        <span style="color:var(--accent)">★</span> = manually set.
+        Enter sale prices per buyer tier. Toggle <strong>kg / lb</strong> per lot to match your market.
       </p>
       <div id="price-rows-container"></div>
       <div class="modal-footer">
