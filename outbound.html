@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.14.3 | outbound.html -->
+<!-- Version 1.14.4 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -470,7 +470,7 @@
   <!-- ── Modal: Send Catalogue (v1.14) ── -->
   <!-- Buyer-initiated: employee picks buyer + lots → emails token link -->
   <div class="st-modal" id="modal-catalogue">
-    <div class="modal-box" style="max-width:680px">
+    <div class="modal-box" style="max-width:816px">
       <div class="modal-title">Send Sample Catalogue</div>
       <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1.25rem">
         Select a buyer and the lots to include. The buyer will receive a link to browse and submit their selection.
@@ -1130,18 +1130,12 @@
       const sendBtn    = document.getElementById('btn-catalogue-send');
       const buyerLevel = buyer ? (buyer.buyer_level || 'Small') : 'Small';
 
-      // v1.14.1 FIX: inbound_details rows don't carry warehouse_id — that field
-      // lives on inbound_samples. Build an inbound_id → warehouse_id map from
-      // PAGE_DATA.outbounds (which has warehouse_id on each outbound_sample row)
-      // is not reliable either. Instead, use PAGE_DATA.inboundDetails directly —
-      // getActiveDetailsByWarehouse already filters by warehouse server-side, so
-      // when warehouseId is set we show all returned details (they're already
-      // scoped). When warehouseId is null (buyer has no warehouse), show all.
-      // The warehouse filter for the catalogue is therefore enforced server-side
-      // at page load time via getOutboundPage(warehouseId).
-      // Client-side: just filter by is_active — warehouse scope is already correct.
+      // v1.14.4: d.warehouse_id is now attached by DataService.getActiveDetailsByWarehouse.
+      // Filter lots by buyer's warehouse when set — shows only relevant lots.
       const lots = (PAGE_DATA.inboundDetails || []).filter(d => {
-        return d.is_active !== false && d.is_active !== 'FALSE';
+        const active = d.is_active !== false && d.is_active !== 'FALSE';
+        const wh     = !warehouseId || String(d.warehouse_id) === warehouseId;
+        return active && wh;
       });
 
       if (!lots.length) {
