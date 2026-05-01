@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.14.4 | outbound.html -->
+<!-- Version 1.14.5 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -509,7 +509,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.14 | outbound.html script
+    // Version 1.14.5 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -628,7 +628,6 @@
           <td><span class="badge ${statusClass}">${UI.esc(o.status)}</span></td>
           <td>
             <div class="status-btns">${statusBtns}</div>
-            ${o.notes ? '<div style="font-size:0.72rem;color:var(--muted);font-style:italic;margin-top:4px">\ud83d\udcdd ' + UI.esc(o.notes) + '</div>' : ''}
           </td>`;
 
         if (dets.length) {
@@ -639,6 +638,13 @@
           });
         }
         tbody.appendChild(tr);
+
+        // Notes row — same pattern as samples.html (v1.14.5)
+        if (o.notes) {
+          const notesTr = document.createElement('tr');
+          notesTr.innerHTML = '<td colspan="11" style="padding:4px 1rem 6px 2.5rem;font-size:0.78rem;color:var(--muted);font-style:italic;background:var(--surface)">\ud83d\udcdd ' + UI.esc(o.notes) + '</td>';
+          tbody.appendChild(notesTr);
+        }
 
         // Expanded detail sub-table
         if (isOpen && dets.length) {
