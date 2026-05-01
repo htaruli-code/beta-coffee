@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.6 | buyer-reserve.html -->
+<!-- Version 1.11.7 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -153,7 +153,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11.6 | buyer-reserve.html script
+    // Version 1.11.7 | buyer-reserve.html script
 
     const token = new URLSearchParams(window.location.search).get('t');
     let PAGE_DATA = null;
@@ -278,11 +278,16 @@
 
     // ── Submit ────────────────────────────────────────────────────────────────
     document.getElementById('btn-reserve').addEventListener('click', async () => {
-      const bags      = parseInt(document.getElementById('bags-input').value);
-      const available = PAGE_DATA ? (PAGE_DATA.available_now || 0) : 0;
+      const bags        = parseInt(document.getElementById('bags-input').value);
+      // v1.11.7: use maxReservable (confirmed - othersReserved), not available_now which is depleted
+      const confirmed   = PAGE_DATA ? (PAGE_DATA.confirmed_purchase || PAGE_DATA.available_bags || 0) : 0;
+      const myPrev      = PAGE_DATA ? (PAGE_DATA.already_reserved   || 0) : 0;
+      const totalRes    = PAGE_DATA ? (PAGE_DATA.total_reserved      || 0) : 0;
+      const othersRes   = Math.max(0, totalRes - myPrev);
+      const maxReserv   = Math.max(0, confirmed - othersRes);
 
       if (!bags || bags < 1)    { toastError('Please enter the number of bags to reserve.'); return; }
-      if (bags > available)     { toastError('Only ' + available + ' bag' + (available === 1 ? '' : 's') + ' available.'); return; }
+      if (bags > maxReserv)     { toastError('Only ' + maxReserv + ' bag' + (maxReserv === 1 ? '' : 's') + ' available.'); return; }
       // v1.8: client-side minimum check (server also validates)
       // v1.11.3: minimum is advisory — warn but allow reservation to proceed
       const minReq = PAGE_DATA ? (PAGE_DATA.min_bags_required || 0) : 0;
