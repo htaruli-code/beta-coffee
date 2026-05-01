@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.12 | outbound.html -->
+<!-- Version 1.12.13 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -469,7 +469,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.12 | outbound.html script
+    // Version 1.12.13 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -539,14 +539,15 @@
     let expandedOutbounds = new Set();
 
     function renderTable(outbounds) {
+      outbounds = outbounds || [];  // v1.12.13: guard against undefined
       const tbody = document.getElementById('outbound-tbody');
       const buyerMap = {};
-      PAGE_DATA.buyers.forEach(b => buyerMap[b.buyer_id] = b.company_name);
+      (PAGE_DATA.buyers || []).forEach(b => buyerMap[b.buyer_id] = b.company_name);
       const whMap = {};
       Auth.getWarehouses().forEach(w => whMap[w.warehouse_id] = w.warehouse_name);
 
       detailMap = {};  // v1.12.10: assign to module-scope var
-      PAGE_DATA.details.forEach(d => {
+      (PAGE_DATA.details || []).forEach(d => {
         if (!detailMap[d.outbound_id]) detailMap[d.outbound_id] = [];
         detailMap[d.outbound_id].push(d);
       });
