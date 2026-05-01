@@ -1,4 +1,4 @@
-// Version 1.13.2
+// Version 1.11.7
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -14,7 +14,6 @@
 // v1.11.5: saveEvaluation + sendEvaluation
 // v1.11.6: saveDetailField — inline editing
 // v1.11.7: submitReservationInternal — session-authenticated reservation for outbound.html (uses reservation token, no session) (shipping_date, courier, tracking_number for Sent) → Auth.handleUnauthorized() → redirect to login
-// v1.13.2: saveSamplePrice accepts sale_unit; saveSamplePricesAll — batch upsert all 4 tier prices in one API call
 
 const API = (() => {
 
@@ -179,24 +178,12 @@ const API = (() => {
 
   // ─── Pricing (v1.3) ──────────────────────────────────────────────────────
 
-  async function saveSamplePrice(detailId, level, salePrice, saleUnit) {
+  async function saveSamplePrice(detailId, level, salePrice) {
     return post({
-      action:    'saveSamplePrice',
+      action: 'saveSamplePrice',
       detail_id: detailId,
       level,
       sale_price: salePrice,
-      sale_unit:  saleUnit || 'kg',
-      session_token: Auth.getToken()
-    });
-  }
-
-  // v1.13.2: batch upsert all 4 tier prices + unit in one API call
-  // prices = [{ level, sale_price, sale_unit }, ...]
-  async function saveSamplePricesAll(detailId, prices) {
-    return post({
-      action:    'saveSamplePricesAll',
-      detail_id: detailId,
-      prices,
       session_token: Auth.getToken()
     });
   }
@@ -324,6 +311,39 @@ const API = (() => {
     });
   }
 
+
+  // ─── Buyer Catalogue (v1.14) ─────────────────────────────────────────────
+  // Employee sends a curated lot list to a buyer via a time-limited token link.
+  // Buyer browses and selects — creates an outbound exactly like manual creation.
+
+  // Employee: pick buyer + lots → email catalogue link (session-authenticated)
+  async function sendCatalogueLink(buyerId, warehouseId, detailIds) {
+    return post({
+      action:      'sendCatalogueLink',
+      buyer_id:    buyerId,
+      warehouse_id: warehouseId,
+      detail_ids:  detailIds,   // array of inbound_detail_id strings
+      session_token: Auth.getToken()
+    });
+  }
+
+  // Public — buyer opens catalogue page (no session, token-authenticated)
+  async function getCataloguePage(token) {
+    return post({ action: 'getCataloguePage', token });
+  }
+
+  // Public — buyer submits selection (no session, token-authenticated)
+  // selectedDetailIds: subset of detail_ids encoded in token
+  async function submitCatalogueSelection(token, selectedDetailIds, beans, notes) {
+    return post({
+      action:              'submitCatalogueSelection',
+      token,
+      selected_detail_ids: selectedDetailIds,
+      beans,
+      notes: notes || ''
+    });
+  }
+
     return {
     sendAuthCode, verifyAuthCode,
     getSamplesPage, getSuppliersPage, getInboundDetailPage,
@@ -331,7 +351,7 @@ const API = (() => {
     getSupplierPage, supplierSubmit,
     getBuyersPage, saveBuyer,
     getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus,
-    saveSamplePrice, saveSamplePricesAll, savePriceTier,  // v1.3 / v1.13.2
+    saveSamplePrice, savePriceTier,              // v1.3
     getBuyerReservePage, submitReservation,       // v1.4
     saveConfirmedPurchase,                        // v1.5
     toggleDetailActive,                           // v1.7
@@ -340,6 +360,7 @@ const API = (() => {
     saveDetailField,                           // v1.11.6
     submitReservationInternal,                 // v1.11.7
     updateDetailCoffeeType,
-    getAllSamplesPage                              // v1.9
+    getAllSamplesPage,                             // v1.9
+    sendCatalogueLink, getCataloguePage, submitCatalogueSelection  // v1.14
   };
 })();
