@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.10 | outbound.html -->
+<!-- Version 1.12.11 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -440,12 +440,36 @@
     </div>
   </div>
 
+
+
+  <!-- Reserve Modal (v1.12.6) -->
+  <div class="modal-overlay" id="modal-reserve" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(26,16,8,0.35);align-items:center;justify-content:center;padding:1rem">
+    <div class="modal" style="max-width:360px;background:#fff;border:1px solid var(--border);border-radius:10px;width:100%;overflow:hidden">
+      <div class="modal-header">
+        <span class="modal-title">Reserve Bags</span>
+        <button class="modal-close" onclick="document.getElementById('modal-reserve').style.display='none'">✕</button>
+      </div>
+      <div style="padding:1.25rem">
+        <div id="reserve-sample-code" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--accent);margin-bottom:0.2rem"></div>
+        <div id="reserve-sample-name" style="font-size:0.9rem;font-weight:500;margin-bottom:0.25rem"></div>
+        <div id="reserve-available" style="font-size:0.8rem;color:var(--success);font-weight:500;margin-bottom:0.2rem"></div>
+        <div id="reserve-current" style="font-size:0.8rem;color:var(--muted);margin-bottom:1.25rem"></div>
+        <label class="form-label">Bags to Reserve</label>
+        <input type="number" id="reserve-bags" class="form-input" min="1" step="1" placeholder="Enter number of bags" />
+        <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
+          <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('modal-reserve').style.display='none'">Cancel</button>
+          <button class="btn" style="flex:1" id="btn-confirm-reserve">Reserve</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.10 | outbound.html script
+    // Version 1.12.11 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -1008,28 +1032,6 @@
 
   </script>
 
-
-  <!-- Reserve Modal (v1.12.6) -->
-  <div class="modal-overlay" id="modal-reserve" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(26,16,8,0.35);align-items:center;justify-content:center;padding:1rem">
-    <div class="modal" style="max-width:360px;background:#fff;border:1px solid var(--border);border-radius:10px;width:100%;overflow:hidden">
-      <div class="modal-header">
-        <span class="modal-title">Reserve Bags</span>
-        <button class="modal-close" onclick="UI.closeModal('modal-reserve')">✕</button>
-      </div>
-      <div style="padding:1.25rem">
-        <div id="reserve-sample-code" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--accent);margin-bottom:0.2rem"></div>
-        <div id="reserve-sample-name" style="font-size:0.9rem;font-weight:500;margin-bottom:0.25rem"></div>
-        <div id="reserve-available" style="font-size:0.8rem;color:var(--success);font-weight:500;margin-bottom:0.2rem"></div>
-        <div id="reserve-current" style="font-size:0.8rem;color:var(--muted);margin-bottom:1.25rem"></div>
-        <label class="form-label">Bags to Reserve</label>
-        <input type="number" id="reserve-bags" class="form-input" min="1" step="1" placeholder="Enter number of bags" />
-        <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
-          <button class="btn btn-ghost" style="flex:1" onclick="UI.closeModal('modal-reserve')">Cancel</button>
-          <button class="btn" style="flex:1" id="btn-confirm-reserve">Reserve</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
 </body>
 </html>
