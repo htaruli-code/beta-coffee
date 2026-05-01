@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.14.2 | outbound.html -->
+<!-- Version 1.14.3 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -463,6 +463,43 @@
           <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('modal-reserve').style.display='none'">Cancel</button>
           <button class="btn" style="flex:1" id="btn-confirm-reserve">Reserve</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Send Catalogue (v1.14) ── -->
+  <!-- Buyer-initiated: employee picks buyer + lots → emails token link -->
+  <div class="st-modal" id="modal-catalogue">
+    <div class="modal-box" style="max-width:680px">
+      <div class="modal-title">Send Sample Catalogue</div>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1.25rem">
+        Select a buyer and the lots to include. The buyer will receive a link to browse and submit their selection.
+        Link expires in 7 days.
+      </p>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="cat-buyer">Buyer <span style="color:var(--error)">*</span></label>
+          <select id="cat-buyer" style="width:100%"></select>
+        </div>
+        <div class="field">
+          <label for="cat-warehouse">Warehouse</label>
+          <input type="text" id="cat-warehouse" readonly
+            style="background:var(--surface);color:var(--muted);border:1px solid var(--border);padding:0.5rem 0.75rem;width:100%;font-family:var(--font-mono);font-size:0.78rem" />
+        </div>
+      </div>
+
+      <div class="modal-section" style="margin-bottom:0.75rem">
+        Select Lots <span style="color:var(--error)">*</span>
+        <span id="cat-lot-count" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--accent);margin-left:0.5rem"></span>
+      </div>
+      <div id="cat-lot-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">
+        <div style="padding:1rem;color:var(--muted);font-size:0.82rem;text-align:center">Select a buyer to see available lots.</div>
+      </div>
+
+      <div class="modal-footer" style="margin-top:1.25rem">
+        <button class="btn btn-ghost" id="btn-catalogue-cancel">Cancel</button>
+        <button class="btn" id="btn-catalogue-send" disabled>Send Catalogue</button>
       </div>
     </div>
   </div>
@@ -1193,45 +1230,6 @@
     });
 
   </script>
-
-
-
-  <!-- ── Modal: Send Catalogue (v1.14) ── -->
-  <!-- Buyer-initiated: employee picks buyer + lots → emails token link -->
-  <div class="st-modal" id="modal-catalogue">
-    <div class="modal-box" style="max-width:680px">
-      <div class="modal-title">Send Sample Catalogue</div>
-      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1.25rem">
-        Select a buyer and the lots to include. The buyer will receive a link to browse and submit their selection.
-        Link expires in 7 days.
-      </p>
-
-      <div class="field-row">
-        <div class="field">
-          <label for="cat-buyer">Buyer <span style="color:var(--error)">*</span></label>
-          <select id="cat-buyer" style="width:100%"></select>
-        </div>
-        <div class="field">
-          <label for="cat-warehouse">Warehouse</label>
-          <input type="text" id="cat-warehouse" readonly
-            style="background:var(--surface);color:var(--muted);border:1px solid var(--border);padding:0.5rem 0.75rem;width:100%;font-family:var(--font-mono);font-size:0.78rem" />
-        </div>
-      </div>
-
-      <div class="modal-section" style="margin-bottom:0.75rem">
-        Select Lots <span style="color:var(--error)">*</span>
-        <span id="cat-lot-count" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--accent);margin-left:0.5rem"></span>
-      </div>
-      <div id="cat-lot-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">
-        <div style="padding:1rem;color:var(--muted);font-size:0.82rem;text-align:center">Select a buyer to see available lots.</div>
-      </div>
-
-      <div class="modal-footer" style="margin-top:1.25rem">
-        <button class="btn btn-ghost" id="btn-catalogue-cancel">Cancel</button>
-        <button class="btn" id="btn-catalogue-send" disabled>Send Catalogue</button>
-      </div>
-    </div>
-  </div>
 
 </body>
 </html>
