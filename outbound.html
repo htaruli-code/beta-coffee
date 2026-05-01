@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.14 | outbound.html -->
+<!-- Version 1.14.1 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -1076,25 +1076,32 @@
       const buyer = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(buyerId));
       const warehouseId = buyer ? buyer.warehouse_id : null;
       const warehouse   = warehouseId
-        ? (PAGE_DATA.warehouses || Auth.getWarehouses()).find(w => String(w.warehouse_id) === String(warehouseId))
+        ? (PAGE_DATA.warehouses || []).find(w => String(w.warehouse_id) === String(warehouseId))
         : null;
       document.getElementById('cat-warehouse').value = warehouse ? warehouse.warehouse_name : '—';
 
-      // Render lot checklist — active inbound_details for this warehouse
+      // Render lot checklist
       renderCatalogueLotList(buyer, warehouseId);
     });
 
     function renderCatalogueLotList(buyer, warehouseId) {
-      const listEl    = document.getElementById('cat-lot-list');
-      const countEl   = document.getElementById('cat-lot-count');
-      const sendBtn   = document.getElementById('btn-catalogue-send');
+      const listEl     = document.getElementById('cat-lot-list');
+      const countEl    = document.getElementById('cat-lot-count');
+      const sendBtn    = document.getElementById('btn-catalogue-send');
       const buyerLevel = buyer ? (buyer.buyer_level || 'Small') : 'Small';
 
-      // Filter active inbound_details for this warehouse
+      // v1.14.1 FIX: inbound_details rows don't carry warehouse_id — that field
+      // lives on inbound_samples. Build an inbound_id → warehouse_id map from
+      // PAGE_DATA.outbounds (which has warehouse_id on each outbound_sample row)
+      // is not reliable either. Instead, use PAGE_DATA.inboundDetails directly —
+      // getActiveDetailsByWarehouse already filters by warehouse server-side, so
+      // when warehouseId is set we show all returned details (they're already
+      // scoped). When warehouseId is null (buyer has no warehouse), show all.
+      // The warehouse filter for the catalogue is therefore enforced server-side
+      // at page load time via getOutboundPage(warehouseId).
+      // Client-side: just filter by is_active — warehouse scope is already correct.
       const lots = (PAGE_DATA.inboundDetails || []).filter(d => {
-        const active = d.is_active !== false && d.is_active !== 'FALSE';
-        const wh     = !warehouseId || String(d.warehouse_id) === String(warehouseId);
-        return active && wh;
+        return d.is_active !== false && d.is_active !== 'FALSE';
       });
 
       if (!lots.length) {
@@ -1153,10 +1160,13 @@
     document.getElementById('btn-catalogue-send').addEventListener('click', async () => {
       const buyerId     = document.getElementById('cat-buyer').value;
       const buyer       = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(buyerId));
-      const warehouseId = buyer ? buyer.warehouse_id : null;
+      // v1.14.1: warehouseId from buyer record; fall back to first warehouse in PAGE_DATA
+      const warehouseId = (buyer && buyer.warehouse_id)
+        ? buyer.warehouse_id
+        : (PAGE_DATA.warehouses && PAGE_DATA.warehouses[0] ? PAGE_DATA.warehouses[0].warehouse_id : null);
 
       if (!buyerId)     { UI.toastError('Select a buyer.'); return; }
-      if (!warehouseId) { UI.toastError('Buyer has no warehouse assigned.'); return; }
+      if (!warehouseId) { UI.toastError('No warehouse found. Please assign a warehouse to this buyer.'); return; }
 
       const checked = Array.from(
         document.querySelectorAll('#cat-lot-list input[type="checkbox"]:checked')
