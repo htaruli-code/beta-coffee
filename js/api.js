@@ -325,8 +325,6 @@ const API = (() => {
     });
   }
 
-    return {
-
   // ─── Buyer Catalogue (v1.14) ─────────────────────────────────────────────
   async function sendCatalogueLink(buyerId, warehouseId, detailIds) {
     return post({
@@ -352,6 +350,7 @@ const API = (() => {
     });
   }
 
+  return {
     sendAuthCode, verifyAuthCode,
     getSamplesPage, getSuppliersPage, getInboundDetailPage,
     saveSupplier, saveInbound, saveDetail, sendSupplierLink, updateTracking,
