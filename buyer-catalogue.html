@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.15 | buyer-catalogue.html -->
+<!-- Version 1.16 | buyer-catalogue.html -->
 <!-- Public page — token-authenticated. No login required. -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
@@ -83,6 +83,13 @@
     /* Empty lots */
     .no-lots { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; }
   </style>
+    .tooltip-wrap { position: relative; display: inline-flex; align-items: center; gap: 0.35rem; }
+    .tooltip-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border2); color: var(--muted); font-size: 0.6rem; font-family: var(--font-mono); cursor: default; flex-shrink: 0; }
+    .tooltip-icon:hover + .tooltip-box,
+    .tooltip-icon:focus + .tooltip-box { opacity: 1; pointer-events: auto; }
+    .tooltip-box { position: absolute; bottom: calc(100% + 6px); left: 0; background: var(--text); color: #fff; font-family: var(--font-sans); font-size: 0.75rem; line-height: 1.5; padding: 0.5rem 0.75rem; border-radius: var(--radius); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 120ms ease; z-index: 100; max-width: 240px; white-space: normal; }
+    .tooltip-box::after { content: ''; position: absolute; top: 100%; left: 12px; border: 5px solid transparent; border-top-color: var(--text); }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -115,8 +122,12 @@
             <span class="info-value" id="info-warehouse">—</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Buyer Level</span>
-            <span class="info-value" id="info-level">—</span>
+            <span class="info-label">Send To</span>
+            <span class="info-value" id="info-send-to">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Address</span>
+            <span class="info-value" id="info-address">—</span>
           </div>
         </div>
 
@@ -137,8 +148,14 @@
           </select>
         </div>
         <div class="field">
-          <label for="sel-notes">Notes <span style="color:var(--muted);font-size:0.65rem">(optional)</span></label>
-          <textarea id="sel-notes" rows="3" maxlength="250" placeholder="Any notes for the team…"></textarea>
+          <label for="sel-notes">
+            <span class="tooltip-wrap">
+              Notes <span style="color:var(--muted);font-size:0.65rem">(optional)</span>
+              <span class="tooltip-icon" tabindex="0">?</span>
+              <span class="tooltip-box">Include any special instructions, e.g. how many grams per lot, preferred packaging, or any other notes for our team.</span>
+            </span>
+          </label>
+          <textarea id="sel-notes" rows="3" maxlength="250" placeholder="e.g. 200g per lot, vacuum packed…"></textarea>
         </div>
         <button class="btn" id="btn-submit" disabled>Submit Selection</button>
       </div>
@@ -156,7 +173,7 @@
 
   <script src="js/config.js"></script>
   <script>
-    // Version 1.15 | buyer-catalogue.html script
+    // Version 1.16 | buyer-catalogue.html script
 
     // ── Dependency check ──────────────────────────────────────────────────────
     if (typeof APP_CONFIG === 'undefined' || !APP_CONFIG.GAS_URL) {
@@ -230,7 +247,8 @@
       document.getElementById('form-sub').textContent =
         'Browse the lots below and select the ones you\'re interested in, then submit your selection.';
       document.getElementById('info-warehouse').textContent = PAGE_DATA.warehouse_name || '—';
-      document.getElementById('info-level').textContent     = PAGE_DATA.buyer_level    || '—';
+      document.getElementById('info-send-to').textContent   = PAGE_DATA.buyer_company  || '—';
+      document.getElementById('info-address').textContent   = PAGE_DATA.buyer_address  || '—';
 
       // Beans options
       const beansSel = document.getElementById('sel-beans');
