@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.13 | samples.html -->
+<!-- Version 1.13.1 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -1029,8 +1029,14 @@
     }
 
     // v1.13: switch unit for all 4 tier prices on a detail — recalculates prices proportionally
-    function setSalePriceUnit(detailId, newUnit, clickedBtn) {
-      // Update toggle button styles
+    async function setSalePriceUnit(detailId, newUnit, clickedBtn) {
+      // Disable both toggle buttons during save to prevent double-click
+      ['kg','lb'].forEach(u => {
+        const btn = document.getElementById('unit-btn-' + detailId + '-' + u);
+        if (btn) btn.disabled = true;
+      });
+
+      // Update toggle button styles immediately
       ['kg','lb'].forEach(u => {
         const btn = document.getElementById('unit-btn-' + detailId + '-' + u);
         if (!btn) return;
@@ -1046,14 +1052,40 @@
         if (!input) return;
         const current = parseFloat(input.value) || 0;
         if (current === 0) return;
-        let converted;
-        if (newUnit === 'lb') {
-          converted = Math.round((current / 2.2046) * 100) / 100;  // /kg → /lb
-        } else {
-          converted = Math.round(current * 2.2046 * 100) / 100;    // /lb → /kg
-        }
+        const converted = (newUnit === 'lb')
+          ? Math.round((current / 2.2046) * 100) / 100   // /kg → /lb
+          : Math.round(current * 2.2046 * 100) / 100;    // /lb → /kg
         input.value = converted.toFixed(2);
       });
+
+      // v1.13.1: Save all 4 prices immediately with new unit.
+      // Unit toggle is persisted on toggle, not deferred to individual field edits.
+      try {
+        for (const level of LEVELS) {
+          const input = document.getElementById('price-input-' + detailId + '-' + level);
+          if (!input) continue;
+          const val = parseFloat(input.value);
+          if (isNaN(val) || val <= 0) continue;
+          await API.saveSamplePrice(detailId, level, val, newUnit);
+          // Update local PAGE_DATA state
+          const existing = (PAGE_DATA.prices || []).find(p =>
+            String(p.detail_id) === String(detailId) && p.level === level);
+          if (existing) { existing.sale_price = val; existing.sale_price_unit = newUnit; }
+          else {
+            PAGE_DATA.prices = PAGE_DATA.prices || [];
+            PAGE_DATA.prices.push({ detail_id: detailId, level, sale_price: val, is_manual: false, sale_price_unit: newUnit });
+          }
+        }
+        UI.toastSuccess('Prices saved in ' + newUnit + '.');
+      } catch (err) {
+        UI.toastError('Unit change failed: ' + err.message);
+      } finally {
+        // Re-enable toggle buttons
+        ['kg','lb'].forEach(u => {
+          const btn = document.getElementById('unit-btn-' + detailId + '-' + u);
+          if (btn) btn.disabled = false;
+        });
+      }
     }
 
     async function savePriceOverride(detailId, level, value, inputEl) {
