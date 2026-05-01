@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12.8 | outbound.html -->
+<!-- Version 1.12.9 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -445,7 +445,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12.8 | outbound.html script
+    // Version 1.12.9 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -615,12 +615,14 @@
             reserveBtn.style.cssText = 'font-size:0.7rem;padding:2px 10px';
             reserveBtn.textContent = 'Reserve';
             reserveBtn.dataset.detailId     = d.outbound_detail_id;
+            reserveBtn.dataset.sampleCode   = d.sample_code || '';
             reserveBtn.dataset.sampleName   = d.sample_name || '';
             reserveBtn.dataset.bagsReserved = d.bags_reserved || 0;
             reserveBtn.addEventListener('click', function(e) {
               e.stopPropagation();
               openReserveModal(
                 this.dataset.detailId,
+                this.dataset.sampleCode,
                 this.dataset.sampleName,
                 parseInt(this.dataset.bagsReserved) || 0
               );
@@ -960,8 +962,9 @@
     // ── Reserve Modal (v1.12.7) ───────────────────────────────────────────────
     let reservingDetailId = null;
 
-    function openReserveModal(detailId, sampleName, currentReserved) {
+    function openReserveModal(detailId, sampleCode, sampleName, currentReserved) {
       reservingDetailId = detailId;
+      document.getElementById('reserve-sample-code').textContent = sampleCode || '';
       document.getElementById('reserve-sample-name').textContent = sampleName || 'Sample';
       document.getElementById('reserve-current').textContent     = currentReserved
         ? 'Currently reserved: ' + currentReserved + ' bag' + (currentReserved > 1 ? 's' : '')
@@ -1002,12 +1005,13 @@
 
   <!-- Reserve Modal (v1.12.6) -->
   <div class="modal-overlay" id="modal-reserve" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(26,16,8,0.35);align-items:center;justify-content:center;padding:1rem">
-    <div class="modal" style="max-width:360px">
+    <div class="modal" style="max-width:360px;background:#fff;border:1px solid var(--border);border-radius:10px;width:100%;overflow:hidden">
       <div class="modal-header">
         <span class="modal-title">Reserve Bags</span>
         <button class="modal-close" onclick="UI.closeModal('modal-reserve')">✕</button>
       </div>
       <div style="padding:1.25rem">
+        <div id="reserve-sample-code" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--accent);margin-bottom:0.2rem"></div>
         <div id="reserve-sample-name" style="font-size:0.9rem;font-weight:500;margin-bottom:0.25rem"></div>
         <div id="reserve-current" style="font-size:0.8rem;color:var(--muted);margin-bottom:1.25rem"></div>
         <label class="form-label">Bags to Reserve</label>
