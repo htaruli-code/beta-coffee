@@ -1,4 +1,4 @@
-// Version 1.11.6
+// Version 1.11.7
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -12,7 +12,8 @@
 // v1.11.3: updateOutboundStatus accepts extraParams
 // v1.11.4: saveBuyerMinimumPublic — public version for buyer-reserve.html
 // v1.11.5: saveEvaluation + sendEvaluation
-// v1.11.6: saveDetailField — inline editing (uses reservation token, no session) (shipping_date, courier, tracking_number for Sent) → Auth.handleUnauthorized() → redirect to login
+// v1.11.6: saveDetailField — inline editing
+// v1.11.7: submitReservationInternal — session-authenticated reservation for outbound.html (uses reservation token, no session) (shipping_date, courier, tracking_number for Sent) → Auth.handleUnauthorized() → redirect to login
 
 const API = (() => {
 
@@ -300,6 +301,16 @@ const API = (() => {
     });
   }
 
+    // v1.11.7: internal reservation — session auth, no token needed
+  async function submitReservationInternal(outboundDetailId, bagsRequested) {
+    return post({
+      action:              'submitReservationInternal',
+      outbound_detail_id:  outboundDetailId,
+      bags_requested:      bagsRequested,
+      session_token:       Auth.getToken()
+    });
+  }
+
     return {
     sendAuthCode, verifyAuthCode,
     getSamplesPage, getSuppliersPage, getInboundDetailPage,
@@ -314,6 +325,7 @@ const API = (() => {
     saveBuyerMinimum, saveBuyerMinimumPublic,      // v1.8 / v1.11.4
     saveEvaluation, sendEvaluation,            // v1.11.5
     saveDetailField,                           // v1.11.6
+    submitReservationInternal,                 // v1.11.7
     updateDetailCoffeeType,
     getAllSamplesPage                              // v1.9
   };
