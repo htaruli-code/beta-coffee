@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.18.1 | outbound.html -->
+<!-- Version 1.19 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -524,7 +524,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.18.1 | outbound.html script
+    // Version 1.19 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -805,8 +805,7 @@
                 this.dataset.sampleCode,
                 this.dataset.sampleName,
                 parseInt(this.dataset.bagsReserved) || 0,
-                parseInt(this.dataset.availableBags) || 0,
-                this.dataset.reservationToken || ''   // v1.18
+                parseInt(this.dataset.availableBags) || 0
               );
             });
             tdReserveBtn.appendChild(reserveBtn);
@@ -1136,11 +1135,9 @@
 
     // ── Reserve Modal (v1.12.7) ───────────────────────────────────────────────
     let reservingDetailId = null;
-    let reservingToken    = null;   // v1.18: token for submitReservation (same path as buyer-reserve.html)
 
-    function openReserveModal(detailId, sampleCode, sampleName, currentReserved, availableBags, token) {
+    function openReserveModal(detailId, sampleCode, sampleName, currentReserved, availableBags) {
       reservingDetailId = detailId;
-      reservingToken    = token || null;   // v1.18
       document.getElementById('reserve-sample-code').textContent = sampleCode || '';
       document.getElementById('reserve-sample-name').textContent = sampleName || 'Sample';
       const maxReservable = (availableBags || 0) + (currentReserved || 0);
@@ -1160,14 +1157,9 @@
       const btn = document.getElementById('btn-confirm-reserve');
       UI.setLoading(btn, true);
       try {
-        // v1.18: call submitReservation(token) — identical to buyer-reserve.html.
-        // Race-condition check + buyer email + recalcBuyerAvailable all handled server-side.
-        // Fallback to submitReservationInternal if no token (Requested status, not yet Sent).
-        if (reservingToken) {
-          await API.submitReservation(reservingToken, bags);
-        } else {
-          await API.submitReservationInternal(reservingDetailId, bags);
-        }
+        // v1.31: submitReservationInternal handles race-check (doSubmitReservation)
+        // + buyer confirmation email (same as buyer-reserve.html path).
+        await API.submitReservationInternal(reservingDetailId, bags);
         document.getElementById('modal-reserve').style.display = 'none';
         UI.toastSuccess('Reserved ' + bags + ' bag' + (bags > 1 ? 's' : '') + '.');
         await loadPageData();
