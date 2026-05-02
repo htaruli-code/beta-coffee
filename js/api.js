@@ -1,9 +1,10 @@
-// Version 1.18
+// Version 1.19
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
 // v1.17: getBuyersPage    — warehouse_id + level filter params.
 // v1.18: getSuppliersPage — page_num + search + country_id params.
+// v1.19: getOutboundPage  — search param added (buyer name or outbound ID).
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -172,13 +173,14 @@ const API = (() => {
 
   // ─── Outbound ─────────────────────────────────────────────────────────────
 
-  async function getOutboundPage(warehouseId, pageNum, statusFilter) {
+  async function getOutboundPage(warehouseId, pageNum, statusFilter, search) {
     return post({
       action:        'getPageData',
       page:          'outbound',
       warehouse_id:  warehouseId  || null,
       page_num:      pageNum      || 1,
       status_filter: statusFilter || '',
+      search:        search       || '',
       session_token: Auth.getToken()
     });
   }
