@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.16.3 | outbound.html -->
+<!-- Version 1.17 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -200,9 +200,9 @@
     .detail-row input, .detail-row select { padding: 0.3rem 0.5rem; font-size: 0.78rem; border-radius: 4px; }
 
     /* Outbound detail rows */
-    .detail-table-header { display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 0.8fr 0.6fr 2rem; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.6rem; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .detail-table-header { display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 0.6fr 2rem; gap: 0.4rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; padding: 0.5rem 0.6rem; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
     .detail-rows-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: visible; margin-bottom: 0.6rem; }
-    .detail-row-out { display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 0.8fr 0.6fr 2rem; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; }
+    .detail-row-out { display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 0.6fr 2rem; gap: 0.4rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); align-items: center; }
     .detail-row-out:last-child { border-bottom: none; }
 
     /* Toast */
@@ -408,7 +408,6 @@
         <span>Search Sample ID</span>
         <span>Origin Code</span>
         <span>Name</span>
-        <span>Type</span>
         <span>Qty (g)</span>
         <span></span>
       </div>
@@ -525,14 +524,14 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.16.3 | outbound.html script
+    // Version 1.17 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
     // ── State ─────────────────────────────────────────────────────────────────
     let PAGE_DATA  = { outbounds: [], details: [], buyers: [], warehouses: [], inboundDetails: [], samplePrices: [] };
     let detailMap  = {};  // v1.12.10: hoisted — needed by reserve modal
-    let outboundDetailRows = []; // v1.7: each row = { inbound_detail_id, sample_type, qty_grams }
+    let outboundDetailRows = []; // v1.7/v1.17: sample_type from inbound_details (Option A)
     let pendingStatus = { outbound_id: null, status: null };
 
     // v1.15: pagination state
@@ -813,7 +812,7 @@
               '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem;color:var(--accent)">' + UI.esc(d.sample_code||'\u2014') + '</td>' +
               '<td style="padding:5px 8px">' + UI.esc(d.sample_name||'\u2014') + '</td>' +
               '<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.72rem">' + UI.esc(d.origin_sample_code||'\u2014') + '</td>' +
-              '<td style="padding:5px 8px">' + UI.esc(d.sample_type||'\u2014') + '</td>' +
+              '<td style="padding:5px 8px">' + UI.esc((inbDet ? inbDet.sample_type : '') || '\u2014') + '</td>' +  // v1.17: from inbound_details
               '<td style="padding:5px 8px;font-family:var(--font-mono)">' + (d.qty_grams ? d.qty_grams+'g' : '\u2014') + '</td>' +
               '<td style="padding:5px 8px;font-family:var(--font-mono);color:var(--accent);font-weight:500">' + priceSent + '</td>' +
               '<td style="padding:5px 8px;font-family:var(--font-mono)">' + reserved + '</td>';
@@ -862,7 +861,7 @@
 
     // ── New Outbound Modal ────────────────────────────────────────────────────
     document.getElementById('btn-new').addEventListener('click', () => {
-      outboundDetailRows = [{ inbound_detail_id: '', sample_code: '', sample_name: '', origin_sample_code: '', sample_type: '', qty_grams: '' }];  // v1.7
+      outboundDetailRows = [{ inbound_detail_id: '', sample_code: '', sample_name: '', origin_sample_code: '', qty_grams: '' }];  // v1.7
       document.getElementById('o-buyer').value         = '';
       document.getElementById('o-warehouse').value     = '';
       document.getElementById('o-beans').value         = '';
@@ -914,13 +913,6 @@
           // Name (read-only, auto-filled)
           `<input type="text" id="ac-name-${i}" placeholder="Name" value="${UI.esc(d.sample_name || '')}"
             readonly style="background:var(--surface);color:var(--muted)" />` +
-          // Type
-          `<select onchange="outboundDetailRows[${i}].sample_type=this.value">
-            <option value="">— Type —</option>
-            <option value="Preship"  ${d.sample_type==='Preship' ?'selected':''}>Preship</option>
-            <option value="Type"     ${d.sample_type==='Type'    ?'selected':''}>Type</option>
-            <option value="Spot Lot" ${d.sample_type==='Spot Lot'?'selected':''}>Spot Lot</option>
-          </select>` +
           // Qty grams
           `<input type="number" placeholder="g" min="0" value="${UI.esc(d.qty_grams || '')}"
             oninput="outboundDetailRows[${i}].qty_grams=this.value" />` +
@@ -1033,7 +1025,7 @@
 
 
     document.getElementById('btn-add-detail-row').addEventListener('click', () => {
-      outboundDetailRows.push({ inbound_detail_id: '', sample_code: '', sample_name: '', origin_sample_code: '', sample_type: '', qty_grams: '' });  // v1.7
+      outboundDetailRows.push({ inbound_detail_id: '', sample_code: '', sample_name: '', origin_sample_code: '', qty_grams: '' });  // v1.7
       renderOutboundDetailRows();
     });
 

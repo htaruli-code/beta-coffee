@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.14 | buyer-reserve.html -->
+<!-- Version 1.15 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -103,7 +103,6 @@
       <div class="info-block">
         <div class="info-row"><span class="info-label">Sample</span><span class="info-value accent" id="info-sample-code">—</span></div>
         <div class="info-row"><span class="info-label">Name</span><span class="info-value" id="info-sample-name">—</span></div>
-        <div class="info-row"><span class="info-label">Origin Code</span><span class="info-value" id="info-origin-code">—</span></div>
         <div class="info-row"><span class="info-label">Bag Size</span><span class="info-value" id="info-bag-size">—</span></div>
         <div class="info-row"><span class="info-label">Your Price</span><span class="info-value accent" id="info-price">—</span></div>
         <div class="info-row"><span class="info-label">Coffee Type</span><span class="info-value" id="info-coffee-type">—</span></div>
@@ -144,9 +143,6 @@
         <div class="muted">Enter bag quantity to see price estimate</div>
       </div>
 
-      <!-- Inline error — shown above Confirm button (v1.14) -->
-      <div id="inline-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;color:var(--error);font-family:var(--font-mono);font-size:0.78rem;line-height:1.5;padding:0.65rem 0.875rem;border-radius:var(--radius);margin-bottom:0.75rem"></div>
-
       <button class="btn" id="btn-reserve">Confirm Reservation</button>
     </div>
   </div>
@@ -155,7 +151,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.14 | buyer-reserve.html script
+    // Version 1.15 | buyer-reserve.html script
 
     const token = new URLSearchParams(window.location.search).get('t');
     let PAGE_DATA = null;
@@ -181,7 +177,6 @@
         // Populate sample info
         document.getElementById('info-sample-code').textContent = PAGE_DATA.sample_code || '—';
         document.getElementById('info-sample-name').textContent = PAGE_DATA.sample_name || '—';
-        document.getElementById('info-origin-code').textContent = PAGE_DATA.origin_sample_code || '—';
 
         // v1.13: show bag size in the same unit as the sale price
         const priceUnit = PAGE_DATA.sale_price_unit || 'kg';
@@ -303,7 +298,6 @@
 
     // ── Submit ────────────────────────────────────────────────────────────────
     document.getElementById('btn-reserve').addEventListener('click', async () => {
-      clearInlineError();
       const bags        = parseInt(document.getElementById('bags-input').value);
       // v1.11.7: use maxReservable (confirmed - othersReserved), not available_now which is depleted
       const confirmed   = PAGE_DATA ? (PAGE_DATA.confirmed_purchase || PAGE_DATA.available_bags || 0) : 0;
@@ -312,8 +306,8 @@
       const othersRes   = Math.max(0, totalRes - myPrev);
       const maxReserv   = Math.max(0, confirmed - othersRes);
 
-      if (!bags || bags < 1)    { showInlineError('Please enter the number of bags to reserve.'); return; }
-      if (bags > maxReserv)     { showInlineError('Only ' + maxReserv + ' bag' + (maxReserv === 1 ? '' : 's') + ' available.'); return; }
+      if (!bags || bags < 1)    { toastError('Please enter the number of bags to reserve.'); return; }
+      if (bags > maxReserv)     { toastError('Only ' + maxReserv + ' bag' + (maxReserv === 1 ? '' : 's') + ' available.'); return; }
       // v1.8: client-side minimum check (server also validates)
       // v1.11.3: minimum is advisory — warn but allow reservation to proceed
       const minReq = PAGE_DATA ? (PAGE_DATA.min_bags_required || 0) : 0;
@@ -345,7 +339,7 @@
           'A confirmation email has been sent to you.';
         showState('state-success');
       } catch (err) {
-        showInlineError(err.message);
+        toastError(err.message);
         btn.disabled = false;
         btn.textContent = 'Confirm Reservation';
       }
@@ -399,19 +393,6 @@
     });
 
     // ── Toast ─────────────────────────────────────────────────────────────────
-    function showInlineError(msg) {
-      const el = document.getElementById('inline-error');
-      el.textContent = msg;
-      el.style.display = 'block';
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    function clearInlineError() {
-      const el = document.getElementById('inline-error');
-      el.style.display = 'none';
-      el.textContent = '';
-    }
-
     function toastError(msg) {
       const t = document.createElement('div');
       t.className = 'st-toast st-toast--error';
