@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.2 | suppliers.html -->
+<!-- Version 1.3 | suppliers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -218,6 +218,17 @@
     .level-micro  { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; }
 
     /* ── End Warm Precision ─────────────────────────────────────────────────── */
+
+    /* Filter bar + pagination (v1.3) */
+    .filter-bar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .search-input  { max-width: 260px; }
+    .filter-select { width: auto; min-width: 160px; }
+    .filter-clear  { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); cursor: pointer; border: none; background: none; padding: 0.35rem 0; white-space: nowrap; }
+    .filter-clear:hover { color: var(--accent); }
+    .btn-page { background: #fff; border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition); }
+    .btn-page:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-page:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-page--active { background: var(--accent); border-color: var(--accent); color: #fff; cursor: default; }
   </style>
 </head>
 <body>
@@ -240,6 +251,16 @@
       <button class="btn" id="btn-new">+ New Supplier</button>
     </div>
 
+    <!-- Filter bar (v1.3) -->
+    <div class="filter-bar">
+      <input type="text" id="search-input" class="search-input"
+             placeholder="Search name, contact, email…" />
+      <select id="filter-country" class="filter-select">
+        <option value="">All Countries</option>
+      </select>
+      <button class="filter-clear" id="btn-clear-filters" style="display:none">✕ Clear filters</button>
+    </div>
+
     <div class="table-wrap">
       <table>
         <thead>
@@ -256,6 +277,12 @@
           <tr><td colspan="6" class="st-empty"><div class="st-spinner"></div></td></tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination bar (v1.3) -->
+    <div id="pagination-bar" style="display:none;align-items:center;justify-content:space-between;padding:0.75rem 0;font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">
+      <span id="pagination-info"></span>
+      <div style="display:flex;gap:0.4rem" id="pagination-btns"></div>
     </div>
   </div>
 
@@ -299,32 +326,100 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.2 | suppliers.html script
+    // Version 1.3 | suppliers.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
     let PAGE_DATA = { suppliers: [], countries: [] };
+
+    // v1.3: pagination state
+    let currentPage = 1;
+    let totalCount  = 0;
+    const PAGE_SIZE = 20;
+    let searchTimer = null;
 
     // ── Init ──────────────────────────────────────────────────────────────────
     (async () => {
       const user    = Auth.getUser();
       const company = Auth.getCompany();
       document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
-      document.getElementById('nav-user').textContent = (user ? user.name : '') + ' · Sign out';
+      document.getElementById('nav-user').textContent  = (user ? user.name : '') + ' · Sign out';
       document.getElementById('nav-user').addEventListener('click', UI.logout);
+
+      // Search — 350ms debounce
+      document.getElementById('search-input').addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { currentPage = 1; applyFilters(); }, 350);
+      });
+
+      // Country filter — immediate
+      document.getElementById('filter-country').addEventListener('change', () => { currentPage = 1; applyFilters(); });
+
+      // Clear all
+      document.getElementById('btn-clear-filters').addEventListener('click', () => {
+        document.getElementById('search-input').value   = '';
+        document.getElementById('filter-country').value = '';
+        currentPage = 1;
+        applyFilters();
+      });
 
       await loadPageData();
     })();
 
+    // ── Load Page Data ────────────────────────────────────────────────────────
     async function loadPageData() {
+      const search    = document.getElementById('search-input').value.trim();
+      const countryId = document.getElementById('filter-country').value;
+
+      document.getElementById('suppliers-tbody').innerHTML =
+        '<tr><td colspan="6" class="st-empty"><div class="st-spinner"></div></td></tr>';
+      document.getElementById('pagination-bar').style.display = 'none';
+
       try {
-        PAGE_DATA = await API.getSuppliersPage();
+        const data = await API.getSuppliersPage(currentPage, search, countryId);
+
+        // Countries only returned on page 1 — merge and don't overwrite on subsequent pages
+        if (data.countries && data.countries.length) {
+          PAGE_DATA.countries = data.countries;
+          populateCountrySelect();
+          populateFilterCountry();
+        }
+
+        PAGE_DATA.suppliers = data.suppliers || [];
+        totalCount          = data.total_count || 0;
+
+        updateClearButton();
         renderTable();
-        populateCountrySelect();
+        renderPagination();
       } catch (err) {
         document.getElementById('suppliers-tbody').innerHTML =
           '<tr><td colspan="6" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
+    }
+
+    function applyFilters() {
+      updateClearButton();
+      loadPageData();
+    }
+
+    function updateClearButton() {
+      const active = document.getElementById('search-input').value.trim() !== '' ||
+                     document.getElementById('filter-country').value       !== '';
+      document.getElementById('btn-clear-filters').style.display = active ? 'inline' : 'none';
+    }
+
+    // Populate country filter dropdown from PAGE_DATA (preserves current selection)
+    function populateFilterCountry() {
+      const sel = document.getElementById('filter-country');
+      const cur = sel.value;
+      while (sel.options.length > 1) sel.remove(1);
+      PAGE_DATA.countries.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value       = c.country_id;
+        opt.textContent = c.country_name + ' (' + c.country_code + ')';
+        sel.appendChild(opt);
+      });
+      sel.value = cur;
     }
 
     // ── Table ─────────────────────────────────────────────────────────────────
@@ -342,7 +437,71 @@
       `);
     }
 
-    // ── Dropdowns ─────────────────────────────────────────────────────────────
+    // ── Pagination ────────────────────────────────────────────────────────────
+    function renderPagination() {
+      const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+      const bar        = document.getElementById('pagination-bar');
+      const info       = document.getElementById('pagination-info');
+      const btns       = document.getElementById('pagination-btns');
+
+      if (totalPages <= 1) { bar.style.display = 'none'; return; }
+
+      const start = ((currentPage - 1) * PAGE_SIZE) + 1;
+      const end   = Math.min(currentPage * PAGE_SIZE, totalCount);
+      info.textContent = start + '–' + end + ' of ' + totalCount;
+
+      btns.innerHTML = '';
+
+      const prev = document.createElement('button');
+      prev.textContent = '← Prev';
+      prev.className   = 'btn-page';
+      prev.disabled    = currentPage === 1;
+      prev.addEventListener('click', () => { currentPage--; loadPageData(); });
+      btns.appendChild(prev);
+
+      buildPageWindow(currentPage, totalPages).forEach(p => {
+        if (p === '…') {
+          const dot = document.createElement('span');
+          dot.textContent = '…';
+          dot.style.cssText = 'padding:0 0.25rem;line-height:30px';
+          btns.appendChild(dot);
+          return;
+        }
+        const btn = document.createElement('button');
+        btn.textContent = p;
+        btn.className   = 'btn-page' + (p === currentPage ? ' btn-page--active' : '');
+        btn.addEventListener('click', () => { currentPage = p; loadPageData(); });
+        btns.appendChild(btn);
+      });
+
+      const next = document.createElement('button');
+      next.textContent = 'Next →';
+      next.className   = 'btn-page';
+      next.disabled    = currentPage === totalPages;
+      next.addEventListener('click', () => { currentPage++; loadPageData(); });
+      btns.appendChild(next);
+
+      bar.style.display = 'flex';
+    }
+
+    function buildPageWindow(current, total) {
+      if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+      const pages = [];
+      if (current <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('…'); pages.push(total);
+      } else if (current >= total - 3) {
+        pages.push(1); pages.push('…');
+        for (let i = total - 4; i <= total; i++) pages.push(i);
+      } else {
+        pages.push(1); pages.push('…');
+        for (let i = current - 1; i <= current + 1; i++) pages.push(i);
+        pages.push('…'); pages.push(total);
+      }
+      return pages;
+    }
+
+    // ── Dropdowns (modal) ─────────────────────────────────────────────────────
     function populateCountrySelect() {
       UI.populateSelect(document.getElementById('s-country'), PAGE_DATA.countries, 'country_id', 'country_name', '— Select country —');
     }
@@ -350,10 +509,10 @@
     // ── New ───────────────────────────────────────────────────────────────────
     document.getElementById('btn-new').addEventListener('click', () => {
       document.getElementById('modal-title').textContent = 'New Supplier';
-      document.getElementById('s-id').value = '';
-      document.getElementById('s-name').value = '';
+      document.getElementById('s-id').value      = '';
+      document.getElementById('s-name').value    = '';
       document.getElementById('s-contact').value = '';
-      document.getElementById('s-email').value = '';
+      document.getElementById('s-email').value   = '';
       document.getElementById('s-country').value = '';
       UI.openModal('modal-supplier');
     });
@@ -396,6 +555,7 @@
         });
         UI.closeModal('modal-supplier');
         UI.toastSuccess('Supplier saved.');
+        currentPage = 1;
         await loadPageData();
       } catch (err) {
         UI.toastError(err.message);
