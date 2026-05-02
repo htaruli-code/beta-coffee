@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.13 | all-samples.html -->
+<!-- Version 1.14 | all-samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -157,12 +157,13 @@
                 <th data-col="coffee_type">Type</th>
                 <th data-col="available_bags">Bags</th>
                 <th data-col="buyer_available">Avail Now</th>
+                <th data-col="sample_type">Sample Type</th>
                 <th data-col="supplier">Supplier</th>
                 <th data-col="eval_status">Evaluation</th>
               </tr>
             </thead>
             <tbody id="all-samples-tbody">
-              <tr><td colspan="9" class="st-empty"><div class="st-spinner"></div></td></tr>
+              <tr><td colspan="10" class="st-empty"><div class="st-spinner"></div></td></tr>
             </tbody>
           </table>
           <div class="pagination-bar">
@@ -274,7 +275,7 @@
         applyFilters();
       } catch (err) {
         document.getElementById('all-samples-tbody').innerHTML =
-          '<tr><td colspan="9" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+          '<tr><td colspan="10" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
     }
 
@@ -351,7 +352,7 @@
 
       tbody.innerHTML = '';
       if (!pageRows.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="st-empty">No samples found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="st-empty">No samples found.</td></tr>';
         return;
       }
 
@@ -368,6 +369,7 @@
           '<td>' + (d.coffee_type ? '<span class="badge badge-type">' + UI.esc(d.coffee_type) + '</span>' : '<span style="color:var(--muted)">—</span>') + '</td>' +
           '<td style="font-family:var(--font-mono)">' + (d.available_bags || '—') + '</td>' +
           '<td style="font-family:var(--font-mono);color:var(--accent);font-weight:500">' + (d.buyer_available !== undefined && d.buyer_available !== '' ? d.buyer_available : '—') + '</td>' +
+          '<td style="font-size:0.78rem">' + UI.esc(d.sample_type || '—') + '</td>' +
           '<td>' + UI.esc(d.supplier || '—') + '</td>' +
           '<td>' + evalBadge(d.eval_status) + '</td>';
         tr.addEventListener('click', () => openPanel(d.detail_id));
@@ -407,6 +409,7 @@
         prow('Sample ID',   '<span style="font-family:var(--font-mono);color:var(--text)">' + UI.esc(d.sample_id || '—') + '</span>') +
         prow('Name',         UI.esc(d.sample_name || '—')) +
         prow('Origin Code',  '<span style="font-family:var(--font-mono)">' + UI.esc(d.origin_sample_code || '—') + '</span>') +
+        prow('Sample Type', UI.esc(d.sample_type || '—')) +
         prow('Coffee Type',  d.coffee_type ? '<span class="badge badge-type">' + UI.esc(d.coffee_type) + '</span>' : '—') +
         prow('Sales Name',   UI.esc(d.coffee_sales_name || '—')) +
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.14 | samples.html -->
+<!-- Version 1.15 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -439,7 +439,7 @@
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
     // ── State ─────────────────────────────────────────────────────────────────
-    let PAGE_DATA = { samples: [], details: [], prices: [], tiers: [], reservedMap: {}, suppliers: [], warehouses: [], coffeeTypes: [] };  // v1.8: coffeeTypes added
+    let PAGE_DATA = { samples: [], details: [], prices: [], tiers: [], reservedMap: {}, suppliers: [], warehouses: [], coffeeTypes: [], sampleTypes: [] };  // v1.8/v1.15
     let editingInboundId = null;
     let pendingLinkInboundId = null;
     let detailRows = []; // temp detail buffer for modal
@@ -489,6 +489,7 @@
       try {
         PAGE_DATA = await API.getSamplesPage(warehouseId);
         if (!PAGE_DATA.coffeeTypes) PAGE_DATA.coffeeTypes = ['Microlot', 'Blend']; // fallback
+        if (!PAGE_DATA.sampleTypes) PAGE_DATA.sampleTypes = ['Preship', 'Type', 'Spot Lot']; // fallback v1.15
         renderTable();
         populateModalDropdowns();
       } catch (err) {
@@ -600,7 +601,7 @@
           detHtml += '<div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Sample Details</div>';
           detHtml += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
           detHtml += '<thead><tr style="background:var(--surface2)">';
-          ['Sample ID','Name','Origin Code','Sales Name','Type','Qty(g)','Bags','Bag kg','Cost $','Active'].forEach(h => {
+          ['Sample ID','Name','Origin Code','Sales Name','Coffee Type','Sample Type','Qty(g)','Bags','Bag kg','Cost $','Active'].forEach(h => {
             detHtml += '<th style="text-align:left;padding:4px 8px;font-size:0.65rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)">' + h + '</th>';
           });
           detHtml += '</tr></thead><tbody>';
@@ -616,6 +617,7 @@
             detHtml += ieCell(d.detail_id, 'origin_sample_code', d.origin_sample_code, 'text',   P + 'font-family:var(--font-mono);font-size:0.72rem');
             detHtml += ieCell(d.detail_id, 'coffee_sales_name',  d.coffee_sales_name,  'text',   P);
             detHtml += ieCellSelect(d.detail_id, 'coffee_type',  d.coffee_type, PAGE_DATA.coffeeTypes, P);
+            detHtml += ieCellSelect(d.detail_id, 'sample_type', d.sample_type, PAGE_DATA.sampleTypes, P);
             detHtml += ieCell(d.detail_id, 'qty_grams',          d.qty_grams,          'number', P);
             detHtml += ieCell(d.detail_id, 'available_bags',     d.available_bags,     'number', P);
             detHtml += ieCell(d.detail_id, 'bag_size',           d.bag_size,           'number', P);
