@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.2 | supplier-submit.html -->
+<!-- Version 1.11.3 | supplier-submit.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -19,7 +19,7 @@
       --radius: 4px; --transition: 160ms ease;
     }
     body { background: var(--surface); color: var(--text); font-family: var(--font-sans); min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; }
-    .card { background: #fff; border: 1px solid var(--border); width: 100%; max-width: 840px; padding: 2.5rem 2rem; }
+    .card { background: #fff; border: 1px solid var(--border); width: 100%; padding: 2.5rem 2rem; }
     .card-logo { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2rem; }
     .card-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem; }
     .card-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 2rem; }
@@ -78,7 +78,7 @@
     .nav-user:hover { color: var(--accent); }
 
     /* Page */
-    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page { margin: 0 auto; padding: 2rem; }
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
     .page-title { font-size: 1.3rem; font-weight: 500; color: var(--text); letter-spacing: -0.01em; }
     .page-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
@@ -269,7 +269,7 @@
       <div style="margin-top:1.25rem">
         <div class="section-label">Samples Being Sent <span style="color:var(--error)">*</span></div>
         <div class="sample-table-header">
-          <span>Sample Name</span><span>Origin Code</span><span>Qty (g)</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Unit</span><span>Origin Country</span><span></span>
+          <span>Sample Name</span><span>Sample Code</span><span>Qty (g)</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Unit</span><span>Origin Country</span><span></span>
         </div>
         <div class="sample-rows-wrap" id="sample-rows-wrap"></div>
         <button class="btn-add-row" id="btn-add-row" type="button">+ Add Sample Row</button>
@@ -305,7 +305,7 @@
         // v1.3: available_bags, bag_size, cost_price added
         div.innerHTML =
           `<input type="text"   placeholder="Sample name"  value="${UI.esc(row.sample_name)}"          oninput="sampleRows[${i}].sample_name=this.value" />` +
-          `<input type="text"   placeholder="Origin code"  value="${UI.esc(row.origin_sample_code)}"   oninput="sampleRows[${i}].origin_sample_code=this.value" />` +
+          `<input type="text"   placeholder="Sample code"  value="${UI.esc(row.origin_sample_code)}"   oninput="sampleRows[${i}].origin_sample_code=this.value" />` +
           `<input type="number" placeholder="g" min="0"    value="${UI.esc(row.qty_grams)}"            oninput="sampleRows[${i}].qty_grams=this.value" />` +
           `<input type="number" placeholder="0" min="0"    value="${UI.esc(row.available_bags || '')}" oninput="sampleRows[${i}].available_bags=this.value" title="Available bags" />` +
           `<input type="number" placeholder="0" min="0" step="0.1"    value="${UI.esc(row.bag_size || '')}"    oninput="sampleRows[${i}].bag_size=this.value"    title="Bag size (kg)" />` +
