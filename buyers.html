@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.9.8 | buyers.html -->
+<!-- Version 1.11 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -88,6 +88,17 @@
     .level-medium { background: #eef4fd; color: #1a5ca8; border: 1px solid #b5d0f5; }
     .level-small  { background: #fef9ec; color: #854f0b; border: 1px solid #f5d89a; }
     .level-micro  { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; }
+    /* Pagination (v1.10) */
+    .btn-page { background: #fff; border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition); }
+    .btn-page:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-page:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-page--active { background: var(--accent); border-color: var(--accent); color: #fff; cursor: default; }
+    /* Search bar */
+    .filter-bar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+    .search-input { max-width: 260px; }
+    .filter-select { width: auto; min-width: 140px; }
+    .filter-clear { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); cursor: pointer; border: none; background: none; padding: 0.35rem 0; white-space: nowrap; }
+    .filter-clear:hover { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -110,6 +121,23 @@
       <button class="btn" id="btn-new">+ New Buyer</button>
     </div>
 
+    <!-- Search + filter bar (v1.11) -->
+    <div class="filter-bar">
+      <input type="text" id="search-input" class="search-input"
+             placeholder="Search name, contact, email…" />
+      <select id="filter-warehouse" class="filter-select">
+        <option value="">All Warehouses</option>
+      </select>
+      <select id="filter-level" class="filter-select">
+        <option value="">All Levels</option>
+        <option value="Large">Large</option>
+        <option value="Medium">Medium</option>
+        <option value="Small">Small</option>
+        <option value="Micro">Micro</option>
+      </select>
+      <button class="filter-clear" id="btn-clear-filters" style="display:none">✕ Clear filters</button>
+    </div>
+
     <div class="table-wrap">
       <table>
         <thead>
@@ -130,6 +158,12 @@
           <tr><td colspan="9" class="st-empty"><div class="st-spinner"></div></td></tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination bar (v1.10) -->
+    <div id="pagination-bar" style="display:none;align-items:center;justify-content:space-between;padding:0.75rem 0;font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">
+      <span id="pagination-info"></span>
+      <div style="display:flex;gap:0.4rem" id="pagination-btns"></div>
     </div>
   </div>
 
@@ -201,11 +235,17 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.9.8 | buyers.html script
+    // Version 1.11 | buyers.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-    let PAGE_DATA = { buyers: [], countries: [], warehouses: [], buyer_levels: [], coffee_types: [], minimums: [] };  // v1.8: coffee_types + minimums
+    let PAGE_DATA = { buyers: [], countries: [], warehouses: [], buyer_levels: [], coffee_types: [], minimums: [] };
+
+    // v1.10: pagination state
+    let currentPage = 1;
+    let totalCount  = 0;
+    const PAGE_SIZE = 20;
+    let searchTimer = null;
 
     // ── Init ──────────────────────────────────────────────────────────────────
     (async () => {
@@ -214,19 +254,157 @@
       document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
       document.getElementById('nav-user').textContent = (user ? user.name : '') + ' · Sign out';
       document.getElementById('nav-user').addEventListener('click', UI.logout);
+
+      // v1.10: search with 350ms debounce
+      document.getElementById('search-input').addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { currentPage = 1; applyFilters(); }, 350);
+      });
+
+      // v1.11: dropdown filters — immediate
+      document.getElementById('filter-warehouse').addEventListener('change', () => { currentPage = 1; applyFilters(); });
+      document.getElementById('filter-level').addEventListener('change',     () => { currentPage = 1; applyFilters(); });
+
+      // v1.11: clear all filters
+      document.getElementById('btn-clear-filters').addEventListener('click', () => {
+        document.getElementById('search-input').value      = '';
+        document.getElementById('filter-warehouse').value  = '';
+        document.getElementById('filter-level').value      = '';
+        currentPage = 1;
+        applyFilters();
+      });
+
       await loadPageData();
     })();
 
+    // ── Load Page Data (v1.10: paginated, v1.11: warehouse + level filters) ──
     async function loadPageData() {
+      const search  = document.getElementById('search-input').value.trim();
+      const whId    = document.getElementById('filter-warehouse').value;
+      const level   = document.getElementById('filter-level').value;
+
+      document.getElementById('buyers-tbody').innerHTML =
+        '<tr><td colspan="9" class="st-empty"><div class="st-spinner"></div></td></tr>';
+      document.getElementById('pagination-bar').style.display = 'none';
+
       try {
-        PAGE_DATA = await API.getBuyersPage();
+        const data = await API.getBuyersPage(currentPage, search, whId, level);
+
+        // Merge ref data — only returned on page 1
+        if (data.countries    && data.countries.length)    PAGE_DATA.countries    = data.countries;
+        if (data.warehouses   && data.warehouses.length)   PAGE_DATA.warehouses   = data.warehouses;
+        if (data.buyer_levels && data.buyer_levels.length) PAGE_DATA.buyer_levels = data.buyer_levels;
+        if (data.coffee_types && data.coffee_types.length) PAGE_DATA.coffee_types = data.coffee_types;
+        if (data.minimums     && data.minimums.length)     PAGE_DATA.minimums     = data.minimums;
+
+        PAGE_DATA.buyers = data.buyers || [];
+        totalCount       = data.total_count || 0;
+
+        if (currentPage === 1 && !search && !whId && !level) {
+          populateCountrySelect();
+          populateWarehouseSelect();
+          populateFilterWarehouse();   // v1.11: populate filter dropdown
+        }
+
+        updateClearButton();
         renderTable();
-        populateCountrySelect();
-        populateWarehouseSelect();  // v1.6 fix
+        renderPagination();
       } catch (err) {
         document.getElementById('buyers-tbody').innerHTML =
           '<tr><td colspan="9" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
+    }
+
+    function applyFilters() {
+      updateClearButton();
+      loadPageData();
+    }
+
+    // v1.11: show/hide clear button when any filter is active
+    function updateClearButton() {
+      const active = document.getElementById('search-input').value.trim() !== '' ||
+                     document.getElementById('filter-warehouse').value     !== '' ||
+                     document.getElementById('filter-level').value         !== '';
+      document.getElementById('btn-clear-filters').style.display = active ? 'inline' : 'none';
+    }
+
+    // v1.11: populate warehouse filter dropdown from PAGE_DATA after page 1 load
+    function populateFilterWarehouse() {
+      const sel = document.getElementById('filter-warehouse');
+      const cur = sel.value;
+      // Clear all but the "All Warehouses" option
+      while (sel.options.length > 1) sel.remove(1);
+      (PAGE_DATA.warehouses || []).forEach(w => {
+        const opt = document.createElement('option');
+        opt.value       = w.warehouse_id;
+        opt.textContent = w.warehouse_name;
+        sel.appendChild(opt);
+      });
+      sel.value = cur; // restore previous selection if any
+    }
+
+    // ── Pagination (v1.10) ────────────────────────────────────────────────────
+    function renderPagination() {
+      const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+      const bar        = document.getElementById('pagination-bar');
+      const info       = document.getElementById('pagination-info');
+      const btns       = document.getElementById('pagination-btns');
+
+      if (totalPages <= 1) { bar.style.display = 'none'; return; }
+
+      const start = ((currentPage - 1) * PAGE_SIZE) + 1;
+      const end   = Math.min(currentPage * PAGE_SIZE, totalCount);
+      info.textContent = start + '–' + end + ' of ' + totalCount;
+
+      btns.innerHTML = '';
+
+      const prev = document.createElement('button');
+      prev.textContent = '← Prev';
+      prev.className   = 'btn-page';
+      prev.disabled    = currentPage === 1;
+      prev.addEventListener('click', () => { currentPage--; loadPageData(); });
+      btns.appendChild(prev);
+
+      buildPageWindow(currentPage, totalPages).forEach(p => {
+        if (p === '…') {
+          const dot = document.createElement('span');
+          dot.textContent = '…';
+          dot.style.cssText = 'padding:0 0.25rem;line-height:30px';
+          btns.appendChild(dot);
+          return;
+        }
+        const btn = document.createElement('button');
+        btn.textContent = p;
+        btn.className   = 'btn-page' + (p === currentPage ? ' btn-page--active' : '');
+        btn.addEventListener('click', () => { currentPage = p; loadPageData(); });
+        btns.appendChild(btn);
+      });
+
+      const next = document.createElement('button');
+      next.textContent = 'Next →';
+      next.className   = 'btn-page';
+      next.disabled    = currentPage === totalPages;
+      next.addEventListener('click', () => { currentPage++; loadPageData(); });
+      btns.appendChild(next);
+
+      bar.style.display = 'flex';
+    }
+
+    function buildPageWindow(current, total) {
+      if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+      const pages = [];
+      if (current <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('…'); pages.push(total);
+      } else if (current >= total - 3) {
+        pages.push(1); pages.push('…');
+        for (let i = total - 4; i <= total; i++) pages.push(i);
+      } else {
+        pages.push(1); pages.push('…');
+        for (let i = current - 1; i <= current + 1; i++) pages.push(i);
+        pages.push('…'); pages.push(total);
+      }
+      return pages;
     }
 
     // ── Table ─────────────────────────────────────────────────────────────────
@@ -364,6 +542,7 @@
         await saveMinimumsForBuyer(result.buyer_id);
         UI.closeModal('modal-buyer');
         UI.toastSuccess('Buyer saved.');
+        currentPage = 1;
         await loadPageData();
       } catch (err) {
         UI.toastError(err.message);
