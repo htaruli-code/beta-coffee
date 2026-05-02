@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.15 | outbound.html -->
+<!-- Version 1.16 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -140,9 +140,14 @@
     .page::before { content: ''; display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, #f0e8da 60%, transparent 100%); margin-bottom: 1.75rem; border-radius: 1px; }
 
     /* Toolbar */
-    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; }
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    .toolbar-left  { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+    .toolbar-right { display: flex; gap: 0.75rem; align-items: center; }
     .toolbar select { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); cursor: pointer; font-family: var(--font-sans); }
     .toolbar select:focus { outline: none; border-color: var(--accent); }
+    .toolbar-search { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); font-family: var(--font-sans); outline: none; width: 240px; transition: border-color var(--transition); }
+    .toolbar-search:focus { border-color: var(--accent); }
+    .toolbar-search::placeholder { color: var(--muted); }
 
     /* Table */
     .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -312,16 +317,22 @@
     </div>
 
     <div class="toolbar">
-      <select id="filter-warehouse">
-        <option value="">All Warehouses</option>
-      </select>
-      <select id="filter-status">
-        <option value="">All Statuses</option>
-        <option value="Requested">Requested</option>
-        <option value="Sent">Sent</option>
-        <option value="Received">Received</option>
-        <option value="Dropped Off">Dropped Off</option>
-      </select>
+      <div class="toolbar-left">
+        <select id="filter-warehouse">
+          <option value="">All Warehouses</option>
+        </select>
+        <select id="filter-status">
+          <option value="">All Statuses</option>
+          <option value="Requested">Requested</option>
+          <option value="Sent">Sent</option>
+          <option value="Received">Received</option>
+          <option value="Dropped Off">Dropped Off</option>
+        </select>
+      </div>
+      <div class="toolbar-right">
+        <input type="text" id="search-input" class="toolbar-search"
+               placeholder="Search company name or ID…" />
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -520,7 +531,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.15 | outbound.html script
+    // Version 1.16 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -534,6 +545,7 @@
     let currentPage  = 1;
     let totalCount   = 0;
     const PAGE_SIZE  = 20;
+    let searchTimer  = null;  // v1.16: search debounce
 
     const STATUS_CSS = { 'Requested': 'badge-requested', 'Sent': 'badge-sent', 'Received': 'badge-received', 'Dropped Off': 'badge-dropped-off' };
     const BTN_CSS    = { 'Requested': 's-requested', 'Sent': 's-sent', 'Received': 's-received', 'Dropped Off': 's-dropped-off' };
@@ -566,13 +578,20 @@
       filterWH.addEventListener('change', () => { currentPage = 1; applyFilters(); });
       document.getElementById('filter-status').addEventListener('change', () => { currentPage = 1; applyFilters(); });
 
+      // v1.16: search — 350ms debounce
+      document.getElementById('search-input').addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { currentPage = 1; applyFilters(); }, 350);
+      });
+
       await loadPageData();
     })();
 
-    // ── Load Page Data (v1.15: paginated) ────────────────────────────────────
+    // ── Load Page Data (v1.15: paginated, v1.16: search added) ───────────────
     async function loadPageData() {
       const whId   = document.getElementById('filter-warehouse').value || null;
       const status = document.getElementById('filter-status').value    || '';
+      const search = document.getElementById('search-input').value.trim();
 
       // Show spinner
       document.getElementById('outbound-tbody').innerHTML =
@@ -580,7 +599,7 @@
       document.getElementById('pagination-bar').style.display = 'none';
 
       try {
-        const data = await API.getOutboundPage(whId, currentPage, status);
+        const data = await API.getOutboundPage(whId, currentPage, status, search);
 
         // Merge ref data — only present on page 1 or when filters change
         if (data.buyers        && data.buyers.length)        PAGE_DATA.buyers         = data.buyers;
