@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.13.6 | samples.html -->
+<!-- Version 1.13.7 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -156,9 +156,12 @@
     .page::before { content: ''; display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, #f0e8da 60%, transparent 100%); margin-bottom: 1.75rem; border-radius: 1px; }
 
     /* Toolbar */
-    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; }
-    .toolbar select { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); cursor: pointer; font-family: var(--font-sans); }
-    .toolbar select:focus { outline: none; border-color: var(--accent); }
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; flex-wrap: wrap; }
+    .toolbar select { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); cursor: pointer; font-family: var(--font-sans); width: auto; }
+    .toolbar select:focus { outline: none; border-color: var(--accent); box-shadow: none; }
+    .toolbar-search-wrap { position: relative; }
+    .toolbar-search-wrap input { width: 280px; padding: 0.4rem 2rem 0.4rem 0.75rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.82rem; color: var(--text); font-family: var(--font-sans); outline: none; transition: border-color var(--transition); box-shadow: none; }
+    .toolbar-search-wrap input:focus { border-color: var(--accent); box-shadow: none; }
 
     /* Table */
     .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -318,9 +321,8 @@
       <select id="filter-warehouse">
         <option value="">All Warehouses</option>
       </select>
-      <div style="position:relative;flex:1;max-width:320px">
-        <input type="text" id="search-samples" placeholder="Search Sample ID, Name, Origin Code…"
-          style="width:100%;padding:0.4rem 2rem 0.4rem 0.75rem;background:#fff;border:1px solid var(--border);border-radius:var(--radius);font-size:0.82rem;color:var(--text);font-family:var(--font-sans);" />
+      <div class="toolbar-search-wrap">
+        <input type="text" id="search-samples" placeholder="Search Sample ID, Name, Origin Code…" />
         <button id="search-clear" title="Clear" style="display:none;position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;line-height:1;padding:0">✕</button>
       </div>
     </div>
