@@ -1,6 +1,8 @@
-// Version 1.15
+// Version 1.17
 // api.js — All fetch calls to GAS. One place to change the transport layer.
-// v1.15: getOutboundPage — page + status_filter params added for backend pagination.
+// v1.15: getOutboundPage — page_num + status_filter params.
+// v1.16: getBuyersPage  — page_num + search params.
+// v1.17: getBuyersPage  — warehouse_id + level filter params added.
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -148,8 +150,16 @@ const API = (() => {
 
   // ─── Buyers ───────────────────────────────────────────────────────────────
 
-  async function getBuyersPage() {
-    return post({ action: 'getPageData', page: 'buyers', session_token: Auth.getToken() });
+  async function getBuyersPage(pageNum, search, warehouseId, level) {
+    return post({
+      action:        'getPageData',
+      page:          'buyers',
+      page_num:      pageNum     || 1,
+      search:        search      || '',
+      warehouse_id:  warehouseId || '',
+      level:         level       || '',
+      session_token: Auth.getToken()
+    });
   }
 
   async function saveBuyer(buyerData) {
@@ -160,12 +170,12 @@ const API = (() => {
 
   async function getOutboundPage(warehouseId, pageNum, statusFilter) {
     return post({
-      action:         'getPageData',
-      page:           'outbound',
-      warehouse_id:   warehouseId  || null,
-      page_num:       pageNum      || 1,
-      status_filter:  statusFilter || '',
-      session_token:  Auth.getToken()
+      action:        'getPageData',
+      page:          'outbound',
+      warehouse_id:  warehouseId  || null,
+      page_num:      pageNum      || 1,
+      status_filter: statusFilter || '',
+      session_token: Auth.getToken()
     });
   }
 
