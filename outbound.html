@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.16 | outbound.html -->
+<!-- Version 1.16.1 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -140,9 +140,7 @@
     .page::before { content: ''; display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, #f0e8da 60%, transparent 100%); margin-bottom: 1.75rem; border-radius: 1px; }
 
     /* Toolbar */
-    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-    .toolbar-left  { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-    .toolbar-right { display: flex; gap: 0.75rem; align-items: center; }
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; align-items: center; flex-wrap: wrap; }
     .toolbar select { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); cursor: pointer; font-family: var(--font-sans); }
     .toolbar select:focus { outline: none; border-color: var(--accent); }
     .toolbar-search { font-size: 0.82rem; background: #fff; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: var(--radius); font-family: var(--font-sans); outline: none; width: 240px; transition: border-color var(--transition); }
@@ -317,22 +315,18 @@
     </div>
 
     <div class="toolbar">
-      <div class="toolbar-left">
-        <select id="filter-warehouse">
-          <option value="">All Warehouses</option>
-        </select>
-        <select id="filter-status">
-          <option value="">All Statuses</option>
-          <option value="Requested">Requested</option>
-          <option value="Sent">Sent</option>
-          <option value="Received">Received</option>
-          <option value="Dropped Off">Dropped Off</option>
-        </select>
-      </div>
-      <div class="toolbar-right">
-        <input type="text" id="search-input" class="toolbar-search"
-               placeholder="Search company name or ID…" />
-      </div>
+      <select id="filter-warehouse">
+        <option value="">All Warehouses</option>
+      </select>
+      <select id="filter-status">
+        <option value="">All Statuses</option>
+        <option value="Requested">Requested</option>
+        <option value="Sent">Sent</option>
+        <option value="Received">Received</option>
+        <option value="Dropped Off">Dropped Off</option>
+      </select>
+      <input type="text" id="search-input" class="toolbar-search"
+             placeholder="Search company name or ID…" />
     </div>
 
     <div class="table-wrap">
