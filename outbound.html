@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.14.5 | outbound.html -->
+<!-- Version 1.15 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -281,6 +281,11 @@
     .ac-item-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); font-weight: 500; }
     .ac-item-sub { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
     .ac-item-avail { font-family: var(--font-mono); font-size: 0.68rem; color: var(--success); float: right; }
+    /* Pagination (v1.15) */
+    .btn-page { background: #fff; border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition); }
+    .btn-page:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-page:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-page--active { background: var(--accent); border-color: var(--accent); color: #fff; cursor: default; }
   </style>
 </head>
 <body>
@@ -340,6 +345,12 @@
           <tr><td colspan="11" class="st-empty"><div class="st-spinner"></div></td></tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination bar (v1.15) -->
+    <div id="pagination-bar" style="display:none;align-items:center;justify-content:space-between;padding:0.75rem 0;font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">
+      <span id="pagination-info"></span>
+      <div style="display:flex;gap:0.4rem" id="pagination-btns"></div>
     </div>
   </div>
 
@@ -509,7 +520,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.14.5 | outbound.html script
+    // Version 1.15 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -518,6 +529,11 @@
     let detailMap  = {};  // v1.12.10: hoisted — needed by reserve modal
     let outboundDetailRows = []; // v1.7: each row = { inbound_detail_id, sample_type, qty_grams }
     let pendingStatus = { outbound_id: null, status: null };
+
+    // v1.15: pagination state
+    let currentPage  = 1;
+    let totalCount   = 0;
+    const PAGE_SIZE  = 20;
 
     const STATUS_CSS = { 'Requested': 'badge-requested', 'Sent': 'badge-sent', 'Received': 'badge-received', 'Dropped Off': 'badge-dropped-off' };
     const BTN_CSS    = { 'Requested': 's-requested', 'Sent': 's-sent', 'Received': 's-received', 'Dropped Off': 's-dropped-off' };
@@ -547,18 +563,38 @@
         filterWH.appendChild(opt);
       });
 
-      filterWH.addEventListener('change', applyFilters);
-      document.getElementById('filter-status').addEventListener('change', applyFilters);
+      filterWH.addEventListener('change', () => { currentPage = 1; applyFilters(); });
+      document.getElementById('filter-status').addEventListener('change', () => { currentPage = 1; applyFilters(); });
 
-      await loadPageData(null);
+      await loadPageData();
     })();
 
-    // ── Load Page Data ────────────────────────────────────────────────────────
-    async function loadPageData(warehouseId) {
+    // ── Load Page Data (v1.15: paginated) ────────────────────────────────────
+    async function loadPageData() {
+      const whId   = document.getElementById('filter-warehouse').value || null;
+      const status = document.getElementById('filter-status').value    || '';
+
+      // Show spinner
+      document.getElementById('outbound-tbody').innerHTML =
+        '<tr><td colspan="11" class="st-empty"><div class="st-spinner"></div></td></tr>';
+      document.getElementById('pagination-bar').style.display = 'none';
+
       try {
-        PAGE_DATA = await API.getOutboundPage(warehouseId);
-        populateModalDropdowns();
+        const data = await API.getOutboundPage(whId, currentPage, status);
+
+        // Merge ref data — only present on page 1 or when filters change
+        if (data.buyers        && data.buyers.length)        PAGE_DATA.buyers         = data.buyers;
+        if (data.warehouses    && data.warehouses.length)    PAGE_DATA.warehouses     = data.warehouses;
+        if (data.inboundDetails && data.inboundDetails.length) PAGE_DATA.inboundDetails = data.inboundDetails;
+        if (data.samplePrices  && data.samplePrices.length)  PAGE_DATA.samplePrices  = data.samplePrices;
+
+        PAGE_DATA.outbounds = data.outbounds || [];
+        PAGE_DATA.details   = data.details   || [];
+        totalCount          = data.total_count || 0;
+
+        if (currentPage === 1) populateModalDropdowns();
         renderTable(PAGE_DATA.outbounds);
+        renderPagination();
       } catch (err) {
         document.getElementById('outbound-tbody').innerHTML =
           '<tr><td colspan="11" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
@@ -566,12 +602,75 @@
     }
 
     function applyFilters() {
-      const whId     = document.getElementById('filter-warehouse').value;
-      const status   = document.getElementById('filter-status').value;
-      let filtered   = PAGE_DATA.outbounds;
-      if (whId)   filtered = filtered.filter(o => String(o.warehouse_id) === whId);
-      if (status) filtered = filtered.filter(o => o.status === status);
-      renderTable(filtered);
+      loadPageData();
+    }
+
+    // ── Pagination render (v1.15) ─────────────────────────────────────────────
+    function renderPagination() {
+      const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+      const bar        = document.getElementById('pagination-bar');
+      const info       = document.getElementById('pagination-info');
+      const btns       = document.getElementById('pagination-btns');
+
+      if (totalPages <= 1) { bar.style.display = 'none'; return; }
+
+      const start = ((currentPage - 1) * PAGE_SIZE) + 1;
+      const end   = Math.min(currentPage * PAGE_SIZE, totalCount);
+      info.textContent = start + '–' + end + ' of ' + totalCount;
+
+      btns.innerHTML = '';
+
+      // Prev button
+      const prev = document.createElement('button');
+      prev.textContent = '← Prev';
+      prev.className   = 'btn-page';
+      prev.disabled    = currentPage === 1;
+      prev.addEventListener('click', () => { currentPage--; loadPageData(); });
+      btns.appendChild(prev);
+
+      // Page number buttons — show window around current page
+      const pageNums = buildPageWindow(currentPage, totalPages);
+      pageNums.forEach(p => {
+        if (p === '…') {
+          const dot = document.createElement('span');
+          dot.textContent = '…';
+          dot.style.cssText = 'padding:0 0.25rem;line-height:30px';
+          btns.appendChild(dot);
+          return;
+        }
+        const btn = document.createElement('button');
+        btn.textContent = p;
+        btn.className   = 'btn-page' + (p === currentPage ? ' btn-page--active' : '');
+        btn.addEventListener('click', () => { currentPage = p; loadPageData(); });
+        btns.appendChild(btn);
+      });
+
+      // Next button
+      const next = document.createElement('button');
+      next.textContent = 'Next →';
+      next.className   = 'btn-page';
+      next.disabled    = currentPage === totalPages;
+      next.addEventListener('click', () => { currentPage++; loadPageData(); });
+      btns.appendChild(next);
+
+      bar.style.display = 'flex';
+    }
+
+    function buildPageWindow(current, total) {
+      if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+      const pages = [];
+      if (current <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('…'); pages.push(total);
+      } else if (current >= total - 3) {
+        pages.push(1); pages.push('…');
+        for (let i = total - 4; i <= total; i++) pages.push(i);
+      } else {
+        pages.push(1); pages.push('…');
+        for (let i = current - 1; i <= current + 1; i++) pages.push(i);
+        pages.push('…'); pages.push(total);
+      }
+      return pages;
     }
 
     // ── Render Table ──────────────────────────────────────────────────────────
@@ -592,8 +691,7 @@
         detailMap[d.outbound_id].push(d);
       });
 
-      // v1.12.3: sort descending by outbound_id (newest first)
-      outbounds = outbounds.slice().sort((a, b) => Number(b.outbound_id) - Number(a.outbound_id));
+      // v1.15: sort handled server-side (DESC by outbound_id)
 
       tbody.innerHTML = '';
 
@@ -628,23 +726,17 @@
           <td><span class="badge ${statusClass}">${UI.esc(o.status)}</span></td>
           <td>
             <div class="status-btns">${statusBtns}</div>
+            ${o.notes ? '<div style="font-size:0.72rem;color:var(--muted);font-style:italic;margin-top:4px">\ud83d\udcdd ' + UI.esc(o.notes) + '</div>' : ''}
           </td>`;
 
         if (dets.length) {
           tr.addEventListener('click', () => {
             if (expandedOutbounds.has(o.outbound_id)) expandedOutbounds.delete(o.outbound_id);
             else expandedOutbounds.add(o.outbound_id);
-            renderTable(outbounds);
+            renderTable(PAGE_DATA.outbounds);
           });
         }
         tbody.appendChild(tr);
-
-        // Notes row — separate TR, same pattern as samples.html (v1.14.5)
-        if (o.notes) {
-          const notesTr = document.createElement('tr');
-          notesTr.innerHTML = '<td colspan="11" style="padding:4px 1rem 6px 2.5rem;font-size:0.78rem;color:var(--muted);font-style:italic;background:var(--surface)">\ud83d\udcdd ' + UI.esc(o.notes) + '</td>';
-          tbody.appendChild(notesTr);
-        }
 
         // Expanded detail sub-table
         if (isOpen && dets.length) {
@@ -970,7 +1062,7 @@
 
         UI.closeModal('modal-outbound');
         UI.toastSuccess('Outbound created. Warehouse notified.');
-        await loadPageData(document.getElementById('filter-warehouse').value || null);
+        await loadPageData();
       } catch (err) {
         UI.toastError(err.message);
       } finally {
@@ -1027,7 +1119,7 @@
         await API.updateOutboundStatus(pendingStatus.outbound_id, pendingStatus.status, extraParams);
         UI.closeModal('modal-status');
         UI.toastSuccess('Status updated to ' + pendingStatus.status + '.');
-        await loadPageData(document.getElementById('filter-warehouse').value || null);
+        await loadPageData();
       } catch (err) {
         UI.toastError(err.message);
       } finally {
@@ -1063,7 +1155,7 @@
         document.getElementById('modal-reserve').style.display = 'none';
         UI.toastSuccess('Reserved ' + bags + ' bag' + (bags > 1 ? 's' : '') + '.');
         // v1.12.12: reload from API — ensures bags_reserved reflects server state
-        await loadPageData(document.getElementById('filter-warehouse').value || null);
+        await loadPageData();
       } catch (err) {
         UI.toastError(err.message);
       } finally {
