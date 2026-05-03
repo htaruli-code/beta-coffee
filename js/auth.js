@@ -1,8 +1,10 @@
-// Version 1.2.2
+// Version 1.2.3
 // auth.js — Session management helpers. All session reads/writes go through here.
 // v1.1: No logic changes.
 // v1.2.2: sessionStorage → localStorage — session now persists across tabs and new windows
 //          GAS server-side 6h expiry still enforced — token rejected after expiry regardless Version bump for release consistency.
+// v1.2.3: handleUnauthorized added — was referenced by api.js v1.9.1 but never defined.
+//          Bug surfaced when login expired and api.js tried to redirect.
 
 const Auth = (() => {
 
@@ -60,5 +62,17 @@ const Auth = (() => {
     return true;
   }
 
-  return { getSession, setSession, clearSession, getToken, getUser, getCompany, getWarehouses, isLoggedIn, requireAuth };
+  // v1.2.3: Handle UNAUTHORIZED responses from the API.
+  // Called from api.js when the server returns code: 'UNAUTHORIZED'
+  // (session expired, invalidated, or token was never set).
+  // Clears the local session and redirects to login.
+  function handleUnauthorized(redirectTo) {
+    clearSession();
+    // Avoid redirect loops if we're already on the login page
+    if (window.location.pathname.indexOf('login.html') === -1) {
+      window.location.href = redirectTo || 'login.html';
+    }
+  }
+
+  return { getSession, setSession, clearSession, getToken, getUser, getCompany, getWarehouses, isLoggedIn, requireAuth, handleUnauthorized };
 })();
