@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.3 | purchase-orders.html -->
+<!-- Version 2.1.4 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -99,6 +99,138 @@
     .toast.error { background: var(--error); }
     .toast.success { background: var(--success); }
 
+    /* ── PO Line Modal (v2.1.4) ── */
+    .line-table-header {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1.4fr 1fr 0.7fr 0.7fr 0.9fr 0.7fr 28px;
+      gap: 0.5rem;
+      padding: 0 0.5rem 0.4rem;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .line-row-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.65rem;
+      margin-top: 0.6rem;
+    }
+    .line-row-fields {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1.4fr 1fr 0.7fr 0.7fr 0.9fr 0.7fr 28px;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .line-row-fields input,
+    .line-row-fields select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 0.45rem 0.55rem;
+      border-radius: var(--radius);
+      outline: none;
+    }
+    .line-row-fields input[readonly] {
+      background: var(--surface2);
+      color: var(--muted);
+    }
+    .line-row-fields .ac-wrap { position: relative; }
+    .line-row-fields .ac-dropdown {
+      position: absolute;
+      z-index: 250;
+      background: #fff;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      max-height: 220px;
+      overflow-y: auto;
+      min-width: 320px;
+    }
+    .line-row-fields .ac-item {
+      padding: 0.5rem 0.7rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+    .line-row-fields .ac-item:last-child { border-bottom: none; }
+    .line-row-fields .ac-item:hover,
+    .line-row-fields .ac-item.active { background: var(--surface); }
+    .line-row-fields .ac-item-id {
+      font-family: var(--font-mono);
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .line-row-fields .ac-item-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .line-row-fields .btn-x {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0;
+      width: 28px;
+      height: 28px;
+    }
+    .line-row-fields .btn-x:hover { color: var(--error); }
+    .line-row-notes {
+      margin-top: 0.5rem;
+    }
+    .line-row-notes label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .line-row-notes textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      padding: 0.45rem 0.55rem;
+      border-radius: var(--radius);
+      outline: none;
+      resize: vertical;
+      min-height: 38px;
+    }
+    .line-row-notes .char-count {
+      text-align: right;
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .btn-add-row {
+      margin-top: 0.75rem;
+      background: transparent;
+      border: 1px dashed var(--border2);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-add-row:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
     /* ── Loading ── */
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
 
@@ -184,65 +316,36 @@
   </div>
 </div>
 
-<!-- ── PO Line Modal ── -->
+<!-- ── PO Line Modal (v2.1.4 — wide multi-row, Sample Code autocomplete) ── -->
 <div class="modal-overlay" id="modal-line">
-  <div class="modal">
-    <div class="modal-title" id="modal-line-title">Add PO Line</div>
+  <div class="modal" style="max-width:1100px">
+    <div class="modal-title" id="modal-line-title">Add PO Lines</div>
     <div class="modal-error" id="modal-line-error"></div>
     <input type="hidden" id="line-po-id" />
-    <input type="hidden" id="line-id" />
+    <input type="hidden" id="line-edit-id" />
 
-    <div class="field-row">
-      <div class="field" style="flex:2">
-        <label>Sample Name <span style="color:var(--error)">*</span></label>
-        <input type="text" id="line-sample-name" placeholder="e.g. Natural Catuaí" />
-      </div>
-      <div class="field">
-        <label>Coffee Type</label>
-        <select id="line-coffee-type"></select>
-      </div>
+    <div class="modal-section">PO Lines</div>
+
+    <!-- Header row -->
+    <div class="line-table-header">
+      <span>Search Sample Code <span style="color:var(--error)">*</span></span>
+      <span>Origin Code</span>
+      <span>Sample Name <span style="color:var(--error)">*</span></span>
+      <span>Coffee Type</span>
+      <span>Qty Bags <span style="color:var(--error)">*</span></span>
+      <span>Bag Size</span>
+      <span>Cost / unit</span>
+      <span>Cost Unit</span>
+      <span></span>
     </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Origin Sample Code</label>
-        <input type="text" id="line-origin-code" placeholder="Supplier's ref (optional)" />
-      </div>
-    </div>
-    <div class="modal-section">Quantity &amp; Weight</div>
-    <div class="field-row">
-      <div class="field">
-        <label>Qty Bags <span style="color:var(--error)">*</span></label>
-        <input type="number" id="line-qty-bags" min="1" placeholder="0" />
-      </div>
-      <div class="field">
-        <label>Bag Size <span style="color:var(--error)">*</span></label>
-        <input type="number" id="line-bag-size" min="0" step="0.1" placeholder="60" />
-      </div>
-      <div class="field" style="max-width:90px">
-        <label>Unit</label>
-        <select id="line-bag-size-unit"></select>
-      </div>
-    </div>
-    <div class="modal-section">Pricing</div>
-    <div class="field-row">
-      <div class="field">
-        <label>Cost Price <span style="color:var(--error)">*</span></label>
-        <input type="number" id="line-cost-price" min="0" step="0.01" placeholder="0.00" />
-      </div>
-      <div class="field" style="max-width:90px">
-        <label>Per</label>
-        <select id="line-cost-unit"></select>
-      </div>
-    </div>
-    <div id="line-subtotal" style="font-family:var(--font-mono);font-size:0.8rem;color:var(--muted);margin-top:0.25rem;text-align:right"></div>
-    <div class="field" style="margin-top:0.75rem">
-      <label>Notes</label>
-      <input type="text" id="line-notes" placeholder="Optional" />
-    </div>
+
+    <div id="line-rows-wrap"></div>
+
+    <button class="btn-add-row" id="btn-add-line-row" type="button">+ Add Line Row</button>
 
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-line-cancel">Cancel</button>
-      <button class="btn" id="btn-line-save">Save Line</button>
+      <button class="btn" id="btn-line-save">Save PO Lines</button>
     </div>
   </div>
 </div>
@@ -464,83 +567,316 @@ document.getElementById('btn-po-save').onclick = async () => {
   }
 };
 
-// ── Line Modal ────────────────────────────────────────────────────────────────
+// ── PO Line Modal (v2.1.4 — wide multi-row, Sample Code autocomplete) ────────
+//
+// State: each row is an object in `lineRows` array.
+// Row shape: {
+//   po_line_id, inbound_detail_id, sample_id, sample_name, origin_sample_code,
+//   coffee_type, qty_bags, bag_size, bag_size_unit, cost_price, cost_price_unit, notes
+// }
+// EDIT mode: lineRows = [single existing line], no "+ Add Line Row" button shown
+// ADD mode:  lineRows = [{ blank }], "+ Add Line Row" button shown to grow
+//
+let lineRows = [];
+let lineMode = 'add';   // 'add' or 'edit'
+
+function emptyLineRow() {
+  return {
+    po_line_id:         '',
+    inbound_detail_id:  '',
+    sample_id:          '',
+    sample_name:        '',
+    origin_sample_code: '',
+    coffee_type:        '',
+    qty_bags:           '',
+    bag_size:           '',
+    bag_size_unit:      'kg',
+    cost_price:         '',
+    cost_price_unit:    'kg',
+    notes:              ''
+  };
+}
+
 function openLineModal(poId, lineId) {
   const po   = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
   const line = lineId ? (po.lines || []).find(l => String(l.po_line_id) === String(lineId)) : null;
 
-  document.getElementById('modal-line-title').textContent = line ? 'Edit PO Line' : 'Add PO Line';
-  document.getElementById('line-po-id').value         = poId;
-  document.getElementById('line-id').value            = line ? line.po_line_id : '';
-  document.getElementById('line-sample-name').value   = line ? line.sample_name        : '';
-  document.getElementById('line-origin-code').value   = line ? line.origin_sample_code : '';
-  document.getElementById('line-qty-bags').value      = line ? line.qty_bags   : '';
-  document.getElementById('line-bag-size').value      = line ? line.bag_size   : '';
-  document.getElementById('line-cost-price').value    = line ? line.cost_price : '';
-  document.getElementById('line-notes').value         = line ? line.notes      : '';
+  document.getElementById('line-po-id').value = poId;
+  document.getElementById('line-edit-id').value = line ? line.po_line_id : '';
 
-  const ct = document.getElementById('line-coffee-type');
-  ct.innerHTML = `<option value="">— None —</option>` + PAGE_DATA.coffee_types.map(t =>
-    `<option value="${t}" ${line && line.coffee_type === t ? 'selected' : ''}>${t}</option>`
-  ).join('');
+  if (line) {
+    lineMode = 'edit';
+    lineRows = [{
+      po_line_id:         line.po_line_id,
+      inbound_detail_id:  line.inbound_detail_id  || '',
+      sample_id:          line.sample_id          || '',
+      sample_name:        line.sample_name        || '',
+      origin_sample_code: line.origin_sample_code || '',
+      coffee_type:        line.coffee_type        || '',
+      qty_bags:           line.qty_bags           || '',
+      bag_size:           line.bag_size           || '',
+      bag_size_unit:      line.bag_size_unit      || 'kg',
+      cost_price:         line.cost_price         || '',
+      cost_price_unit:    line.cost_price_unit    || 'kg',
+      notes:              line.notes              || ''
+    }];
+    document.getElementById('modal-line-title').textContent = 'Edit PO Line';
+    document.getElementById('btn-line-save').textContent     = 'Save Line';
+    document.getElementById('btn-add-line-row').style.display = 'none';
+  } else {
+    lineMode = 'add';
+    lineRows = [emptyLineRow()];
+    document.getElementById('modal-line-title').textContent = 'Add PO Lines';
+    document.getElementById('btn-line-save').textContent     = 'Save PO Lines';
+    document.getElementById('btn-add-line-row').style.display = '';
+  }
 
-  const buildUnitOptions = (selId, selected) => {
-    document.getElementById(selId).innerHTML = PAGE_DATA.weight_units.map(u =>
-      `<option value="${u}" ${u === selected ? 'selected' : ''}>${u}</option>`
+  renderLineRows();
+  clearModalError('modal-line');
+  document.getElementById('modal-line').classList.add('open');
+}
+
+function renderLineRows() {
+  const wrap = document.getElementById('line-rows-wrap');
+  const coffeeTypes = PAGE_DATA.coffee_types || [];
+  const weightUnits = PAGE_DATA.weight_units || ['kg','lb'];
+
+  if (!lineRows.length) {
+    wrap.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--muted);font-size:0.78rem">No rows. Click "+ Add Line Row" to start.</div>';
+    return;
+  }
+
+  wrap.innerHTML = lineRows.map((r, i) => {
+    const ctOpts = '<option value="">—</option>' +
+      coffeeTypes.map(t => `<option value="${escAttr(t)}" ${r.coffee_type === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('');
+    const cuOpts = weightUnits.map(u => `<option value="${u}" ${u === (r.cost_price_unit || 'kg') ? 'selected' : ''}>${u}</option>`).join('');
+    const notesLen = (r.notes || '').length;
+
+    // Hide remove button in edit mode (single row) or when only 1 row in add mode
+    const showRemove = lineMode === 'add' && lineRows.length > 1;
+
+    return (
+      '<div class="line-row-card" data-row="' + i + '">' +
+        '<div class="line-row-fields">' +
+          // Sample Code search (autocomplete)
+          '<div class="ac-wrap">' +
+            '<input type="text" class="ac-input" id="line-ac-input-' + i + '" ' +
+              'placeholder="Type code…" autocomplete="off" ' +
+              'value="' + escAttr(r.sample_id) + '" ' +
+              'oninput="onLineAcInput(' + i + ', this.value)" ' +
+              'onfocus="onLineAcInput(' + i + ', this.value)" ' +
+              'onblur="setTimeout(function(){closeLineAc(' + i + ')},150)" ' +
+              'onkeydown="onLineAcKey(event, ' + i + ')" />' +
+            '<div class="ac-dropdown" id="line-ac-drop-' + i + '" style="display:none"></div>' +
+          '</div>' +
+          // Origin Code (read-only display)
+          '<input type="text" id="line-origin-' + i + '" placeholder="—" ' +
+            'value="' + escAttr(r.origin_sample_code) + '" readonly />' +
+          // Sample Name (editable)
+          '<input type="text" id="line-name-' + i + '" placeholder="Sample name" ' +
+            'value="' + escAttr(r.sample_name) + '" ' +
+            'oninput="lineRows[' + i + '].sample_name = this.value" />' +
+          // Coffee Type (dropdown)
+          '<select id="line-coffee-' + i + '" onchange="lineRows[' + i + '].coffee_type = this.value">' +
+            ctOpts +
+          '</select>' +
+          // Qty Bags
+          '<input type="number" min="1" placeholder="0" ' +
+            'value="' + escAttr(r.qty_bags) + '" ' +
+            'oninput="lineRows[' + i + '].qty_bags = this.value" />' +
+          // Bag Size
+          '<input type="number" min="0" step="0.1" placeholder="60" ' +
+            'value="' + escAttr(r.bag_size) + '" ' +
+            'oninput="lineRows[' + i + '].bag_size = this.value" />' +
+          // Cost / unit
+          '<input type="number" min="0" step="0.01" placeholder="0.00" ' +
+            'value="' + escAttr(r.cost_price) + '" ' +
+            'oninput="lineRows[' + i + '].cost_price = this.value" />' +
+          // Cost Unit
+          '<select onchange="lineRows[' + i + '].cost_price_unit = this.value">' +
+            cuOpts +
+          '</select>' +
+          // Remove button
+          (showRemove
+            ? '<button type="button" class="btn-x" title="Remove row" onclick="removeLineRow(' + i + ')">✕</button>'
+            : '<span></span>') +
+        '</div>' +
+        // Notes (per row)
+        '<div class="line-row-notes">' +
+          '<label>Notes <span style="opacity:0.7">(optional · <span id="line-notes-count-' + i + '">' + notesLen + '</span>/250)</span></label>' +
+          '<textarea maxlength="250" rows="2" ' +
+            'placeholder="Optional row notes…" ' +
+            'oninput="lineRows[' + i + '].notes = this.value; document.getElementById(\'line-notes-count-' + i + '\').textContent = this.value.length">' +
+            escHtml(r.notes) +
+          '</textarea>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+// Bag Size Unit follows Cost Unit per row — no separate column to keep the
+// table at 8 inputs + delete. If you need split units, add a 9th column.
+function syncBagSizeUnit() {
+  lineRows.forEach((r) => {
+    r.bag_size_unit = r.cost_price_unit || 'kg';
+  });
+}
+
+// ── Helpers (escape) ──────────────────────────────────────────────────────────
+function escAttr(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// ── Autocomplete (per row) ────────────────────────────────────────────────────
+function onLineAcInput(rowIdx, value) {
+  const drop = document.getElementById('line-ac-drop-' + rowIdx);
+  if (!drop) return;
+
+  // Update underlying state for this row
+  lineRows[rowIdx].sample_id = value;
+  // If user is editing search and no longer matches the picked sample, clear linkage
+  if (lineRows[rowIdx].inbound_detail_id) {
+    // soft-clear only the FK if the sample_id text diverges from the picked one
+    // We don't aggressively clear sample_name here — user may have edited it
+    lineRows[rowIdx].inbound_detail_id = '';
+  }
+
+  if (!value.trim()) { drop.style.display = 'none'; return; }
+
+  const matches = (PAGE_DATA.inbound_details || []).filter(d => {
+    const q = value.toLowerCase().trim();
+    return (
+      String(d.sample_id          || '').toLowerCase().includes(q) ||
+      String(d.origin_sample_code || '').toLowerCase().includes(q) ||
+      String(d.sample_name        || '').toLowerCase().includes(q)
+    );
+  }).slice(0, 12);
+
+  if (!matches.length) {
+    drop.innerHTML = '<div class="ac-item" style="color:var(--muted)">No match — will save as free-text.</div>';
+  } else {
+    drop.innerHTML = matches.map((d, mi) =>
+      '<div class="ac-item" data-mi="' + mi + '" onmousedown="onLineAcPick(' + rowIdx + ', ' + d.detail_id + ')">' +
+        '<span class="ac-item-id">' + escHtml(d.sample_id || '') + '</span>' +
+        '<div class="ac-item-sub">' + escHtml(d.origin_sample_code || '—') + ' · ' + escHtml(d.sample_name || '') + '</div>' +
+      '</div>'
     ).join('');
-  };
-  buildUnitOptions('line-bag-size-unit', line ? line.bag_size_unit   : 'kg');
-  buildUnitOptions('line-cost-unit',     line ? line.cost_price_unit : 'kg');
-
-  updateLineSubtotal();
-  clearModalError('modal-line'); document.getElementById('modal-line').classList.add('open');
+  }
+  drop.style.display = 'block';
 }
 
-function updateLineSubtotal() {
-  const bags  = parseFloat(document.getElementById('line-qty-bags').value)   || 0;
-  const size  = parseFloat(document.getElementById('line-bag-size').value)   || 0;
-  const price = parseFloat(document.getElementById('line-cost-price').value) || 0;
-  const unit  = document.getElementById('line-cost-unit').value;
-  const sub   = bags * size * price;
-  document.getElementById('line-subtotal').textContent =
-    sub > 0 ? 'Subtotal: ' + formatMoney(sub) + ' / ' + unit : '';
+function onLineAcPick(rowIdx, detailId) {
+  const d = (PAGE_DATA.inbound_details || []).find(x => String(x.detail_id) === String(detailId));
+  if (!d) return;
+  const r = lineRows[rowIdx];
+  r.inbound_detail_id  = d.detail_id;
+  r.sample_id          = d.sample_id          || '';
+  r.sample_name        = d.sample_name        || '';
+  r.origin_sample_code = d.origin_sample_code || '';
+  // Coffee type auto-fill (still editable; not required)
+  if (d.coffee_type)   r.coffee_type        = d.coffee_type;
+  closeLineAc(rowIdx);
+  renderLineRows(); // re-render so the auto-filled values show
 }
 
-['line-qty-bags','line-bag-size','line-cost-price','line-cost-unit'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.oninput = el.onchange = updateLineSubtotal;
-});
+function closeLineAc(rowIdx) {
+  const drop = document.getElementById('line-ac-drop-' + rowIdx);
+  if (drop) drop.style.display = 'none';
+}
 
-document.getElementById('btn-line-cancel').onclick = () => document.getElementById('modal-line').classList.remove('open');
+function onLineAcKey(e, rowIdx) {
+  if (e.key === 'Escape') closeLineAc(rowIdx);
+}
 
+// ── Add / Remove row ──────────────────────────────────────────────────────────
+function removeLineRow(idx) {
+  if (lineRows.length <= 1) return;  // never delete last row
+  lineRows.splice(idx, 1);
+  renderLineRows();
+}
+
+document.getElementById('btn-add-line-row').onclick = () => {
+  if (lineMode === 'edit') return;  // edit mode is single-row only
+  lineRows.push(emptyLineRow());
+  renderLineRows();
+};
+
+document.getElementById('btn-line-cancel').onclick = () => {
+  document.getElementById('modal-line').classList.remove('open');
+};
+
+// ── Save (multi-row in add, single in edit) ───────────────────────────────────
 document.getElementById('btn-line-save').onclick = async () => {
   const btn = document.getElementById('btn-line-save');
   btn.disabled = true;
+  syncBagSizeUnit();  // bag_size_unit follows cost_price_unit per row
 
-  const payload = {
-    action:             'savePoLine',
-    po_id:              document.getElementById('line-po-id').value,
-    po_line_id:         document.getElementById('line-id').value || null,
-    sample_name:        document.getElementById('line-sample-name').value,
-    origin_sample_code: document.getElementById('line-origin-code').value,
-    coffee_type:        document.getElementById('line-coffee-type').value,
-    qty_bags:           document.getElementById('line-qty-bags').value,
-    bag_size:           document.getElementById('line-bag-size').value,
-    bag_size_unit:      document.getElementById('line-bag-size-unit').value,
-    cost_price:         document.getElementById('line-cost-price').value,
-    cost_price_unit:    document.getElementById('line-cost-unit').value,
-    notes:              document.getElementById('line-notes').value
-  };
+  const poId = document.getElementById('line-po-id').value;
+
+  // Front-end validation — quick sanity, server enforces too
+  for (let i = 0; i < lineRows.length; i++) {
+    const r = lineRows[i];
+    if (!r.sample_name || !r.sample_name.trim()) {
+      showModalError('modal-line', 'Row ' + (i + 1) + ': Sample Name is required.');
+      btn.disabled = false;
+      return;
+    }
+    if (!r.qty_bags || parseInt(r.qty_bags) <= 0) {
+      showModalError('modal-line', 'Row ' + (i + 1) + ': Qty Bags must be greater than zero.');
+      btn.disabled = false;
+      return;
+    }
+  }
 
   try {
-    const data = await API.post(payload);
+    let data;
+    if (lineMode === 'edit') {
+      // Single line update — keep using savePoLine
+      const r = lineRows[0];
+      data = await API.post({
+        action:             'savePoLine',
+        po_id:              poId,
+        po_line_id:         r.po_line_id || null,
+        inbound_detail_id:  r.inbound_detail_id || '',
+        sample_id:          r.sample_id || '',
+        sample_name:        r.sample_name,
+        origin_sample_code: r.origin_sample_code,
+        coffee_type:        r.coffee_type,
+        qty_bags:           r.qty_bags,
+        bag_size:           r.bag_size,
+        bag_size_unit:      r.bag_size_unit,
+        cost_price:         r.cost_price,
+        cost_price_unit:    r.cost_price_unit,
+        notes:              r.notes
+      });
+    } else {
+      // Multi-row create — savePoLineBatch
+      data = await API.post({
+        action: 'savePoLineBatch',
+        po_id:  poId,
+        lines:  lineRows.map(r => ({
+          inbound_detail_id:  r.inbound_detail_id || '',
+          sample_id:          r.sample_id || '',
+          sample_name:        r.sample_name,
+          origin_sample_code: r.origin_sample_code,
+          coffee_type:        r.coffee_type,
+          qty_bags:           r.qty_bags,
+          bag_size:           r.bag_size,
+          bag_size_unit:      r.bag_size_unit,
+          cost_price:         r.cost_price,
+          cost_price_unit:    r.cost_price_unit,
+          notes:              r.notes
+        }))
+      });
+    }
+
     // Invalidate: update lines on the affected PO in PAGE_DATA
     const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(data.po_id));
     if (po) po.lines = data.lines;
 
     document.getElementById('modal-line').classList.remove('open');
     renderPoList();
-    showToast('Line saved.', 'success');
+    showToast(lineMode === 'edit' ? 'Line saved.' : (lineRows.length + ' line(s) saved.'), 'success');
   } catch (e) {
     console.error('Caught error:', e);
     showModalError('modal-line', e.message || 'Save failed.');
