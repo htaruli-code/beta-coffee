@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<!-- Version 2.0 | drawdowns.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drawdowns — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+    .page { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+    select, input { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
+    select:focus, input:focus { border-color: var(--accent); }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
+    .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .dd-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .dd-table th { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.75rem; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
+    .dd-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .dd-table tr:hover td { background: var(--surface); }
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2px; }
+    .badge-pending    { background: #f0f0f0; color: #666; }
+    .badge-approved   { background: #fef9ec; color: #854f0b; }
+    .badge-dispatched { background: #eef4fd; color: #1a5ca8; }
+    .badge-delivered  { background: #edf7f0; color: #1e6640; }
+    .badge-cancelled  { background: #fdecea; color: #b00020; }
+    .action-group { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .empty { text-align: center; padding: 3rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 480px; margin: auto; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="purchase-orders.html">Purchase Orders</a>
+    <a href="shipments.html">Shipments</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="inventory-locations.html">Locations</a>
+    <a href="contracts.html">Contracts</a>
+    <a href="drawdowns.html" class="active">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Drawdowns</div>
+      <div class="page-sub">Approve and dispatch buyer delivery requests</div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <select id="filter-status" style="width:auto"><option value="">All Statuses</option></select>
+    <select id="filter-buyer"  style="width:auto"><option value="">All Buyers</option></select>
+  </div>
+  <div id="dd-wrap"><div class="loading">Loading drawdowns…</div></div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal-overlay" id="modal-status">
+  <div class="modal">
+    <div class="modal-title" id="modal-status-title">Update Drawdown</div>
+    <input type="hidden" id="ds-drawdown-id" />
+    <input type="hidden" id="ds-contract-id" />
+    <input type="hidden" id="ds-line-id" />
+    <div class="field" style="margin-bottom:0.75rem">
+      <label>New Status</label>
+      <select id="ds-status"></select>
+    </div>
+    <div class="field" id="ds-outbound-field" style="display:none;margin-bottom:0.75rem">
+      <label>Outbound ID <span style="color:var(--muted);font-size:0.65rem">(if dispatching)</span></label>
+      <input type="number" id="ds-outbound-id" placeholder="Link outbound record" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-ds-cancel">Cancel</button>
+      <button class="btn" id="btn-ds-save">Update</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 2.0 | drawdowns.html
+if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API     === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+let PAGE_DATA = { drawdowns: [], contracts: [], buyers: [], inventory_lots: [], drawdown_statuses: [] };
+
+(async () => {
+  const user = Auth.getUser(); const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
+  try {
+    const res = await API.post({ action: 'getDrawdownsPage' });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    PAGE_DATA = res.data;
+    populateFilters();
+    renderTable();
+  } catch (e) { showToast('Failed to load.', 'error'); }
+})();
+
+function populateFilters() {
+  const fs = document.getElementById('filter-status');
+  PAGE_DATA.drawdown_statuses.forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
+  });
+  const fb = document.getElementById('filter-buyer');
+  const buyerIds = new Set();
+  PAGE_DATA.drawdowns.forEach(d => {
+    const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(d.contract_id));
+    if (con && !buyerIds.has(String(con.buyer_id))) {
+      buyerIds.add(String(con.buyer_id));
+      const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id));
+      if (buyer) {
+        const o = document.createElement('option'); o.value = buyer.buyer_id; o.textContent = buyer.company_name; fb.appendChild(o);
+      }
+    }
+  });
+  fs.onchange = fb.onchange = renderTable;
+}
+
+function renderTable() {
+  const sf = document.getElementById('filter-status').value;
+  const bf = document.getElementById('filter-buyer').value;
+
+  let dds = PAGE_DATA.drawdowns;
+  if (sf) dds = dds.filter(d => d.status === sf);
+  if (bf) {
+    const matchContracts = PAGE_DATA.contracts.filter(c => String(c.buyer_id) === String(bf)).map(c => String(c.contract_id));
+    dds = dds.filter(d => matchContracts.includes(String(d.contract_id)));
+  }
+
+  const wrap = document.getElementById('dd-wrap');
+  if (!dds.length) { wrap.innerHTML = '<div class="empty">No drawdowns found.</div>'; return; }
+
+  const rows = dds.map(d => {
+    const con    = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(d.contract_id));
+    const buyer  = con ? PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id)) : null;
+    const line   = d.contract_line;
+    const sample = line ? line.sample_name : '—';
+    const badgeKey = d.status.toLowerCase();
+
+    // Allowed next statuses for action buttons
+    const NEXT = { 'Pending': ['Approved','Cancelled'], 'Approved': ['Dispatched','Cancelled'], 'Dispatched': ['Delivered'] };
+    const next = NEXT[d.status] || [];
+    const actions = next.map(s =>
+      `<button class="btn btn-ghost btn-sm" onclick="openStatusModal(${d.drawdown_id}, '${d.contract_id}', '${d.contract_line_id}', '${s}')">${s}</button>`
+    ).join('');
+
+    return `<tr>
+      <td><span class="badge badge-${badgeKey}">${esc(d.status)}</span></td>
+      <td>${buyer ? esc(buyer.company_name) : '—'}</td>
+      <td>${con  ? esc(con.contract_number) : '—'}</td>
+      <td>${esc(sample)}</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${d.requested_bags}</td>
+      <td>${esc(d.shipping_date || '—')}</td>
+      <td>${esc(d.drawdown_date || d.created_at || '—')}</td>
+      <td>${d.outbound_id ? '<a href="outbound.html" style="font-family:var(--font-mono);font-size:0.75rem">OUT-' + d.outbound_id + '</a>' : '—'}</td>
+      <td><div class="action-group">${actions}</div></td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<table class="dd-table">
+    <thead><tr>
+      <th>Status</th><th>Buyer</th><th>Contract</th><th>Sample</th>
+      <th style="text-align:right">Bags</th><th>Ship Date</th><th>Created</th><th>Outbound</th><th>Actions</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function openStatusModal(drawdownId, contractId, lineId, presetStatus) {
+  document.getElementById('ds-drawdown-id').value = drawdownId;
+  document.getElementById('ds-contract-id').value  = contractId;
+  document.getElementById('ds-line-id').value      = lineId;
+
+  const ALLOWED = { 'Pending': ['Approved','Cancelled'], 'Approved': ['Dispatched','Cancelled'], 'Dispatched': ['Delivered'] };
+  const dd      = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
+  const options = dd ? (ALLOWED[dd.status] || []) : PAGE_DATA.drawdown_statuses;
+
+  document.getElementById('ds-status').innerHTML = options.map(s =>
+    `<option value="${s}" ${s === presetStatus ? 'selected' : ''}>${s}</option>`
+  ).join('');
+
+  const toggleOutbound = () => {
+    document.getElementById('ds-outbound-field').style.display =
+      document.getElementById('ds-status').value === 'Dispatched' ? 'block' : 'none';
+  };
+  document.getElementById('ds-status').onchange = toggleOutbound;
+  toggleOutbound();
+
+  document.getElementById('modal-status-title').textContent = 'Move to: ' + presetStatus;
+  document.getElementById('modal-status').classList.add('open');
+}
+
+document.getElementById('btn-ds-cancel').onclick = () => document.getElementById('modal-status').classList.remove('open');
+
+document.getElementById('btn-ds-save').onclick = async () => {
+  const btn = document.getElementById('btn-ds-save'); btn.disabled = true;
+  const status = document.getElementById('ds-status').value;
+  const payload = {
+    action:       'updateDrawdownStatus',
+    drawdown_id:  document.getElementById('ds-drawdown-id').value,
+    status:       status,
+    outbound_id:  status === 'Dispatched' ? document.getElementById('ds-outbound-id').value : null
+  };
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+
+    // Invalidate cache — update drawdowns + contract line in PAGE_DATA
+    const contractId = document.getElementById('ds-contract-id').value;
+    res.data.drawdowns.forEach(d => {
+      const idx = PAGE_DATA.drawdowns.findIndex(x => String(x.drawdown_id) === String(d.drawdown_id));
+      if (idx >= 0) PAGE_DATA.drawdowns[idx] = d; else PAGE_DATA.drawdowns.push(d);
+    });
+
+    document.getElementById('modal-status').classList.remove('open');
+    renderTable();
+    showToast('Status updated.', 'success');
+  } catch (e) { showToast('Update failed.', 'error'); }
+  finally { btn.disabled = false; }
+};
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast '+(type||'');
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

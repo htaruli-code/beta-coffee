@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<!-- Version 2.0 | inventory-locations.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory Locations — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+    .page { max-width: 900px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+    input, select { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
+    input:focus, select:focus { border-color: var(--accent); }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
+    .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .wh-section { margin-bottom: 2rem; }
+    .wh-title { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .loc-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .loc-table th { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; }
+    .loc-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--border); }
+    .loc-table tr:last-child td { border-bottom: none; }
+    .inactive { opacity: 0.45; }
+    .empty { color: var(--muted); font-family: var(--font-mono); font-size: 0.75rem; padding: 0.75rem 0.6rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 500px; margin: auto; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="purchase-orders.html">Purchase Orders</a>
+    <a href="shipments.html">Shipments</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="inventory-locations.html" class="active">Locations</a>
+    <a href="contracts.html">Contracts</a>
+    <a href="drawdowns.html">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Inventory Locations</div>
+      <div class="page-sub">Manage sub-locations within each warehouse</div>
+    </div>
+    <button class="btn" id="btn-new-loc">+ New Location</button>
+  </div>
+  <div id="loc-list"><div class="loading">Loading…</div></div>
+</div>
+
+<!-- Location Modal -->
+<div class="modal-overlay" id="modal-loc">
+  <div class="modal">
+    <div class="modal-title" id="modal-loc-title">New Location</div>
+    <input type="hidden" id="loc-id" />
+
+    <div class="field" style="margin-bottom:0.75rem">
+      <label>Warehouse <span style="color:var(--error)">*</span></label>
+      <select id="loc-warehouse"></select>
+    </div>
+    <div class="field" style="margin-bottom:0.75rem">
+      <label>Facility Name <span style="color:var(--error)">*</span></label>
+      <input type="text" id="loc-name" placeholder="e.g. Cold Room A, Bay 3" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Contact Person</label>
+        <input type="text" id="loc-person" placeholder="Jane Smith" />
+      </div>
+      <div class="field">
+        <label>Contact Email</label>
+        <input type="email" id="loc-email" placeholder="jane@warehouse.com" />
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-loc-cancel">Cancel</button>
+      <button class="btn" id="btn-loc-save">Save Location</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 2.0 | inventory-locations.html
+if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API     === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+let PAGE_DATA = { warehouses: [], locations: [] };
+
+(async () => {
+  const user = Auth.getUser(); const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
+
+  try {
+    const res = await API.post({ action: 'getInventoryLocationsPage' });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    PAGE_DATA = res.data;
+    renderLocations();
+  } catch (e) { showToast('Failed to load.', 'error'); }
+})();
+
+function renderLocations() {
+  const el = document.getElementById('loc-list');
+  if (!PAGE_DATA.warehouses.length) { el.innerHTML = '<div class="empty">No warehouses found.</div>'; return; }
+
+  el.innerHTML = PAGE_DATA.warehouses.map(wh => {
+    const locs = PAGE_DATA.locations.filter(l => String(l.warehouse_id) === String(wh.warehouse_id));
+    const rows = locs.length ? locs.map(l => `
+      <tr class="${l.is_active ? '' : 'inactive'}">
+        <td>${esc(l.facility_name)}</td>
+        <td>${esc(l.contact_person || '—')}</td>
+        <td>${esc(l.contact_email  || '—')}</td>
+        <td>${l.is_active ? 'Active' : 'Inactive'}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openLocModal(${l.location_id})">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleLoc(${l.location_id}, ${!l.is_active})">${l.is_active ? 'Deactivate' : 'Activate'}</button>
+        </td>
+      </tr>`).join('')
+      : `<tr><td colspan="5" class="empty">No locations for this warehouse.</td></tr>`;
+
+    return `<div class="wh-section">
+      <div class="wh-title">
+        <span>${esc(wh.warehouse_name)}</span>
+        <button class="btn btn-ghost btn-sm" onclick="openLocModalForWh(${wh.warehouse_id})">+ Add</button>
+      </div>
+      <table class="loc-table">
+        <thead><tr><th>Facility Name</th><th>Contact</th><th>Email</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+function openLocModal(locationId) {
+  const loc = locationId ? PAGE_DATA.locations.find(l => String(l.location_id) === String(locationId)) : null;
+  document.getElementById('modal-loc-title').textContent = loc ? 'Edit Location' : 'New Location';
+  document.getElementById('loc-id').value     = loc ? loc.location_id : '';
+  document.getElementById('loc-name').value   = loc ? loc.facility_name  : '';
+  document.getElementById('loc-person').value = loc ? loc.contact_person : '';
+  document.getElementById('loc-email').value  = loc ? loc.contact_email  : '';
+
+  const wh = document.getElementById('loc-warehouse');
+  wh.innerHTML = PAGE_DATA.warehouses.map(w =>
+    `<option value="${w.warehouse_id}" ${loc && String(loc.warehouse_id) === String(w.warehouse_id) ? 'selected' : ''}>${esc(w.warehouse_name)}</option>`
+  ).join('');
+
+  document.getElementById('modal-loc').classList.add('open');
+}
+
+function openLocModalForWh(whId) {
+  openLocModal(null);
+  document.getElementById('loc-warehouse').value = whId;
+}
+
+document.getElementById('btn-new-loc').onclick   = () => openLocModal(null);
+document.getElementById('btn-loc-cancel').onclick = () => document.getElementById('modal-loc').classList.remove('open');
+
+document.getElementById('btn-loc-save').onclick = async () => {
+  const btn = document.getElementById('btn-loc-save');
+  btn.disabled = true;
+  const payload = {
+    action:        'saveInventoryLocation',
+    location_id:   document.getElementById('loc-id').value || null,
+    warehouse_id:  document.getElementById('loc-warehouse').value,
+    facility_name: document.getElementById('loc-name').value,
+    contact_person:document.getElementById('loc-person').value,
+    contact_email: document.getElementById('loc-email').value,
+    is_active:     true
+  };
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    // Invalidate — replace locations for this warehouse
+    const whId = res.data.warehouse_id;
+    PAGE_DATA.locations = PAGE_DATA.locations
+      .filter(l => String(l.warehouse_id) !== String(whId))
+      .concat(res.data.locations);
+    document.getElementById('modal-loc').classList.remove('open');
+    renderLocations();
+    showToast('Location saved.', 'success');
+  } catch (e) { showToast('Save failed.', 'error'); }
+  finally { btn.disabled = false; }
+};
+
+async function toggleLoc(locationId, isActive) {
+  try {
+    const res = await API.post({ action: 'toggleLocationActive', location_id: locationId, is_active: isActive });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const whId = res.data.warehouse_id;
+    PAGE_DATA.locations = PAGE_DATA.locations
+      .filter(l => String(l.warehouse_id) !== String(whId))
+      .concat(res.data.locations);
+    renderLocations();
+    showToast('Location updated.', 'success');
+  } catch (e) { showToast('Update failed.', 'error'); }
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + (type||'');
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

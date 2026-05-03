@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<!-- Version 2.0 | inventory.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+    input, select, textarea { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
+    .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .inv-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .inv-table th { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.6rem; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
+    .inv-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--border); }
+    .inv-table tr:hover td { background: var(--surface); }
+    .num { text-align: right; font-family: var(--font-mono); }
+    .avail-ok   { color: var(--success); font-weight: 600; }
+    .avail-low  { color: #b45309; font-weight: 600; }
+    .avail-zero { color: var(--error); font-weight: 600; }
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 620px; margin: auto; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="purchase-orders.html">Purchase Orders</a>
+    <a href="shipments.html">Shipments</a>
+    <a href="inventory.html" class="active">Inventory</a>
+    <a href="inventory-locations.html">Locations</a>
+    <a href="contracts.html">Contracts</a>
+    <a href="drawdowns.html">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Inventory</div>
+      <div class="page-sub">Physical lots on the shelf after shipment arrival</div>
+    </div>
+    <button class="btn" id="btn-new-lot">+ Receive Lot</button>
+  </div>
+
+  <div class="toolbar">
+    <select id="filter-wh" style="width:auto"><option value="">All Warehouses</option></select>
+    <select id="filter-type" style="width:auto"><option value="">All Types</option></select>
+    <input type="text" id="filter-search" placeholder="Search lot name…" style="width:200px" />
+  </div>
+
+  <div id="inv-table-wrap"><div class="loading">Loading inventory…</div></div>
+</div>
+
+<!-- Lot Modal -->
+<div class="modal-overlay" id="modal-lot">
+  <div class="modal">
+    <div class="modal-title" id="modal-lot-title">Receive Inventory Lot</div>
+    <input type="hidden" id="lot-id" />
+
+    <div class="field-row">
+      <div class="field" style="flex:2">
+        <label>Sample Name <span style="color:var(--error)">*</span></label>
+        <input type="text" id="lot-name" placeholder="e.g. Natural Catuaí" />
+      </div>
+      <div class="field">
+        <label>Lot Number</label>
+        <input type="text" id="lot-number" placeholder="Internal ref" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Origin Sample Code</label>
+        <input type="text" id="lot-origin-code" placeholder="Supplier ref (optional)" />
+      </div>
+      <div class="field">
+        <label>Coffee Type</label>
+        <select id="lot-coffee-type"></select>
+      </div>
+    </div>
+
+    <div class="modal-section">Location</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Warehouse <span style="color:var(--error)">*</span></label>
+        <select id="lot-warehouse" onchange="updateLocations()"></select>
+      </div>
+      <div class="field">
+        <label>Location</label>
+        <select id="lot-location"></select>
+      </div>
+    </div>
+
+    <div class="modal-section">Quantity &amp; Weight</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Received Bags <span style="color:var(--error)">*</span></label>
+        <input type="number" id="lot-bags" min="1" placeholder="0" />
+      </div>
+      <div class="field">
+        <label>Bag Size <span style="color:var(--error)">*</span></label>
+        <input type="number" id="lot-bag-size" min="0" step="0.1" placeholder="60" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Cost Price</label>
+        <input type="number" id="lot-cost" min="0" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="field" style="max-width:90px">
+        <label>Per</label>
+        <select id="lot-cost-unit"></select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Received Date</label>
+        <input type="date" id="lot-received-date" />
+      </div>
+      <div class="field">
+        <label>Origin Country</label>
+        <select id="lot-country"></select>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-lot-cancel">Cancel</button>
+      <button class="btn" id="btn-lot-save">Save Lot</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 2.0 | inventory.html
+if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API     === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+let PAGE_DATA = { inventory_lots: [], warehouses: [], locations: [], countries: [], coffee_types: [], weight_units: [] };
+
+(async () => {
+  const user = Auth.getUser(); const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
+
+  try {
+    const res = await API.post({ action: 'getInventoryPage' });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    PAGE_DATA = res.data;
+    populateFilters();
+    renderTable();
+  } catch (e) { showToast('Failed to load.', 'error'); }
+})();
+
+function populateFilters() {
+  const fw = document.getElementById('filter-wh');
+  PAGE_DATA.warehouses.forEach(w => {
+    const o = document.createElement('option'); o.value = w.warehouse_id; o.textContent = w.warehouse_name; fw.appendChild(o);
+  });
+  const ft = document.getElementById('filter-type');
+  PAGE_DATA.coffee_types.forEach(t => {
+    const o = document.createElement('option'); o.value = t; o.textContent = t; ft.appendChild(o);
+  });
+  fw.onchange = ft.onchange = renderTable;
+  document.getElementById('filter-search').oninput = renderTable;
+}
+
+function renderTable() {
+  const wh     = document.getElementById('filter-wh').value;
+  const type   = document.getElementById('filter-type').value;
+  const search = document.getElementById('filter-search').value.toLowerCase();
+  let lots = PAGE_DATA.inventory_lots;
+  if (wh)     lots = lots.filter(l => String(l.warehouse_id) === String(wh));
+  if (type)   lots = lots.filter(l => l.coffee_type === type);
+  if (search) lots = lots.filter(l => (l.sample_name || '').toLowerCase().includes(search));
+
+  const wrap = document.getElementById('inv-table-wrap');
+  if (!lots.length) { wrap.innerHTML = '<div class="empty">No lots found.</div>'; return; }
+
+  const rows = lots.map(l => {
+    const availClass = l.available_bags === 0 ? 'avail-zero' : l.available_bags < 5 ? 'avail-low' : 'avail-ok';
+    return `<tr>
+      <td>${esc(l.sample_name)}</td>
+      <td>${esc(l.lot_number || '—')}</td>
+      <td>${esc(l.warehouse_name || '—')}</td>
+      <td>${esc(l.location_name  || '—')}</td>
+      <td>${esc(l.coffee_type    || '—')}</td>
+      <td class="num">${l.received_bags}</td>
+      <td class="num ${availClass}">${l.available_bags}</td>
+      <td class="num">${l.bag_size} kg</td>
+      <td class="num">${l.cost_price ? l.cost_price + ' / ' + esc(l.cost_price_unit) : '—'}</td>
+      <td>${esc(l.received_date || '—')}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openLotModal(${l.lot_id})">Edit</button></td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<table class="inv-table">
+    <thead><tr>
+      <th>Sample</th><th>Lot #</th><th>Warehouse</th><th>Location</th><th>Type</th>
+      <th class="num">Received</th><th class="num">Available</th>
+      <th class="num">Bag Size</th><th class="num">Cost</th><th>Received Date</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function updateLocations() {
+  const whId = document.getElementById('lot-warehouse').value;
+  const locs = PAGE_DATA.locations.filter(l => String(l.warehouse_id) === String(whId) && l.is_active);
+  const el   = document.getElementById('lot-location');
+  el.innerHTML = `<option value="">— No specific location —</option>` +
+    locs.map(l => `<option value="${l.location_id}">${esc(l.facility_name)}</option>`).join('');
+}
+
+function openLotModal(lotId) {
+  const lot = lotId ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(lotId)) : null;
+  document.getElementById('modal-lot-title').textContent = lot ? 'Edit Lot' : 'Receive Inventory Lot';
+  document.getElementById('lot-id').value           = lot ? lot.lot_id          : '';
+  document.getElementById('lot-name').value         = lot ? lot.sample_name      : '';
+  document.getElementById('lot-number').value       = lot ? lot.lot_number        : '';
+  document.getElementById('lot-origin-code').value  = lot ? lot.origin_sample_code: '';
+  document.getElementById('lot-bags').value         = lot ? lot.received_bags      : '';
+  document.getElementById('lot-bag-size').value     = lot ? lot.bag_size           : '';
+  document.getElementById('lot-cost').value         = lot ? lot.cost_price         : '';
+  document.getElementById('lot-received-date').value= lot ? lot.received_date      : '';
+
+  const ct = document.getElementById('lot-coffee-type');
+  ct.innerHTML = `<option value="">— None —</option>` + PAGE_DATA.coffee_types.map(t =>
+    `<option value="${t}" ${lot && lot.coffee_type === t ? 'selected' : ''}>${t}</option>`
+  ).join('');
+
+  const cu = document.getElementById('lot-cost-unit');
+  cu.innerHTML = PAGE_DATA.weight_units.map(u =>
+    `<option value="${u}" ${lot && lot.cost_price_unit === u ? 'selected' : ''}>${u}</option>`
+  ).join('');
+
+  const wh = document.getElementById('lot-warehouse');
+  wh.innerHTML = PAGE_DATA.warehouses.map(w =>
+    `<option value="${w.warehouse_id}" ${lot && String(lot.warehouse_id) === String(w.warehouse_id) ? 'selected' : ''}>${esc(w.warehouse_name)}</option>`
+  ).join('');
+  updateLocations();
+  if (lot) document.getElementById('lot-location').value = lot.location_id || '';
+
+  const co = document.getElementById('lot-country');
+  co.innerHTML = `<option value="">— Unknown —</option>` + PAGE_DATA.countries.map(c =>
+    `<option value="${c.country_id}" ${lot && String(lot.origin_country_id) === String(c.country_id) ? 'selected' : ''}>${esc(c.country_name)}</option>`
+  ).join('');
+
+  document.getElementById('modal-lot').classList.add('open');
+}
+
+document.getElementById('btn-new-lot').onclick    = () => openLotModal(null);
+document.getElementById('btn-lot-cancel').onclick  = () => document.getElementById('modal-lot').classList.remove('open');
+
+document.getElementById('btn-lot-save').onclick = async () => {
+  const btn = document.getElementById('btn-lot-save');
+  btn.disabled = true;
+  const payload = {
+    action:             'saveInventoryLot',
+    lot_id:             document.getElementById('lot-id').value || null,
+    warehouse_id:       document.getElementById('lot-warehouse').value,
+    location_id:        document.getElementById('lot-location').value || '',
+    sample_name:        document.getElementById('lot-name').value,
+    lot_number:         document.getElementById('lot-number').value,
+    origin_sample_code: document.getElementById('lot-origin-code').value,
+    coffee_type:        document.getElementById('lot-coffee-type').value,
+    received_bags:      document.getElementById('lot-bags').value,
+    bag_size:           document.getElementById('lot-bag-size').value,
+    cost_price:         document.getElementById('lot-cost').value,
+    cost_price_unit:    document.getElementById('lot-cost-unit').value,
+    received_date:      document.getElementById('lot-received-date').value,
+    origin_country_id:  document.getElementById('lot-country').value || ''
+  };
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    // Invalidate — replace lots for this warehouse
+    const whId = res.data.warehouse_id;
+    PAGE_DATA.inventory_lots = PAGE_DATA.inventory_lots
+      .filter(l => String(l.warehouse_id) !== String(whId))
+      .concat(res.data.lots);
+    document.getElementById('modal-lot').classList.remove('open');
+    renderTable();
+    showToast('Lot saved.', 'success');
+  } catch (e) { showToast('Save failed.', 'error'); }
+  finally { btn.disabled = false; }
+};
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + (type||'');
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

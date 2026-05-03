@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<!-- Version 2.1 | purchase-orders.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purchase Orders — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2;
+      --border: #f0e8da; --accent: #c47a2b; --text: #1a1a1a;
+      --muted: #8a7060; --error: #c0392b; --success: #2e7d52; --warn: #b45309;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+
+    /* ── Layout ── */
+    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: var(--error); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+
+    /* ── Inputs ── */
+    input, select, textarea {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-mono); font-size: 0.78rem;
+      padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none;
+      transition: border-color var(--transition); width: 100%;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
+    .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1rem; gap: 1rem; }
+    .card-title { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; }
+    .card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+    /* ── Status badge ── */
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 2px; }
+    .badge-draft     { background: #f0f0f0; color: #666; }
+    .badge-confirmed { background: #fef9ec; color: #854f0b; }
+    .badge-shipped   { background: #eef4fd; color: #1a5ca8; }
+    .badge-arrived   { background: #edf7f0; color: #1e6640; }
+    .badge-cancelled { background: #fdecea; color: #b00020; }
+
+    /* ── PO Lines table ── */
+    .lines-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.78rem; }
+    .lines-table th { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    .lines-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
+    .lines-table tr:last-child td { border-bottom: none; }
+    .lines-table .num { text-align: right; font-family: var(--font-mono); }
+    .subtotal-row { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 640px; margin: auto; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .toast.error { background: var(--error); }
+    .toast.success { background: var(--success); }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+
+    /* ── Collapsible lines ── */
+    .lines-toggle { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); cursor: pointer; background: none; border: none; padding: 0; text-decoration: underline; }
+    .lines-section { margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ── -->
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="purchase-orders.html" class="active">Purchase Orders</a>
+    <a href="shipments.html">Shipments</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="inventory-locations.html">Locations</a>
+    <a href="contracts.html">Contracts</a>
+    <a href="drawdowns.html">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user" title="Click to log out"></span>
+</nav>
+
+<!-- ── Page ── -->
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Purchase Orders</div>
+      <div class="page-sub">Manage supplier purchase orders and line items</div>
+    </div>
+    <button class="btn" id="btn-new-po">+ New PO</button>
+  </div>
+
+  <div class="toolbar">
+    <select id="filter-status" style="width:auto">
+      <option value="">All Statuses</option>
+    </select>
+    <select id="filter-supplier" style="width:auto">
+      <option value="">All Suppliers</option>
+    </select>
+  </div>
+
+  <div id="po-list"><div class="loading">Loading purchase orders…</div></div>
+</div>
+
+<!-- ── PO Modal ── -->
+<div class="modal-overlay" id="modal-po">
+  <div class="modal">
+    <div class="modal-title" id="modal-po-title">New Purchase Order</div>
+    <input type="hidden" id="po-id" />
+
+    <div class="field-row">
+      <div class="field">
+        <label>Supplier <span style="color:var(--error)">*</span></label>
+        <select id="po-supplier"></select>
+      </div>
+      <div class="field">
+        <label>PO Number <span style="color:var(--error)">*</span></label>
+        <input type="text" id="po-number" placeholder="PO-2026-001" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>PO Date <span style="color:var(--error)">*</span></label>
+        <input type="date" id="po-date" />
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="po-status"></select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="po-notes" placeholder="Optional notes…"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-po-cancel">Cancel</button>
+      <button class="btn" id="btn-po-save">Save PO</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PO Line Modal ── -->
+<div class="modal-overlay" id="modal-line">
+  <div class="modal">
+    <div class="modal-title" id="modal-line-title">Add PO Line</div>
+    <input type="hidden" id="line-po-id" />
+    <input type="hidden" id="line-id" />
+
+    <div class="field-row">
+      <div class="field" style="flex:2">
+        <label>Sample Name <span style="color:var(--error)">*</span></label>
+        <input type="text" id="line-sample-name" placeholder="e.g. Natural Catuaí" />
+      </div>
+      <div class="field">
+        <label>Coffee Type</label>
+        <select id="line-coffee-type"></select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Origin Sample Code</label>
+        <input type="text" id="line-origin-code" placeholder="Supplier's ref (optional)" />
+      </div>
+    </div>
+    <div class="modal-section">Quantity &amp; Weight</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Qty Bags <span style="color:var(--error)">*</span></label>
+        <input type="number" id="line-qty-bags" min="1" placeholder="0" />
+      </div>
+      <div class="field">
+        <label>Bag Size <span style="color:var(--error)">*</span></label>
+        <input type="number" id="line-bag-size" min="0" step="0.1" placeholder="60" />
+      </div>
+      <div class="field" style="max-width:90px">
+        <label>Unit</label>
+        <select id="line-bag-size-unit"></select>
+      </div>
+    </div>
+    <div class="modal-section">Pricing</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Cost Price <span style="color:var(--error)">*</span></label>
+        <input type="number" id="line-cost-price" min="0" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="field" style="max-width:90px">
+        <label>Per</label>
+        <select id="line-cost-unit"></select>
+      </div>
+    </div>
+    <div id="line-subtotal" style="font-family:var(--font-mono);font-size:0.8rem;color:var(--muted);margin-top:0.25rem;text-align:right"></div>
+    <div class="field" style="margin-top:0.75rem">
+      <label>Notes</label>
+      <input type="text" id="line-notes" placeholder="Optional" />
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-line-cancel">Cancel</button>
+      <button class="btn" id="btn-line-save">Save Line</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Shipping Instructions Modal ── -->
+<div class="modal-overlay" id="modal-si">
+  <div class="modal">
+    <div class="modal-title" id="modal-si-title">Issue Shipping Instructions</div>
+    <input type="hidden" id="si-id" />
+    <input type="hidden" id="si-po-id" />
+    <div id="si-po-summary" style="font-family:var(--font-mono);font-size:0.78rem;color:var(--muted);margin-bottom:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;border:1px solid var(--border)"></div>
+    <div class="field">
+      <label>Issued Date</label>
+      <input type="date" id="si-issued-date" />
+    </div>
+    <div class="field" style="margin-top:0.75rem">
+      <label>Instructions <span style="color:var(--error)">*</span></label>
+      <textarea id="si-text" placeholder="Pack 60kg jute bags, mark each container with PO number, ship via..." style="min-height:120px"></textarea>
+    </div>
+    <div class="field" style="margin-top:0.75rem">
+      <label>Special Handling</label>
+      <textarea id="si-special" placeholder="Optional: temperature, fumigation, etc."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-si-cancel">Cancel</button>
+      <button class="btn" id="btn-si-save">Save Draft</button>
+      <button class="btn" id="btn-si-send" style="background:var(--success)">Save &amp; Send Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 2.1 | purchase-orders.html
+// v2.1: Shipping Instructions modal added — Save Draft + Save & Send Email
+
+// ── Dependency check ──────────────────────────────────────────────────────────
+if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API     === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let PAGE_DATA = { purchase_orders: [], suppliers: [], po_statuses: [], coffee_types: [], weight_units: [] };
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  const user    = Auth.getUser();
+  const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick      = () => { Auth.logout(); window.location = 'login.html'; };
+
+  try {
+    const res = await API.post({ action: 'getPurchaseOrdersPage' });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    PAGE_DATA = res.data;
+    populateFilters();
+    renderPoList();
+  } catch (e) {
+    showToast('Failed to load data.', 'error');
+  }
+})();
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function populateFilters() {
+  const fs = document.getElementById('filter-status');
+  PAGE_DATA.po_statuses.forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
+  });
+  const fsp = document.getElementById('filter-supplier');
+  PAGE_DATA.suppliers.forEach(s => {
+    const o = document.createElement('option'); o.value = s.supplier_id; o.textContent = s.supplier_name; fsp.appendChild(o);
+  });
+  fs.onchange = fsp.onchange = renderPoList;
+}
+
+// ── Render POs ────────────────────────────────────────────────────────────────
+function renderPoList() {
+  const statusFilter   = document.getElementById('filter-status').value;
+  const supplierFilter = document.getElementById('filter-supplier').value;
+
+  let pos = PAGE_DATA.purchase_orders;
+  if (statusFilter)   pos = pos.filter(p => p.status === statusFilter);
+  if (supplierFilter) pos = pos.filter(p => String(p.supplier_id) === String(supplierFilter));
+
+  const list = document.getElementById('po-list');
+  if (!pos.length) { list.innerHTML = '<div class="empty">No purchase orders found.</div>'; return; }
+
+  list.innerHTML = pos.map(po => {
+    const supplier = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(po.supplier_id));
+    const lines    = po.lines || [];
+    const total    = calcPoTotal(lines);
+    return `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${esc(po.po_number)} <span class="badge badge-${po.status.toLowerCase().replace(' ','-')}">${esc(po.status)}</span></div>
+          <div class="card-sub">${supplier ? esc(supplier.supplier_name) : '—'} · ${esc(po.po_date)} · ${lines.length} line${lines.length !== 1 ? 's' : ''} · <strong>${total}</strong></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openLineModal(${po.po_id})">+ Line</button>
+          <button class="btn btn-ghost btn-sm" onclick="openSIModal(${po.po_id})">📧 Instructions</button>
+          <button class="btn btn-ghost btn-sm" onclick="openPoModal(${po.po_id})">Edit</button>
+        </div>
+      </div>
+      ${lines.length ? renderLinesTable(lines) : '<div style="font-size:0.75rem;color:var(--muted)">No lines yet.</div>'}
+      ${po.notes ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">${esc(po.notes)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function calcPoTotal(lines) {
+  // Subtotal: qty_bags × bag_size × cost_price — all at display time, never stored
+  // Displayed in cost_price_unit of each line (no conversion — mixed units shown separately)
+  if (!lines.length) return '—';
+  const kgLines = lines.filter(l => l.cost_price_unit === 'kg');
+  const lbLines = lines.filter(l => l.cost_price_unit === 'lb');
+  const parts   = [];
+  if (kgLines.length) {
+    const total = kgLines.reduce((s, l) => s + l.qty_bags * l.bag_size * l.cost_price, 0);
+    parts.push(formatMoney(total) + '/kg');
+  }
+  if (lbLines.length) {
+    const total = lbLines.reduce((s, l) => s + l.qty_bags * l.bag_size * l.cost_price, 0);
+    parts.push(formatMoney(total) + '/lb');
+  }
+  return parts.join(' + ') || '—';
+}
+
+function renderLinesTable(lines) {
+  const rows = lines.map(l => {
+    const subtotal = (l.qty_bags * l.bag_size * l.cost_price).toFixed(2);
+    return `<tr>
+      <td>${esc(l.sample_name)}</td>
+      <td>${esc(l.coffee_type || '—')}</td>
+      <td>${esc(l.origin_sample_code || '—')}</td>
+      <td class="num">${l.qty_bags}</td>
+      <td class="num">${l.bag_size} ${esc(l.bag_size_unit)}</td>
+      <td class="num">${l.cost_price} / ${esc(l.cost_price_unit)}</td>
+      <td class="num subtotal-row">${subtotal}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openLineModal(${l.po_id}, ${l.po_line_id})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteLine(${l.po_id}, ${l.po_line_id})">Del</button></td>
+    </tr>`;
+  }).join('');
+  return `<table class="lines-table">
+    <thead><tr>
+      <th>Sample</th><th>Type</th><th>Origin Code</th>
+      <th class="num">Bags</th><th class="num">Bag Size</th>
+      <th class="num">Cost Price</th><th class="num">Subtotal</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── PO Modal ──────────────────────────────────────────────────────────────────
+function openPoModal(poId) {
+  const po = poId ? PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId)) : null;
+
+  document.getElementById('modal-po-title').textContent = po ? 'Edit Purchase Order' : 'New Purchase Order';
+  document.getElementById('po-id').value     = po ? po.po_id : '';
+  document.getElementById('po-number').value = po ? po.po_number : '';
+  document.getElementById('po-date').value   = po ? po.po_date : '';
+  document.getElementById('po-notes').value  = po ? po.notes   : '';
+
+  const sup = document.getElementById('po-supplier');
+  sup.innerHTML = PAGE_DATA.suppliers.map(s =>
+    `<option value="${s.supplier_id}" ${po && String(po.supplier_id) === String(s.supplier_id) ? 'selected' : ''}>${esc(s.supplier_name)}</option>`
+  ).join('');
+
+  const stat = document.getElementById('po-status');
+  stat.innerHTML = PAGE_DATA.po_statuses.map(s =>
+    `<option value="${s}" ${po && po.status === s ? 'selected' : ''}>${s}</option>`
+  ).join('');
+
+  document.getElementById('modal-po').classList.add('open');
+}
+
+document.getElementById('btn-new-po').onclick   = () => openPoModal(null);
+document.getElementById('btn-po-cancel').onclick = () => document.getElementById('modal-po').classList.remove('open');
+
+document.getElementById('btn-po-save').onclick = async () => {
+  const btn = document.getElementById('btn-po-save');
+  btn.disabled = true;
+
+  const payload = {
+    action:      'savePurchaseOrder',
+    po_id:       document.getElementById('po-id').value      || null,
+    supplier_id: document.getElementById('po-supplier').value,
+    po_number:   document.getElementById('po-number').value,
+    po_date:     document.getElementById('po-date').value,
+    status:      document.getElementById('po-status').value,
+    notes:       document.getElementById('po-notes').value
+  };
+
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+
+    // Invalidate cache — update local PAGE_DATA with returned PO
+    const updated = res.data.po;
+    const idx     = PAGE_DATA.purchase_orders.findIndex(p => String(p.po_id) === String(updated.po_id));
+    if (idx >= 0) PAGE_DATA.purchase_orders[idx] = updated;
+    else          PAGE_DATA.purchase_orders.unshift(updated);
+
+    document.getElementById('modal-po').classList.remove('open');
+    renderPoList();
+    showToast('PO saved.', 'success');
+  } catch (e) {
+    showToast('Save failed.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ── Line Modal ────────────────────────────────────────────────────────────────
+function openLineModal(poId, lineId) {
+  const po   = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
+  const line = lineId ? (po.lines || []).find(l => String(l.po_line_id) === String(lineId)) : null;
+
+  document.getElementById('modal-line-title').textContent = line ? 'Edit PO Line' : 'Add PO Line';
+  document.getElementById('line-po-id').value         = poId;
+  document.getElementById('line-id').value            = line ? line.po_line_id : '';
+  document.getElementById('line-sample-name').value   = line ? line.sample_name        : '';
+  document.getElementById('line-origin-code').value   = line ? line.origin_sample_code : '';
+  document.getElementById('line-qty-bags').value      = line ? line.qty_bags   : '';
+  document.getElementById('line-bag-size').value      = line ? line.bag_size   : '';
+  document.getElementById('line-cost-price').value    = line ? line.cost_price : '';
+  document.getElementById('line-notes').value         = line ? line.notes      : '';
+
+  const ct = document.getElementById('line-coffee-type');
+  ct.innerHTML = `<option value="">— None —</option>` + PAGE_DATA.coffee_types.map(t =>
+    `<option value="${t}" ${line && line.coffee_type === t ? 'selected' : ''}>${t}</option>`
+  ).join('');
+
+  const buildUnitOptions = (selId, selected) => {
+    document.getElementById(selId).innerHTML = PAGE_DATA.weight_units.map(u =>
+      `<option value="${u}" ${u === selected ? 'selected' : ''}>${u}</option>`
+    ).join('');
+  };
+  buildUnitOptions('line-bag-size-unit', line ? line.bag_size_unit   : 'kg');
+  buildUnitOptions('line-cost-unit',     line ? line.cost_price_unit : 'kg');
+
+  updateLineSubtotal();
+  document.getElementById('modal-line').classList.add('open');
+}
+
+function updateLineSubtotal() {
+  const bags  = parseFloat(document.getElementById('line-qty-bags').value)   || 0;
+  const size  = parseFloat(document.getElementById('line-bag-size').value)   || 0;
+  const price = parseFloat(document.getElementById('line-cost-price').value) || 0;
+  const unit  = document.getElementById('line-cost-unit').value;
+  const sub   = bags * size * price;
+  document.getElementById('line-subtotal').textContent =
+    sub > 0 ? 'Subtotal: ' + formatMoney(sub) + ' / ' + unit : '';
+}
+
+['line-qty-bags','line-bag-size','line-cost-price','line-cost-unit'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.oninput = el.onchange = updateLineSubtotal;
+});
+
+document.getElementById('btn-line-cancel').onclick = () => document.getElementById('modal-line').classList.remove('open');
+
+document.getElementById('btn-line-save').onclick = async () => {
+  const btn = document.getElementById('btn-line-save');
+  btn.disabled = true;
+
+  const payload = {
+    action:             'savePoLine',
+    po_id:              document.getElementById('line-po-id').value,
+    po_line_id:         document.getElementById('line-id').value || null,
+    sample_name:        document.getElementById('line-sample-name').value,
+    origin_sample_code: document.getElementById('line-origin-code').value,
+    coffee_type:        document.getElementById('line-coffee-type').value,
+    qty_bags:           document.getElementById('line-qty-bags').value,
+    bag_size:           document.getElementById('line-bag-size').value,
+    bag_size_unit:      document.getElementById('line-bag-size-unit').value,
+    cost_price:         document.getElementById('line-cost-price').value,
+    cost_price_unit:    document.getElementById('line-cost-unit').value,
+    notes:              document.getElementById('line-notes').value
+  };
+
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+
+    // Invalidate: update lines on the affected PO in PAGE_DATA
+    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(res.data.po_id));
+    if (po) po.lines = res.data.lines;
+
+    document.getElementById('modal-line').classList.remove('open');
+    renderPoList();
+    showToast('Line saved.', 'success');
+  } catch (e) {
+    showToast('Save failed.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ── Delete Line ───────────────────────────────────────────────────────────────
+async function deleteLine(poId, lineId) {
+  if (!confirm('Delete this line?')) return;
+  try {
+    const res = await API.post({ action: 'deletePoLine', po_id: poId, po_line_id: lineId });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(res.data.po_id));
+    if (po) po.lines = res.data.lines;
+    renderPoList();
+    showToast('Line deleted.', 'success');
+  } catch (e) {
+    showToast('Delete failed.', 'error');
+  }
+}
+
+// ── Shipping Instructions ─────────────────────────────────────────────────────
+function openSIModal(poId) {
+  const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
+  if (!po) return;
+  document.getElementById('si-po-id').value      = poId;
+  document.getElementById('si-id').value          = '';
+  document.getElementById('si-issued-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('si-text').value        = '';
+  document.getElementById('si-special').value     = '';
+  document.getElementById('si-po-summary').innerHTML =
+    '<strong>' + esc(po.po_number) + '</strong><br>' +
+    'Date: ' + esc(po.po_date) + ' · ' + (po.lines || []).length + ' line item(s)';
+  document.getElementById('modal-si').classList.add('open');
+}
+
+document.getElementById('btn-si-cancel').onclick = () =>
+  document.getElementById('modal-si').classList.remove('open');
+
+async function saveSI(send) {
+  const btn = document.getElementById(send ? 'btn-si-send' : 'btn-si-save');
+  btn.disabled = true;
+
+  const text = document.getElementById('si-text').value.trim();
+  if (!text) { showToast('Instructions text is required.', 'error'); btn.disabled = false; return; }
+
+  // ONE API call per button:
+  //   "Save Draft"        → saveShippingInstruction
+  //   "Save & Send Email" → saveAndSendShippingInstruction (combined)
+  const payload = {
+    action:             send ? 'saveAndSendShippingInstruction' : 'saveShippingInstruction',
+    instruction_id:     document.getElementById('si-id').value || null,
+    po_id:              document.getElementById('si-po-id').value,
+    issued_date:        document.getElementById('si-issued-date').value,
+    instructions_text:  text,
+    special_handling:   document.getElementById('si-special').value,
+    status:             'Draft'
+  };
+
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    showToast(send ? 'Instructions emailed to supplier.' : 'Instructions saved as draft.', 'success');
+    document.getElementById('modal-si').classList.remove('open');
+  } catch (e) {
+    showToast('Save failed.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('btn-si-save').onclick = () => saveSI(false);
+document.getElementById('btn-si-send').onclick = () => saveSI(true);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatMoney(n) { return parseFloat(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + (type || '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

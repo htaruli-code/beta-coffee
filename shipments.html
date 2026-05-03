@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<!-- Version 2.1 | shipments.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shipments — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+    input, select, textarea { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
+    .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.75rem; gap: 1rem; }
+    .card-title { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; }
+    .card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 2px; }
+    .badge-pending  { background: #f0f0f0; color: #666; }
+    .badge-sailing  { background: #eef4fd; color: #1a5ca8; }
+    .badge-arrived  { background: #edf7f0; color: #1e6640; }
+    .badge-delayed  { background: #fdecea; color: #b00020; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; font-size: 0.78rem; }
+    .info-item label { font-size: 0.68rem; margin-bottom: 0.15rem; }
+    .info-item span { font-family: var(--font-mono); }
+    .po-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .po-tag { font-family: var(--font-mono); font-size: 0.65rem; background: var(--border); padding: 0.15rem 0.4rem; border-radius: 2px; }
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 640px; margin: auto; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .toast.error { background: var(--error); }
+    .toast.success { background: var(--success); }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="purchase-orders.html">Purchase Orders</a>
+    <a href="shipments.html" class="active">Shipments</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="inventory-locations.html">Locations</a>
+    <a href="contracts.html">Contracts</a>
+    <a href="drawdowns.html">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Shipments</div>
+      <div class="page-sub">Track containers, ETD/ETA and sailing status</div>
+    </div>
+    <button class="btn" id="btn-new-shipment">+ New Shipment</button>
+  </div>
+
+  <div class="toolbar">
+    <select id="filter-sailing" style="width:auto">
+      <option value="">All Statuses</option>
+    </select>
+  </div>
+
+  <div id="shipment-list"><div class="loading">Loading shipments…</div></div>
+</div>
+
+<!-- Shipment Modal -->
+<div class="modal-overlay" id="modal-shipment">
+  <div class="modal">
+    <div class="modal-title" id="modal-shipment-title">New Shipment</div>
+    <input type="hidden" id="s-id" />
+
+    <div class="field-row">
+      <div class="field">
+        <label>Container Number <span style="color:var(--error)">*</span></label>
+        <input type="text" id="s-container" placeholder="TCKU1234567" />
+      </div>
+      <div class="field">
+        <label>Bill of Lading <span style="color:var(--error)">*</span></label>
+        <input type="text" id="s-bl" placeholder="BL-2026-001" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Planned Shipping Date</label>
+        <input type="date" id="s-planned" />
+      </div>
+      <div class="field">
+        <label>ETD <span style="color:var(--error)">*</span></label>
+        <input type="date" id="s-etd" />
+      </div>
+      <div class="field">
+        <label>ETA <span style="color:var(--error)">*</span></label>
+        <input type="date" id="s-eta" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Sailing Status</label>
+        <select id="s-sailing"></select>
+      </div>
+      <div class="field">
+        <label>Actual Arrival Date</label>
+        <input type="date" id="s-arrival" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Tracking Reference <span style="color:var(--muted);font-size:0.65rem">(for future API sync)</span></label>
+      <input type="text" id="s-tracking" placeholder="Carrier tracking ID" />
+    </div>
+    <div class="field" style="margin-top:0.75rem">
+      <label>Notes</label>
+      <textarea id="s-notes"></textarea>
+    </div>
+
+    <div class="modal-section">Linked PO Lines</div>
+    <div id="s-po-lines-area">
+      <div id="s-po-lines-list" style="margin-bottom:0.75rem;font-size:0.78rem"></div>
+      <div class="field-row" id="s-po-add-row" style="display:none">
+        <div class="field">
+          <label>PO</label>
+          <select id="s-add-po"></select>
+        </div>
+        <div class="field">
+          <label>PO Line</label>
+          <select id="s-add-poline"></select>
+        </div>
+        <div class="field" style="max-width:110px">
+          <label>Bags Loaded</label>
+          <input type="number" id="s-add-bags" min="1" placeholder="0" />
+        </div>
+        <div class="field" style="max-width:90px;justify-content:flex-end">
+          <button class="btn btn-sm" id="btn-s-add-line" type="button">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-s-cancel">Cancel</button>
+      <button class="btn" id="btn-s-save">Save Shipment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sailing Status Quick-Update Modal -->
+<div class="modal-overlay" id="modal-sailing">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title">Update Sailing Status</div>
+    <input type="hidden" id="sailing-shipment-id" />
+    <div class="field" style="margin-bottom:0.75rem">
+      <label>Sailing Status</label>
+      <select id="sailing-status"></select>
+    </div>
+    <div class="field">
+      <label>Actual Arrival Date <span style="font-size:0.65rem;color:var(--muted)">(if Arrived)</span></label>
+      <input type="date" id="sailing-arrival" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-sailing-cancel">Cancel</button>
+      <button class="btn" id="btn-sailing-save">Update Status</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 2.1 | shipments.html
+// v2.1: Linked PO Lines picker added — Add/Remove junction rows inline
+if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API     === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+let PAGE_DATA = { shipments: [], purchase_orders: [], suppliers: [], sailing_statuses: [] };
+
+(async () => {
+  const user    = Auth.getUser();
+  const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick      = () => { Auth.logout(); window.location = 'login.html'; };
+
+  try {
+    const res = await API.post({ action: 'getShipmentsPage' });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    PAGE_DATA = res.data;
+    populateFilters();
+    renderShipments();
+  } catch (e) { showToast('Failed to load.', 'error'); }
+})();
+
+function populateFilters() {
+  const fs = document.getElementById('filter-sailing');
+  PAGE_DATA.sailing_statuses.forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
+  });
+  fs.onchange = renderShipments;
+}
+
+function renderShipments() {
+  const filter = document.getElementById('filter-sailing').value;
+  let list     = PAGE_DATA.shipments;
+  if (filter) list = list.filter(s => s.sailing_status === filter);
+
+  const el = document.getElementById('shipment-list');
+  if (!list.length) { el.innerHTML = '<div class="empty">No shipments found.</div>'; return; }
+
+  el.innerHTML = list.map(s => {
+    const linkedPos = (s.po_lines || []).map(j => {
+      const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(j.po_id));
+      return po ? `<span class="po-tag">${esc(po.po_number)} (${j.qty_bags} bags)</span>` : '';
+    }).join('');
+
+    return `<div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${esc(s.container_number)} <span class="badge badge-${s.sailing_status.toLowerCase()}">${esc(s.sailing_status)}</span></div>
+          <div class="card-sub">BL: ${esc(s.bill_of_lading)} · ETD: ${esc(s.etd)} · ETA: <strong>${esc(s.eta)}</strong>${s.actual_arrival_date ? ' · Arrived: ' + esc(s.actual_arrival_date) : ''}</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openSailingModal(${s.shipment_id})">Status</button>
+          <button class="btn btn-ghost btn-sm" onclick="openShipmentModal(${s.shipment_id})">Edit</button>
+        </div>
+      </div>
+      ${linkedPos ? `<div class="po-tags">${linkedPos}</div>` : '<div style="font-size:0.75rem;color:var(--muted)">No PO lines linked.</div>'}
+      ${s.notes ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">${esc(s.notes)}</div>` : ''}
+      ${s.tracking_reference ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">Tracking ref: ${esc(s.tracking_reference)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openShipmentModal(shipmentId) {
+  const s = shipmentId ? PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId)) : null;
+  document.getElementById('modal-shipment-title').textContent = s ? 'Edit Shipment' : 'New Shipment';
+  document.getElementById('s-id').value        = s ? s.shipment_id : '';
+  document.getElementById('s-container').value = s ? s.container_number      : '';
+  document.getElementById('s-bl').value        = s ? s.bill_of_lading        : '';
+  document.getElementById('s-planned').value   = s ? s.planned_shipping_date : '';
+  document.getElementById('s-etd').value       = s ? s.etd                   : '';
+  document.getElementById('s-eta').value       = s ? s.eta                   : '';
+  document.getElementById('s-arrival').value   = s ? s.actual_arrival_date   : '';
+  document.getElementById('s-tracking').value  = s ? s.tracking_reference    : '';
+  document.getElementById('s-notes').value     = s ? s.notes                 : '';
+
+  const stat = document.getElementById('s-sailing');
+  stat.innerHTML = PAGE_DATA.sailing_statuses.map(st =>
+    `<option value="${st}" ${s && s.sailing_status === st ? 'selected' : ''}>${st}</option>`
+  ).join('');
+
+  // Linked PO lines section — only available for existing shipments
+  // (junction rows need a shipment_id)
+  const linesArea  = document.getElementById('s-po-lines-area');
+  const addRow     = document.getElementById('s-po-add-row');
+  const linesList  = document.getElementById('s-po-lines-list');
+  if (s) {
+    addRow.style.display = 'flex';
+    renderLinkedPoLines(s);
+    populatePoPicker();
+  } else {
+    addRow.style.display = 'none';
+    linesList.innerHTML = '<div style="color:var(--muted);font-size:0.75rem">Save the shipment first, then link PO lines.</div>';
+  }
+
+  document.getElementById('modal-shipment').classList.add('open');
+}
+
+// Render linked PO lines for the currently-open shipment
+function renderLinkedPoLines(shipment) {
+  const list  = document.getElementById('s-po-lines-list');
+  const links = shipment.po_lines || [];
+  if (!links.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem">No PO lines linked yet.</div>';
+    return;
+  }
+  list.innerHTML = links.map(j => {
+    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(j.po_id));
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:4px;margin-bottom:0.4rem">
+      <span><strong>${po ? esc(po.po_number) : '—'}</strong> · Line #${j.po_line_id} · <span style="font-family:var(--font-mono)">${j.qty_bags} bags</span></span>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="removePoLineLink(${shipment.shipment_id}, ${j.shipment_po_line_id})">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+// Populate PO dropdown — when PO selected, populate line dropdown
+function populatePoPicker() {
+  const poSel = document.getElementById('s-add-po');
+  poSel.innerHTML = '<option value="">— Select PO —</option>' +
+    PAGE_DATA.purchase_orders.map(p => `<option value="${p.po_id}">${esc(p.po_number)}</option>`).join('');
+  poSel.onchange = () => {
+    const poId = poSel.value;
+    const po   = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
+    const lineSel = document.getElementById('s-add-poline');
+    lineSel.innerHTML = '<option value="">— Select Line —</option>';
+    if (po && po.lines) {
+      po.lines.forEach(l => {
+        const o = document.createElement('option');
+        o.value = l.po_line_id;
+        o.textContent = l.sample_name + ' (' + l.qty_bags + ' bags)';
+        lineSel.appendChild(o);
+      });
+    }
+  };
+  document.getElementById('s-add-poline').innerHTML = '<option value="">— Select PO first —</option>';
+  document.getElementById('s-add-bags').value = '';
+}
+
+document.getElementById('btn-s-add-line').onclick = async () => {
+  const shipmentId = document.getElementById('s-id').value;
+  const poId       = document.getElementById('s-add-po').value;
+  const poLineId   = document.getElementById('s-add-poline').value;
+  const bags       = document.getElementById('s-add-bags').value;
+
+  if (!poId || !poLineId || !bags) {
+    showToast('Pick PO, line, and enter bags loaded.', 'error');
+    return;
+  }
+  const btn = document.getElementById('btn-s-add-line');
+  btn.disabled = true;
+  try {
+    const res = await API.post({
+      action:      'saveShipmentPoLine',
+      shipment_id: shipmentId,
+      po_id:       poId,
+      po_line_id:  poLineId,
+      qty_bags:    bags
+    });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    // Update local shipment with returned junction rows
+    const ship = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));
+    if (ship) ship.po_lines = res.data.po_lines;
+    renderLinkedPoLines(ship);
+    document.getElementById('s-add-bags').value = '';
+    showToast('PO line linked.', 'success');
+    renderShipments();
+  } catch (e) { showToast('Link failed.', 'error'); }
+  finally { btn.disabled = false; }
+};
+
+async function removePoLineLink(shipmentId, junctionId) {
+  if (!confirm('Remove this PO line from the shipment?')) return;
+  try {
+    const res = await API.post({
+      action:               'deleteShipmentPoLine',
+      shipment_id:          shipmentId,
+      shipment_po_line_id:  junctionId
+    });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const ship = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));
+    if (ship) ship.po_lines = res.data.po_lines;
+    renderLinkedPoLines(ship);
+    showToast('PO line removed.', 'success');
+    renderShipments();
+  } catch (e) { showToast('Remove failed.', 'error'); }
+}
+
+document.getElementById('btn-new-shipment').onclick = () => openShipmentModal(null);
+document.getElementById('btn-s-cancel').onclick     = () => document.getElementById('modal-shipment').classList.remove('open');
+
+document.getElementById('btn-s-save').onclick = async () => {
+  const btn = document.getElementById('btn-s-save');
+  btn.disabled = true;
+  const payload = {
+    action:                'saveShipment',
+    shipment_id:           document.getElementById('s-id').value || null,
+    container_number:      document.getElementById('s-container').value,
+    bill_of_lading:        document.getElementById('s-bl').value,
+    planned_shipping_date: document.getElementById('s-planned').value,
+    etd:                   document.getElementById('s-etd').value,
+    eta:                   document.getElementById('s-eta').value,
+    sailing_status:        document.getElementById('s-sailing').value,
+    actual_arrival_date:   document.getElementById('s-arrival').value,
+    tracking_reference:    document.getElementById('s-tracking').value,
+    notes:                 document.getElementById('s-notes').value
+  };
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const updated = res.data.shipment;
+    const idx     = PAGE_DATA.shipments.findIndex(x => String(x.shipment_id) === String(updated.shipment_id));
+    if (idx >= 0) PAGE_DATA.shipments[idx] = updated;
+    else          PAGE_DATA.shipments.unshift(updated);
+    document.getElementById('modal-shipment').classList.remove('open');
+    renderShipments();
+    showToast('Shipment saved.', 'success');
+  } catch (e) { showToast('Save failed.', 'error'); }
+  finally { btn.disabled = false; }
+};
+
+function openSailingModal(shipmentId) {
+  const s = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));
+  document.getElementById('sailing-shipment-id').value = shipmentId;
+  document.getElementById('sailing-arrival').value     = s ? s.actual_arrival_date : '';
+  const stat = document.getElementById('sailing-status');
+  stat.innerHTML = PAGE_DATA.sailing_statuses.map(st =>
+    `<option value="${st}" ${s && s.sailing_status === st ? 'selected' : ''}>${st}</option>`
+  ).join('');
+  document.getElementById('modal-sailing').classList.add('open');
+}
+
+document.getElementById('btn-sailing-cancel').onclick = () => document.getElementById('modal-sailing').classList.remove('open');
+
+document.getElementById('btn-sailing-save').onclick = async () => {
+  const btn = document.getElementById('btn-sailing-save');
+  btn.disabled = true;
+  const payload = {
+    action:              'updateSailingStatus',
+    shipment_id:         document.getElementById('sailing-shipment-id').value,
+    sailing_status:      document.getElementById('sailing-status').value,
+    actual_arrival_date: document.getElementById('sailing-arrival').value
+  };
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const updated = res.data.shipment;
+    const idx     = PAGE_DATA.shipments.findIndex(x => String(x.shipment_id) === String(updated.shipment_id));
+    if (idx >= 0) PAGE_DATA.shipments[idx] = updated;
+    document.getElementById('modal-sailing').classList.remove('open');
+    renderShipments();
+    showToast('Status updated.', 'success');
+  } catch (e) { showToast('Update failed.', 'error'); }
+  finally { btn.disabled = false; }
+};
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + (type||'');
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

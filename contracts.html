@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<!-- Version 2.2 | contracts.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contracts — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+    .btn-danger { background: var(--error); color: #fff; }
+    input, select, textarea { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 60px; }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
+    .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.75rem; gap: 1rem; }
+    .card-title { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; }
+    .card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 2px; }
+    .badge-draft           { background: #f0f0f0; color: #666; }
+    .badge-active          { background: #edf7f0; color: #1e6640; }
+    .badge-partially-drawn { background: #fef9ec; color: #854f0b; }
+    .badge-fully-drawn     { background: #eef4fd; color: #1a5ca8; }
+    .badge-cancelled       { background: #fdecea; color: #b00020; }
+    .lines-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.78rem; }
+    .lines-table th { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; }
+    .lines-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
+    .lines-table tr:last-child td { border-bottom: none; }
+    .num { text-align: right; font-family: var(--font-mono); }
+    .progress-bar { background: var(--border); border-radius: 2px; height: 4px; margin-top: 4px; }
+    .progress-fill { background: var(--accent); border-radius: 2px; height: 4px; }
+    .forward-tag { font-family: var(--font-mono); font-size: 0.62rem; background: #eef4fd; color: #1a5ca8; padding: 0.1rem 0.35rem; border-radius: 2px; margin-left: 0.3rem; }
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 640px; margin: auto; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="purchase-orders.html">Purchase Orders</a>
+    <a href="shipments.html">Shipments</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="inventory-locations.html">Locations</a>
+    <a href="contracts.html" class="active">Contracts</a>
+    <a href="drawdowns.html">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Contracts</div>
+      <div class="page-sub">Buyer commitments and contract lines</div>
+    </div>
+    <button class="btn" id="btn-new-contract">+ New Contract</button>
+  </div>
+  <div class="toolbar">
+    <select id="filter-status" style="width:auto"><option value="">All Statuses</option></select>
+    <select id="filter-buyer"  style="width:auto"><option value="">All Buyers</option></select>
+  </div>
+  <div id="contract-list"><div class="loading">Loading contracts…</div></div>
+</div>
+
+<!-- Contract Modal -->
+<div class="modal-overlay" id="modal-contract">
+  <div class="modal">
+    <div class="modal-title" id="modal-contract-title">New Contract</div>
+    <input type="hidden" id="c-id" />
+    <div class="field-row">
+      <div class="field">
+        <label>Buyer <span style="color:var(--error)">*</span></label>
+        <select id="c-buyer"></select>
+      </div>
+      <div class="field">
+        <label>Contract Number <span style="color:var(--error)">*</span></label>
+        <input type="text" id="c-number" placeholder="CTR-2026-001" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Contract Date <span style="color:var(--error)">*</span></label>
+        <input type="date" id="c-date" />
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="c-status"></select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="c-notes"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-c-cancel">Cancel</button>
+      <button class="btn" id="btn-c-save">Save Contract</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contract Line Modal -->
+<div class="modal-overlay" id="modal-line">
+  <div class="modal">
+    <div class="modal-title" id="modal-line-title">Add Contract Line</div>
+    <input type="hidden" id="l-contract-id" />
+    <input type="hidden" id="l-id" />
+    <div class="field-row">
+      <div class="field" style="flex:2">
+        <label>Sample Name <span style="color:var(--error)">*</span></label>
+        <input type="text" id="l-name" placeholder="e.g. Natural Catuaí" />
+      </div>
+      <div class="field">
+        <label>Inventory Lot</label>
+        <select id="l-lot"><option value="">— Not yet linked —</option></select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Contracted Bags <span style="color:var(--error)">*</span></label>
+        <input type="number" id="l-bags" min="1" placeholder="0" />
+      </div>
+      <div class="field">
+        <label>Bag Size</label>
+        <input type="number" id="l-bag-size" min="0" step="0.1" placeholder="60" />
+      </div>
+      <div class="field" style="max-width:90px">
+        <label>Unit</label>
+        <select id="l-bag-unit"></select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Unit Price</label>
+        <input type="number" id="l-price" min="0" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="field" style="max-width:90px">
+        <label>Per</label>
+        <select id="l-price-unit"></select>
+      </div>
+    </div>
+    <div id="l-subtotal" style="font-family:var(--font-mono);font-size:0.8rem;color:var(--muted);text-align:right;margin-bottom:0.5rem"></div>
+    <div class="field-row">
+      <div class="field">
+        <label>Availability</label>
+        <select id="l-avail-type"></select>
+      </div>
+      <div class="field" id="l-shipment-field" style="display:none">
+        <label>Expected Shipment</label>
+        <select id="l-shipment"><option value="">— Select —</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-l-cancel">Cancel</button>
+      <button class="btn" id="btn-l-save">Save Line</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 2.2 | contracts.html
+// v2.2: 📧 Dashboard button removed — buyers now log in via OTP at buyer-dashboard.html
+// v2.1: 📧 Dashboard button — sendBuyerDashboardLink emails personal token URL
+if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API     === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+let PAGE_DATA = { contracts: [], buyers: [], inventory_lots: [], shipments: [], contract_statuses: [], availability_types: [], weight_units: [] };
+
+(async () => {
+  const user = Auth.getUser(); const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
+  try {
+    const res = await API.post({ action: 'getContractsPage' });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    PAGE_DATA = res.data;
+    populateFilters();
+    renderContracts();
+  } catch (e) { showToast('Failed to load.', 'error'); }
+})();
+
+function populateFilters() {
+  const fs = document.getElementById('filter-status');
+  PAGE_DATA.contract_statuses.forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
+  });
+  const fb = document.getElementById('filter-buyer');
+  PAGE_DATA.buyers.forEach(b => {
+    const o = document.createElement('option'); o.value = b.buyer_id; o.textContent = b.company_name; fb.appendChild(o);
+  });
+  fs.onchange = fb.onchange = renderContracts;
+}
+
+function renderContracts() {
+  const sf = document.getElementById('filter-status').value;
+  const bf = document.getElementById('filter-buyer').value;
+  let cons = PAGE_DATA.contracts;
+  if (sf) cons = cons.filter(c => c.status === sf);
+  if (bf) cons = cons.filter(c => String(c.buyer_id) === String(bf));
+
+  const el = document.getElementById('contract-list');
+  if (!cons.length) { el.innerHTML = '<div class="empty">No contracts found.</div>'; return; }
+
+  el.innerHTML = cons.map(con => {
+    const buyer     = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id));
+    const lines     = con.lines || [];
+    const total     = calcTotal(lines);
+    const badgeKey  = con.status.toLowerCase().replace(/ /g, '-');
+    const lineRows  = lines.map(l => {
+      const pct    = l.contracted_bags > 0 ? Math.min(100, Math.round(l.drawn_bags / l.contracted_bags * 100)) : 0;
+      const sub    = fmt(l.contracted_bags * l.bag_size * l.unit_price);
+      const fwdTag = l.availability_type === 'forward' ? '<span class="forward-tag">FWD</span>' : '';
+      return `<tr>
+        <td>${esc(l.sample_name)}${fwdTag}</td>
+        <td class="num">${l.contracted_bags}</td>
+        <td class="num">${l.drawn_bags}</td>
+        <td class="num">${l.contracted_bags - l.drawn_bags}</td>
+        <td class="num">${l.unit_price ? l.unit_price + '/' + esc(l.price_unit) : '—'}</td>
+        <td class="num">${sub}</td>
+        <td style="min-width:100px">
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div style="font-size:0.65rem;color:var(--muted);text-align:right">${pct}%</div>
+        </td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openLineModal(${con.contract_id},${l.contract_line_id})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteLine(${con.contract_id},${l.contract_line_id})">Del</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${esc(con.contract_number)} <span class="badge badge-${badgeKey}">${esc(con.status)}</span></div>
+          <div class="card-sub">${buyer ? esc(buyer.company_name) : '—'} · ${esc(con.contract_date)} · ${lines.length} line${lines.length!==1?'s':''} · <strong>${total}</strong></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openLineModal(${con.contract_id})">+ Line</button>
+          <button class="btn btn-ghost btn-sm" onclick="openContractModal(${con.contract_id})">Edit</button>
+        </div>
+      </div>
+      ${lines.length ? `<table class="lines-table">
+        <thead><tr><th>Sample</th><th class="num">Contracted</th><th class="num">Drawn</th><th class="num">Remaining</th><th class="num">Price</th><th class="num">Value</th><th>Progress</th><th></th></tr></thead>
+        <tbody>${lineRows}</tbody>
+      </table>` : '<div style="font-size:0.75rem;color:var(--muted)">No lines yet.</div>'}
+    </div>`;
+  }).join('');
+}
+
+function calcTotal(lines) {
+  if (!lines.length) return '—';
+  const kg = lines.filter(l => l.price_unit === 'kg').reduce((s,l) => s + l.contracted_bags * l.bag_size * l.unit_price, 0);
+  const lb = lines.filter(l => l.price_unit === 'lb').reduce((s,l) => s + l.contracted_bags * l.bag_size * l.unit_price, 0);
+  const parts = [];
+  if (kg) parts.push(fmt(kg) + ' /kg');
+  if (lb) parts.push(fmt(lb) + ' /lb');
+  return parts.join(' + ') || '—';
+}
+
+function openContractModal(contractId) {
+  const con = contractId ? PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId)) : null;
+  document.getElementById('modal-contract-title').textContent = con ? 'Edit Contract' : 'New Contract';
+  document.getElementById('c-id').value     = con ? con.contract_id     : '';
+  document.getElementById('c-number').value = con ? con.contract_number  : '';
+  document.getElementById('c-date').value   = con ? con.contract_date    : '';
+  document.getElementById('c-notes').value  = con ? con.notes            : '';
+  document.getElementById('c-buyer').innerHTML = PAGE_DATA.buyers.map(b =>
+    `<option value="${b.buyer_id}" ${con && String(con.buyer_id)===String(b.buyer_id)?'selected':''}>${esc(b.company_name)}</option>`
+  ).join('');
+  document.getElementById('c-status').innerHTML = PAGE_DATA.contract_statuses.map(s =>
+    `<option value="${s}" ${con && con.status===s?'selected':''}>${s}</option>`
+  ).join('');
+  document.getElementById('modal-contract').classList.add('open');
+}
+
+document.getElementById('btn-new-contract').onclick = () => openContractModal(null);
+document.getElementById('btn-c-cancel').onclick = () => document.getElementById('modal-contract').classList.remove('open');
+
+document.getElementById('btn-c-save').onclick = async () => {
+  const btn = document.getElementById('btn-c-save'); btn.disabled = true;
+  const payload = {
+    action: 'saveContract',
+    contract_id:     document.getElementById('c-id').value || null,
+    buyer_id:        document.getElementById('c-buyer').value,
+    contract_number: document.getElementById('c-number').value,
+    contract_date:   document.getElementById('c-date').value,
+    status:          document.getElementById('c-status').value,
+    notes:           document.getElementById('c-notes').value
+  };
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const updated = res.data.contract;
+    const idx = PAGE_DATA.contracts.findIndex(c => String(c.contract_id) === String(updated.contract_id));
+    if (idx >= 0) PAGE_DATA.contracts[idx] = updated; else PAGE_DATA.contracts.unshift(updated);
+    document.getElementById('modal-contract').classList.remove('open');
+    renderContracts(); showToast('Contract saved.', 'success');
+  } catch (e) { showToast('Save failed.', 'error'); }
+  finally { btn.disabled = false; }
+};
+
+function openLineModal(contractId, lineId) {
+  const con  = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
+  const line = lineId ? (con.lines||[]).find(l => String(l.contract_line_id) === String(lineId)) : null;
+  document.getElementById('modal-line-title').textContent = line ? 'Edit Line' : 'Add Contract Line';
+  document.getElementById('l-contract-id').value = contractId;
+  document.getElementById('l-id').value     = line ? line.contract_line_id : '';
+  document.getElementById('l-name').value   = line ? line.sample_name      : '';
+  document.getElementById('l-bags').value   = line ? line.contracted_bags  : '';
+  document.getElementById('l-bag-size').value = line ? line.bag_size       : '';
+  document.getElementById('l-price').value  = line ? line.unit_price       : '';
+
+  document.getElementById('l-lot').innerHTML = `<option value="">— Not yet linked —</option>` +
+    PAGE_DATA.inventory_lots.map(lot =>
+      `<option value="${lot.lot_id}" ${line && String(line.inventory_lot_id)===String(lot.lot_id)?'selected':''}>${esc(lot.sample_name)} (${lot.available_bags} avail)</option>`
+    ).join('');
+
+  const bu = (id, val) => { document.getElementById(id).innerHTML = PAGE_DATA.weight_units.map(u => `<option value="${u}" ${u===val?'selected':''}>${u}</option>`).join(''); };
+  bu('l-bag-unit',   line ? line.bag_size_unit : 'kg');
+  bu('l-price-unit', line ? line.price_unit    : 'kg');
+
+  document.getElementById('l-avail-type').innerHTML = PAGE_DATA.availability_types.map(a =>
+    `<option value="${a}" ${line && line.availability_type===a?'selected':''}>${a}</option>`
+  ).join('');
+
+  document.getElementById('l-shipment').innerHTML = `<option value="">— Select shipment —</option>` +
+    PAGE_DATA.shipments.filter(s => s.sailing_status !== 'Arrived').map(s =>
+      `<option value="${s.shipment_id}" ${line && String(line.expected_shipment_id)===String(s.shipment_id)?'selected':''}>${esc(s.container_number)} · ETA ${esc(s.eta)}</option>`
+    ).join('');
+
+  const toggleFwd = () => {
+    document.getElementById('l-shipment-field').style.display =
+      document.getElementById('l-avail-type').value === 'forward' ? 'flex' : 'none';
+  };
+  document.getElementById('l-avail-type').onchange = toggleFwd;
+  toggleFwd();
+
+  const calcSub = () => {
+    const b = parseFloat(document.getElementById('l-bags').value)||0;
+    const s = parseFloat(document.getElementById('l-bag-size').value)||0;
+    const p = parseFloat(document.getElementById('l-price').value)||0;
+    const u = document.getElementById('l-price-unit').value;
+    const v = b * s * p;
+    document.getElementById('l-subtotal').textContent = v > 0 ? 'Contract value: ' + fmt(v) + ' / ' + u : '';
+  };
+  ['l-bags','l-bag-size','l-price','l-price-unit'].forEach(id => {
+    const el = document.getElementById(id); if (el) { el.oninput = calcSub; el.onchange = calcSub; }
+  });
+  calcSub();
+  document.getElementById('modal-line').classList.add('open');
+}
+
+document.getElementById('btn-l-cancel').onclick = () => document.getElementById('modal-line').classList.remove('open');
+
+document.getElementById('btn-l-save').onclick = async () => {
+  const btn = document.getElementById('btn-l-save'); btn.disabled = true;
+  const isFwd = document.getElementById('l-avail-type').value === 'forward';
+  const payload = {
+    action:               'saveContractLine',
+    contract_id:          document.getElementById('l-contract-id').value,
+    contract_line_id:     document.getElementById('l-id').value || null,
+    inventory_lot_id:     document.getElementById('l-lot').value || '',
+    sample_name:          document.getElementById('l-name').value,
+    contracted_bags:      document.getElementById('l-bags').value,
+    bag_size:             document.getElementById('l-bag-size').value,
+    bag_size_unit:        document.getElementById('l-bag-unit').value,
+    unit_price:           document.getElementById('l-price').value,
+    price_unit:           document.getElementById('l-price-unit').value,
+    availability_type:    document.getElementById('l-avail-type').value,
+    expected_shipment_id: isFwd ? document.getElementById('l-shipment').value : ''
+  };
+  try {
+    const res = await API.post(payload);
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(res.data.contract_id));
+    if (con) con.lines = res.data.lines;
+    document.getElementById('modal-line').classList.remove('open');
+    renderContracts(); showToast('Line saved.', 'success');
+  } catch (e) { showToast('Save failed.', 'error'); }
+  finally { btn.disabled = false; }
+};
+
+async function deleteLine(contractId, lineId) {
+  if (!confirm('Delete this line?')) return;
+  try {
+    const res = await API.post({ action: 'deleteContractLine', contract_id: contractId, contract_line_id: lineId });
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(res.data.contract_id));
+    if (con) con.lines = res.data.lines;
+    renderContracts(); showToast('Line deleted.', 'success');
+  } catch (e) { showToast('Delete failed.', 'error'); }
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(n) { return parseFloat(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast '+(type||'');
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
