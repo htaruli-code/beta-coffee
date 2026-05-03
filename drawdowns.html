@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.0 | drawdowns.html -->
+<!-- Version 2.0.1 | drawdowns.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -119,7 +119,7 @@
 <script src="js/ui.js"></script>
 <script>
 // Version 2.0 | drawdowns.html
-if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');

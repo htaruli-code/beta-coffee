@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1 | purchase-orders.html -->
+<!-- Version 2.1.1 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -281,7 +281,7 @@
 // v2.1: Shipping Instructions modal added — Save Draft + Save & Send Email
 
 // ── Dependency check ──────────────────────────────────────────────────────────
-if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');

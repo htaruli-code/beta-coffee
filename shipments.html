@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1 | shipments.html -->
+<!-- Version 2.1.1 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -208,7 +208,7 @@
 <script>
 // Version 2.1 | shipments.html
 // v2.1: Linked PO Lines picker added — Add/Remove junction rows inline
-if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');

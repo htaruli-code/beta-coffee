@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.2 | contracts.html -->
+<!-- Version 2.2.1 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -205,7 +205,7 @@
 // Version 2.2 | contracts.html
 // v2.2: 📧 Dashboard button removed — buyers now log in via OTP at buyer-dashboard.html
 // v2.1: 📧 Dashboard button — sendBuyerDashboardLink emails personal token URL
-if (typeof GAS_URL === 'undefined') throw new Error('config.js not loaded');
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
