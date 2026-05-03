@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.0.1 | drawdowns.html -->
+<!-- Version 2.0.2 | drawdowns.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -132,9 +132,8 @@ let PAGE_DATA = { drawdowns: [], contracts: [], buyers: [], inventory_lots: [], 
   document.getElementById('nav-user').textContent  = user ? user.name : '';
   document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
   try {
-    const res = await API.post({ action: 'getDrawdownsPage' });
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    PAGE_DATA = res.data;
+    const data = await API.post({ action: 'getDrawdownsPage' });
+    PAGE_DATA = data;
     populateFilters();
     renderTable();
   } catch (e) { showToast('Failed to load.', 'error'); }
@@ -246,12 +245,10 @@ document.getElementById('btn-ds-save').onclick = async () => {
     outbound_id:  status === 'Dispatched' ? document.getElementById('ds-outbound-id').value : null
   };
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
-
+    const data = await API.post(payload);
     // Invalidate cache — update drawdowns + contract line in PAGE_DATA
     const contractId = document.getElementById('ds-contract-id').value;
-    res.data.drawdowns.forEach(d => {
+    data.drawdowns.forEach(d => {
       const idx = PAGE_DATA.drawdowns.findIndex(x => String(x.drawdown_id) === String(d.drawdown_id));
       if (idx >= 0) PAGE_DATA.drawdowns[idx] = d; else PAGE_DATA.drawdowns.push(d);
     });

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.1 | purchase-orders.html -->
+<!-- Version 2.1.2 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -298,9 +298,8 @@ let PAGE_DATA = { purchase_orders: [], suppliers: [], po_statuses: [], coffee_ty
   document.getElementById('nav-user').onclick      = () => { Auth.logout(); window.location = 'login.html'; };
 
   try {
-    const res = await API.post({ action: 'getPurchaseOrdersPage' });
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    PAGE_DATA = res.data;
+    const data = await API.post({ action: 'getPurchaseOrdersPage' });
+    PAGE_DATA = data;
     populateFilters();
     renderPoList();
   } catch (e) {
@@ -440,11 +439,9 @@ document.getElementById('btn-po-save').onclick = async () => {
   };
 
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
-
+    const data = await API.post(payload);
     // Invalidate cache — update local PAGE_DATA with returned PO
-    const updated = res.data.po;
+    const updated = data.po;
     const idx     = PAGE_DATA.purchase_orders.findIndex(p => String(p.po_id) === String(updated.po_id));
     if (idx >= 0) PAGE_DATA.purchase_orders[idx] = updated;
     else          PAGE_DATA.purchase_orders.unshift(updated);
@@ -528,12 +525,10 @@ document.getElementById('btn-line-save').onclick = async () => {
   };
 
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
-
+    const data = await API.post(payload);
     // Invalidate: update lines on the affected PO in PAGE_DATA
-    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(res.data.po_id));
-    if (po) po.lines = res.data.lines;
+    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(data.po_id));
+    if (po) po.lines = data.lines;
 
     document.getElementById('modal-line').classList.remove('open');
     renderPoList();
@@ -549,10 +544,9 @@ document.getElementById('btn-line-save').onclick = async () => {
 async function deleteLine(poId, lineId) {
   if (!confirm('Delete this line?')) return;
   try {
-    const res = await API.post({ action: 'deletePoLine', po_id: poId, po_line_id: lineId });
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(res.data.po_id));
-    if (po) po.lines = res.data.lines;
+    const data = await API.post({ action: 'deletePoLine', po_id: poId, po_line_id: lineId });
+    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(data.po_id));
+    if (po) po.lines = data.lines;
     renderPoList();
     showToast('Line deleted.', 'success');
   } catch (e) {
@@ -599,8 +593,7 @@ async function saveSI(send) {
   };
 
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
+    const data = await API.post(payload);
     showToast(send ? 'Instructions emailed to supplier.' : 'Instructions saved as draft.', 'success');
     document.getElementById('modal-si').classList.remove('open');
   } catch (e) {

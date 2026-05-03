@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.2.1 | contracts.html -->
+<!-- Version 2.2.2 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -218,9 +218,8 @@ let PAGE_DATA = { contracts: [], buyers: [], inventory_lots: [], shipments: [], 
   document.getElementById('nav-user').textContent  = user ? user.name : '';
   document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
   try {
-    const res = await API.post({ action: 'getContractsPage' });
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    PAGE_DATA = res.data;
+    const data = await API.post({ action: 'getContractsPage' });
+    PAGE_DATA = data;
     populateFilters();
     renderContracts();
   } catch (e) { showToast('Failed to load.', 'error'); }
@@ -335,9 +334,8 @@ document.getElementById('btn-c-save').onclick = async () => {
     notes:           document.getElementById('c-notes').value
   };
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    const updated = res.data.contract;
+    const data = await API.post(payload);
+    const updated = data.contract;
     const idx = PAGE_DATA.contracts.findIndex(c => String(c.contract_id) === String(updated.contract_id));
     if (idx >= 0) PAGE_DATA.contracts[idx] = updated; else PAGE_DATA.contracts.unshift(updated);
     document.getElementById('modal-contract').classList.remove('open');
@@ -417,10 +415,9 @@ document.getElementById('btn-l-save').onclick = async () => {
     expected_shipment_id: isFwd ? document.getElementById('l-shipment').value : ''
   };
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(res.data.contract_id));
-    if (con) con.lines = res.data.lines;
+    const data = await API.post(payload);
+    const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(data.contract_id));
+    if (con) con.lines = data.lines;
     document.getElementById('modal-line').classList.remove('open');
     renderContracts(); showToast('Line saved.', 'success');
   } catch (e) { showToast('Save failed.', 'error'); }
@@ -430,10 +427,9 @@ document.getElementById('btn-l-save').onclick = async () => {
 async function deleteLine(contractId, lineId) {
   if (!confirm('Delete this line?')) return;
   try {
-    const res = await API.post({ action: 'deleteContractLine', contract_id: contractId, contract_line_id: lineId });
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(res.data.contract_id));
-    if (con) con.lines = res.data.lines;
+    const data = await API.post({ action: 'deleteContractLine', contract_id: contractId, contract_line_id: lineId });
+    const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(data.contract_id));
+    if (con) con.lines = data.lines;
     renderContracts(); showToast('Line deleted.', 'success');
   } catch (e) { showToast('Delete failed.', 'error'); }
 }

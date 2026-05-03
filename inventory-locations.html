@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.0.1 | inventory-locations.html -->
+<!-- Version 2.0.2 | inventory-locations.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -135,9 +135,8 @@ let PAGE_DATA = { warehouses: [], locations: [] };
   document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
 
   try {
-    const res = await API.post({ action: 'getInventoryLocationsPage' });
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    PAGE_DATA = res.data;
+    const data = await API.post({ action: 'getInventoryLocationsPage' });
+    PAGE_DATA = data;
     renderLocations();
   } catch (e) { showToast('Failed to load.', 'error'); }
 })();
@@ -211,13 +210,12 @@ document.getElementById('btn-loc-save').onclick = async () => {
     is_active:     true
   };
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
+    const data = await API.post(payload);
     // Invalidate — replace locations for this warehouse
-    const whId = res.data.warehouse_id;
+    const whId = data.warehouse_id;
     PAGE_DATA.locations = PAGE_DATA.locations
       .filter(l => String(l.warehouse_id) !== String(whId))
-      .concat(res.data.locations);
+      .concat(data.locations);
     document.getElementById('modal-loc').classList.remove('open');
     renderLocations();
     showToast('Location saved.', 'success');
@@ -227,12 +225,11 @@ document.getElementById('btn-loc-save').onclick = async () => {
 
 async function toggleLoc(locationId, isActive) {
   try {
-    const res = await API.post({ action: 'toggleLocationActive', location_id: locationId, is_active: isActive });
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    const whId = res.data.warehouse_id;
+    const data = await API.post({ action: 'toggleLocationActive', location_id: locationId, is_active: isActive });
+    const whId = data.warehouse_id;
     PAGE_DATA.locations = PAGE_DATA.locations
       .filter(l => String(l.warehouse_id) !== String(whId))
-      .concat(res.data.locations);
+      .concat(data.locations);
     renderLocations();
     showToast('Location updated.', 'success');
   } catch (e) { showToast('Update failed.', 'error'); }

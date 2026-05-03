@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.1 | shipments.html -->
+<!-- Version 2.1.2 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -223,9 +223,8 @@ let PAGE_DATA = { shipments: [], purchase_orders: [], suppliers: [], sailing_sta
   document.getElementById('nav-user').onclick      = () => { Auth.logout(); window.location = 'login.html'; };
 
   try {
-    const res = await API.post({ action: 'getShipmentsPage' });
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    PAGE_DATA = res.data;
+    const data = await API.post({ action: 'getShipmentsPage' });
+    PAGE_DATA = data;
     populateFilters();
     renderShipments();
   } catch (e) { showToast('Failed to load.', 'error'); }
@@ -359,17 +358,16 @@ document.getElementById('btn-s-add-line').onclick = async () => {
   const btn = document.getElementById('btn-s-add-line');
   btn.disabled = true;
   try {
-    const res = await API.post({
+    const data = await API.post({
       action:      'saveShipmentPoLine',
       shipment_id: shipmentId,
       po_id:       poId,
       po_line_id:  poLineId,
       qty_bags:    bags
     });
-    if (!res.success) { showToast(res.error, 'error'); return; }
     // Update local shipment with returned junction rows
     const ship = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));
-    if (ship) ship.po_lines = res.data.po_lines;
+    if (ship) ship.po_lines = data.po_lines;
     renderLinkedPoLines(ship);
     document.getElementById('s-add-bags').value = '';
     showToast('PO line linked.', 'success');
@@ -381,14 +379,13 @@ document.getElementById('btn-s-add-line').onclick = async () => {
 async function removePoLineLink(shipmentId, junctionId) {
   if (!confirm('Remove this PO line from the shipment?')) return;
   try {
-    const res = await API.post({
+    const data = await API.post({
       action:               'deleteShipmentPoLine',
       shipment_id:          shipmentId,
       shipment_po_line_id:  junctionId
     });
-    if (!res.success) { showToast(res.error, 'error'); return; }
     const ship = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));
-    if (ship) ship.po_lines = res.data.po_lines;
+    if (ship) ship.po_lines = data.po_lines;
     renderLinkedPoLines(ship);
     showToast('PO line removed.', 'success');
     renderShipments();
@@ -415,9 +412,8 @@ document.getElementById('btn-s-save').onclick = async () => {
     notes:                 document.getElementById('s-notes').value
   };
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    const updated = res.data.shipment;
+    const data = await API.post(payload);
+    const updated = data.shipment;
     const idx     = PAGE_DATA.shipments.findIndex(x => String(x.shipment_id) === String(updated.shipment_id));
     if (idx >= 0) PAGE_DATA.shipments[idx] = updated;
     else          PAGE_DATA.shipments.unshift(updated);
@@ -451,9 +447,8 @@ document.getElementById('btn-sailing-save').onclick = async () => {
     actual_arrival_date: document.getElementById('sailing-arrival').value
   };
   try {
-    const res = await API.post(payload);
-    if (!res.success) { showToast(res.error, 'error'); return; }
-    const updated = res.data.shipment;
+    const data = await API.post(payload);
+    const updated = data.shipment;
     const idx     = PAGE_DATA.shipments.findIndex(x => String(x.shipment_id) === String(updated.shipment_id));
     if (idx >= 0) PAGE_DATA.shipments[idx] = updated;
     document.getElementById('modal-sailing').classList.remove('open');
