@@ -1,5 +1,10 @@
-// Version 1.19
+// Version 1.20
 // api.js — All fetch calls to GAS. One place to change the transport layer.
+// v1.20: post() now exported on the API module — used by v2 pages
+//          (purchase-orders, shipments, inventory, contracts, drawdowns) to send
+//          { action, ...payload } directly without needing per-action wrappers.
+//          v1 named wrappers (getSamplesPage, saveOutbound, etc.) unchanged.
+// v1.19: previous version stamp.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
 // v1.17: getBuyersPage    — warehouse_id + level filter params.
@@ -392,6 +397,7 @@ const API = (() => {
     submitReservationInternal,                 // v1.11.7
     updateDetailCoffeeType,
     getAllSamplesPage,                             // v1.9
-    sendCatalogueLink, getCataloguePage, submitCatalogueSelection  // v1.14
+    sendCatalogueLink, getCataloguePage, submitCatalogueSelection,  // v1.14
+    post                                       // v2.0: generic action poster used by v2 pages
   };
 })();
