@@ -303,6 +303,7 @@ let PAGE_DATA = { purchase_orders: [], suppliers: [], po_statuses: [], coffee_ty
     populateFilters();
     renderPoList();
   } catch (e) {
+    console.error('Caught error:', e);
     showToast('Failed to load data.', 'error');
   }
 })();
@@ -450,6 +451,7 @@ document.getElementById('btn-po-save').onclick = async () => {
     renderPoList();
     showToast('PO saved.', 'success');
   } catch (e) {
+    console.error('Caught error:', e);
     showToast('Save failed.', 'error');
   } finally {
     btn.disabled = false;
@@ -534,6 +536,7 @@ document.getElementById('btn-line-save').onclick = async () => {
     renderPoList();
     showToast('Line saved.', 'success');
   } catch (e) {
+    console.error('Caught error:', e);
     showToast('Save failed.', 'error');
   } finally {
     btn.disabled = false;
@@ -550,6 +553,7 @@ async function deleteLine(poId, lineId) {
     renderPoList();
     showToast('Line deleted.', 'success');
   } catch (e) {
+    console.error('Caught error:', e);
     showToast('Delete failed.', 'error');
   }
 }
@@ -597,6 +601,7 @@ async function saveSI(send) {
     showToast(send ? 'Instructions emailed to supplier.' : 'Instructions saved as draft.', 'success');
     document.getElementById('modal-si').classList.remove('open');
   } catch (e) {
+    console.error('Caught error:', e);
     showToast('Save failed.', 'error');
   } finally {
     btn.disabled = false;
