@@ -74,5 +74,13 @@ const Auth = (() => {
     }
   }
 
-  return { getSession, setSession, clearSession, getToken, getUser, getCompany, getWarehouses, isLoggedIn, requireAuth, handleUnauthorized };
+  // v1.2.3: Logout — clears session locally. v2 internal pages call this from
+  // the navbar user-menu click. Currently a thin wrapper around clearSession()
+  // — kept as its own export so we can later add a server-side session-revoke
+  // call without touching every page.
+  function logout() {
+    clearSession();
+  }
+
+  return { getSession, setSession, clearSession, getToken, getUser, getCompany, getWarehouses, isLoggedIn, requireAuth, handleUnauthorized, logout };
 })();
