@@ -89,6 +89,9 @@
     .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
     .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
     .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .modal-error { display: none; background: rgba(192, 57, 43, 0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
+    .modal-error.show { display: block; }
+
 
     /* ── Toast ── */
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
@@ -146,6 +149,7 @@
 <div class="modal-overlay" id="modal-po">
   <div class="modal">
     <div class="modal-title" id="modal-po-title">New Purchase Order</div>
+    <div class="modal-error" id="modal-po-error"></div>
     <input type="hidden" id="po-id" />
 
     <div class="field-row">
@@ -184,6 +188,7 @@
 <div class="modal-overlay" id="modal-line">
   <div class="modal">
     <div class="modal-title" id="modal-line-title">Add PO Line</div>
+    <div class="modal-error" id="modal-line-error"></div>
     <input type="hidden" id="line-po-id" />
     <input type="hidden" id="line-id" />
 
@@ -246,6 +251,7 @@
 <div class="modal-overlay" id="modal-si">
   <div class="modal">
     <div class="modal-title" id="modal-si-title">Issue Shipping Instructions</div>
+    <div class="modal-error" id="modal-si-error"></div>
     <input type="hidden" id="si-id" />
     <input type="hidden" id="si-po-id" />
     <div id="si-po-summary" style="font-family:var(--font-mono);font-size:0.78rem;color:var(--muted);margin-bottom:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;border:1px solid var(--border)"></div>
@@ -419,7 +425,7 @@ function openPoModal(poId) {
     `<option value="${s}" ${po && po.status === s ? 'selected' : ''}>${s}</option>`
   ).join('');
 
-  document.getElementById('modal-po').classList.add('open');
+  clearModalError('modal-po'); document.getElementById('modal-po').classList.add('open');
 }
 
 document.getElementById('btn-new-po').onclick   = () => openPoModal(null);
@@ -452,7 +458,7 @@ document.getElementById('btn-po-save').onclick = async () => {
     showToast('PO saved.', 'success');
   } catch (e) {
     console.error('Caught error:', e);
-    showToast('Save failed.', 'error');
+    showModalError('modal-po', e.message || 'Save failed.');
   } finally {
     btn.disabled = false;
   }
@@ -487,7 +493,7 @@ function openLineModal(poId, lineId) {
   buildUnitOptions('line-cost-unit',     line ? line.cost_price_unit : 'kg');
 
   updateLineSubtotal();
-  document.getElementById('modal-line').classList.add('open');
+  clearModalError('modal-line'); document.getElementById('modal-line').classList.add('open');
 }
 
 function updateLineSubtotal() {
@@ -537,7 +543,7 @@ document.getElementById('btn-line-save').onclick = async () => {
     showToast('Line saved.', 'success');
   } catch (e) {
     console.error('Caught error:', e);
-    showToast('Save failed.', 'error');
+    showModalError('modal-line', e.message || 'Save failed.');
   } finally {
     btn.disabled = false;
   }
@@ -570,7 +576,7 @@ function openSIModal(poId) {
   document.getElementById('si-po-summary').innerHTML =
     '<strong>' + esc(po.po_number) + '</strong><br>' +
     'Date: ' + esc(po.po_date) + ' · ' + (po.lines || []).length + ' line item(s)';
-  document.getElementById('modal-si').classList.add('open');
+  clearModalError('modal-si'); document.getElementById('modal-si').classList.add('open');
 }
 
 document.getElementById('btn-si-cancel').onclick = () =>
@@ -600,10 +606,7 @@ async function saveSI(send) {
     const data = await API.post(payload);
     showToast(send ? 'Instructions emailed to supplier.' : 'Instructions saved as draft.', 'success');
     document.getElementById('modal-si').classList.remove('open');
-  } catch (e) {
-    console.error('Caught error:', e);
-    showToast('Save failed.', 'error');
-  } finally {
+  } catch (e) { console.error('Caught error:', e); showModalError('modal-si', e.message || 'Save failed.'); } finally {
     btn.disabled = false;
   }
 }
@@ -616,6 +619,17 @@ function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function formatMoney(n) { return parseFloat(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function showModalError(modalId, message) {
+  const errEl = document.querySelector('#' + modalId + ' .modal-error');
+  if (!errEl) return;
+  errEl.textContent = String(message || 'An error occurred.');
+  errEl.classList.add('show');
+}
+function clearModalError(modalId) {
+  const errEl = document.querySelector('#' + modalId + ' .modal-error');
+  if (errEl) errEl.classList.remove('show');
+}
+
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast ' + (type || '');

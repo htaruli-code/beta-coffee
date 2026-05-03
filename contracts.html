@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.2.2 | contracts.html -->
+<!-- Version 2.2.3 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -66,6 +66,8 @@
     .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
     .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
     .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .modal-error { display: none; background: rgba(192, 57, 43, 0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
+    .modal-error.show { display: block; }
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
@@ -105,6 +107,7 @@
 <div class="modal-overlay" id="modal-contract">
   <div class="modal">
     <div class="modal-title" id="modal-contract-title">New Contract</div>
+    <div class="modal-error" id="modal-contract-error"></div>
     <input type="hidden" id="c-id" />
     <div class="field-row">
       <div class="field">
@@ -141,6 +144,7 @@
 <div class="modal-overlay" id="modal-line">
   <div class="modal">
     <div class="modal-title" id="modal-line-title">Add Contract Line</div>
+    <div class="modal-error" id="modal-line-error"></div>
     <input type="hidden" id="l-contract-id" />
     <input type="hidden" id="l-id" />
     <div class="field-row">
@@ -316,7 +320,7 @@ function openContractModal(contractId) {
   document.getElementById('c-status').innerHTML = PAGE_DATA.contract_statuses.map(s =>
     `<option value="${s}" ${con && con.status===s?'selected':''}>${s}</option>`
   ).join('');
-  document.getElementById('modal-contract').classList.add('open');
+  clearModalError('modal-contract'); document.getElementById('modal-contract').classList.add('open');
 }
 
 document.getElementById('btn-new-contract').onclick = () => openContractModal(null);
@@ -340,7 +344,7 @@ document.getElementById('btn-c-save').onclick = async () => {
     if (idx >= 0) PAGE_DATA.contracts[idx] = updated; else PAGE_DATA.contracts.unshift(updated);
     document.getElementById('modal-contract').classList.remove('open');
     renderContracts(); showToast('Contract saved.', 'success');
-  } catch (e) { showToast('Save failed.', 'error'); }
+  } catch (e) { console.error('Caught error:', e); showModalError('modal-contract', e.message || 'Save failed.'); }
   finally { btn.disabled = false; }
 };
 
@@ -392,7 +396,7 @@ function openLineModal(contractId, lineId) {
     const el = document.getElementById(id); if (el) { el.oninput = calcSub; el.onchange = calcSub; }
   });
   calcSub();
-  document.getElementById('modal-line').classList.add('open');
+  clearModalError('modal-line'); document.getElementById('modal-line').classList.add('open');
 }
 
 document.getElementById('btn-l-cancel').onclick = () => document.getElementById('modal-line').classList.remove('open');
@@ -420,7 +424,7 @@ document.getElementById('btn-l-save').onclick = async () => {
     if (con) con.lines = data.lines;
     document.getElementById('modal-line').classList.remove('open');
     renderContracts(); showToast('Line saved.', 'success');
-  } catch (e) { showToast('Save failed.', 'error'); }
+  } catch (e) { console.error('Caught error:', e); showModalError('modal-line', e.message || 'Save failed.'); }
   finally { btn.disabled = false; }
 };
 
@@ -431,11 +435,22 @@ async function deleteLine(contractId, lineId) {
     const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(data.contract_id));
     if (con) con.lines = data.lines;
     renderContracts(); showToast('Line deleted.', 'success');
-  } catch (e) { showToast('Delete failed.', 'error'); }
+  } catch (e) { console.error('Caught error:', e); showModalError('modal-line', e.message || 'Delete failed.'); }
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmt(n) { return parseFloat(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function showModalError(modalId, message) {
+  const errEl = document.querySelector('#' + modalId + ' .modal-error');
+  if (!errEl) return;
+  errEl.textContent = String(message || 'An error occurred.');
+  errEl.classList.add('show');
+}
+function clearModalError(modalId) {
+  const errEl = document.querySelector('#' + modalId + ' .modal-error');
+  if (errEl) errEl.classList.remove('show');
+}
+
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast '+(type||'');

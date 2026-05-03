@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.0.2 | inventory-locations.html -->
+<!-- Version 2.0.3 | inventory-locations.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -50,6 +50,8 @@
     .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 500px; margin: auto; }
     .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
     .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-error { display: none; background: rgba(192, 57, 43, 0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
+    .modal-error.show { display: block; }
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
@@ -85,6 +87,7 @@
 <div class="modal-overlay" id="modal-loc">
   <div class="modal">
     <div class="modal-title" id="modal-loc-title">New Location</div>
+    <div class="modal-error" id="modal-loc-error"></div>
     <input type="hidden" id="loc-id" />
 
     <div class="field" style="margin-bottom:0.75rem">
@@ -186,7 +189,7 @@ function openLocModal(locationId) {
     `<option value="${w.warehouse_id}" ${loc && String(loc.warehouse_id) === String(w.warehouse_id) ? 'selected' : ''}>${esc(w.warehouse_name)}</option>`
   ).join('');
 
-  document.getElementById('modal-loc').classList.add('open');
+  clearModalError('modal-loc'); document.getElementById('modal-loc').classList.add('open');
 }
 
 function openLocModalForWh(whId) {
@@ -219,7 +222,7 @@ document.getElementById('btn-loc-save').onclick = async () => {
     document.getElementById('modal-loc').classList.remove('open');
     renderLocations();
     showToast('Location saved.', 'success');
-  } catch (e) { showToast('Save failed.', 'error'); }
+  } catch (e) { console.error('Caught error:', e); showModalError('modal-loc', e.message || 'Save failed.'); }
   finally { btn.disabled = false; }
 };
 
@@ -232,10 +235,21 @@ async function toggleLoc(locationId, isActive) {
       .concat(data.locations);
     renderLocations();
     showToast('Location updated.', 'success');
-  } catch (e) { showToast('Update failed.', 'error'); }
+  } catch (e) { console.error('Caught error:', e); showModalError('modal-loc', e.message || 'Update failed.'); }
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showModalError(modalId, message) {
+  const errEl = document.querySelector('#' + modalId + ' .modal-error');
+  if (!errEl) return;
+  errEl.textContent = String(message || 'An error occurred.');
+  errEl.classList.add('show');
+}
+function clearModalError(modalId) {
+  const errEl = document.querySelector('#' + modalId + ' .modal-error');
+  if (errEl) errEl.classList.remove('show');
+}
+
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast ' + (type||'');
