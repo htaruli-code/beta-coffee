@@ -1,8 +1,9 @@
 // Version 1.20
 // api.js — All fetch calls to GAS. One place to change the transport layer.
-// v1.20: post() now exported on the API module — used by v2 pages
-//          (purchase-orders, shipments, inventory, contracts, drawdowns) to send
-//          { action, ...payload } directly without needing per-action wrappers.
+// v1.20: post() exported on the API module — used by v2 pages to send
+//          { action, ...payload } directly without per-action wrappers.
+//          post() also auto-attaches session_token from Auth.getToken() when
+//          payload doesn't already have one — lets v2 pages skip the boilerplate.
 //          v1 named wrappers (getSamplesPage, saveOutbound, etc.) unchanged.
 // v1.19: previous version stamp.
 // v1.15: getOutboundPage  — page_num + status_filter params.
@@ -40,6 +41,14 @@ const API = (() => {
     // "simple request" — browser sends it directly with no preflight.
     // Code.gs reads it via: JSON.parse(e.parameter.payload)
     // v1.9.1: Intercept UNAUTHORIZED → Auth.handleUnauthorized() → redirect to login
+    // v1.20: Auto-attach session_token if a session exists and payload doesn't
+    //         already include one. Lets v2 pages call API.post({action:'...'}) directly
+    //         without repeating session_token in every call. Public actions (supplier
+    //         submit, buyer reserve, etc.) are unaffected because Auth.getToken()
+    //         returns null pre-login.
+    if (!payload.session_token && Auth.getToken()) {
+      payload.session_token = Auth.getToken();
+    }
     const body = new URLSearchParams({ payload: JSON.stringify(payload) });
     const res  = await fetch(APP_CONFIG.GAS_URL, {
       method:   'POST',
