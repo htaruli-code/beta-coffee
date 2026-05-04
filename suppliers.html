@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.4 | suppliers.html -->
+<!-- Version 1.4.1 | suppliers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -270,11 +270,12 @@
             <th>Country</th>
             <th>Contact Person</th>
             <th>Email</th>
+            <th>Currency</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="suppliers-tbody">
-          <tr><td colspan="6" class="st-empty"><div class="st-spinner"></div></td></tr>
+          <tr><td colspan="7" class="st-empty"><div class="st-spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -314,6 +315,12 @@
         </div>
       </div>
 
+      <!-- v2.4: Default currency for new POs from this supplier -->
+      <div class="field" style="max-width:160px">
+        <label for="s-currency">Default Currency</label>
+        <select id="s-currency"></select>
+      </div>
+
       <div class="modal-footer">
         <button class="btn btn-ghost" id="btn-cancel">Cancel</button>
         <button class="btn" id="btn-save">Save Supplier</button>
@@ -330,7 +337,7 @@
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-    let PAGE_DATA = { suppliers: [], countries: [] };
+    let PAGE_DATA = { suppliers: [], countries: [], currencies: [] };
 
     // v1.3: pagination state
     let currentPage = 1;
@@ -384,6 +391,11 @@
           populateCountrySelect();
           populateFilterCountry();
         }
+        // v2.4: Currencies — also returned on page 1 only
+        if (data.currencies && data.currencies.length) {
+          PAGE_DATA.currencies = data.currencies;
+          populateCurrencySelect();
+        }
 
         PAGE_DATA.suppliers = data.suppliers || [];
         totalCount          = data.total_count || 0;
@@ -433,6 +445,7 @@
         <td>${UI.esc(countryMap[s.country_id] || '—')}</td>
         <td>${UI.esc(s.contact_person || '—')}</td>
         <td>${UI.esc(s.email || '—')}</td>
+        <td style="font-family:var(--font-mono);font-size:0.78rem">${UI.esc(s.currency || 'USD')}</td>
         <td><button class="btn btn-ghost btn-sm" onclick="openEdit(${s.supplier_id})">Edit</button></td>
       `);
     }
@@ -506,6 +519,14 @@
       UI.populateSelect(document.getElementById('s-country'), PAGE_DATA.countries, 'country_id', 'country_name', '— Select country —');
     }
 
+    // v2.4: Default currency dropdown — first entry is the default for new suppliers
+    function populateCurrencySelect() {
+      const sel = document.getElementById('s-currency');
+      const list = (PAGE_DATA.currencies && PAGE_DATA.currencies.length)
+        ? PAGE_DATA.currencies : ['USD'];
+      sel.innerHTML = list.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+    }
+
     // ── New ───────────────────────────────────────────────────────────────────
     document.getElementById('btn-new').addEventListener('click', () => {
       document.getElementById('modal-title').textContent = 'New Supplier';
@@ -514,6 +535,9 @@
       document.getElementById('s-contact').value = '';
       document.getElementById('s-email').value   = '';
       document.getElementById('s-country').value = '';
+      // v2.4: default to first currency in list
+      const firstCurr = (PAGE_DATA.currencies && PAGE_DATA.currencies[0]) || 'USD';
+      document.getElementById('s-currency').value = firstCurr;
       UI.openModal('modal-supplier');
     });
 
@@ -527,6 +551,8 @@
       document.getElementById('s-contact').value = s.contact_person || '';
       document.getElementById('s-email').value   = s.email || '';
       document.getElementById('s-country').value = s.country_id;
+      // v2.4: load existing supplier currency (rowToSupplier defaults missing values)
+      document.getElementById('s-currency').value = s.currency || 'USD';
       UI.openModal('modal-supplier');
     }
 
@@ -551,7 +577,8 @@
           supplier_name:  name,
           country_id:     countryId,
           contact_person: document.getElementById('s-contact').value.trim(),
-          email:          email
+          email:          email,
+          currency:       document.getElementById('s-currency').value || 'USD'  // v2.4
         });
         UI.closeModal('modal-supplier');
         UI.toastSuccess('Supplier saved.');

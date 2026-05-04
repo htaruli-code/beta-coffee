@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<!-- Version 1.0 | product-skus.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product SKUs — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --surface2: #f5ede0; --border: #f0e8da;
+      --border2: #d9cab5; --accent: #c47a2b; --text: #1a1a1a; --muted: #8a7060;
+      --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+    .page { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+    .btn-danger { background: var(--error); color: #fff; border: none; }
+    input, select, textarea { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
+    .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .sku-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .sku-table th { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.6rem; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
+    .sku-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--border); }
+    .sku-table tr:hover td { background: var(--surface); }
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .badge-active   { background: #d1fae5; color: var(--success); }
+    .badge-inactive { background: #f0e8da; color: var(--muted); }
+    .sku-code { font-family: var(--font-mono); font-weight: 600; color: var(--accent); }
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 680px; margin: auto; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-error { display: none; background: rgba(192, 57, 43, 0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
+    .modal-error.show { display: block; }
+    .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="purchase-orders.html">Purchase Orders</a>
+    <a href="shipments.html">Shipments</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="inventory-locations.html">Locations</a>
+    <a href="product-skus.html" class="active">SKUs</a>
+    <a href="contracts.html">Contracts</a>
+    <a href="drawdowns.html">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user" title="Click to log out"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Product SKUs</div>
+      <div class="page-sub">Internal product codes reused across Purchase Orders and Inventory</div>
+    </div>
+    <button class="btn" id="btn-new-sku">+ New SKU</button>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="filter-search" placeholder="Search SKU code or name…" style="width:260px"
+      oninput="renderTable()" />
+    <select id="filter-type" style="width:auto" onchange="renderTable()">
+      <option value="">All Coffee Types</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-family:var(--font-mono);font-size:0.72rem;color:var(--muted)">
+      <input type="checkbox" id="filter-inactive" onchange="renderTable()" style="width:auto" />
+      Show inactive
+    </label>
+  </div>
+
+  <div id="sku-table-wrap"><div class="loading">Loading SKUs…</div></div>
+</div>
+
+<!-- SKU Modal -->
+<div class="modal-overlay" id="modal-sku">
+  <div class="modal">
+    <div class="modal-title" id="modal-sku-title">New SKU</div>
+    <div class="modal-error" id="modal-sku-error"></div>
+    <input type="hidden" id="sku-id" />
+
+    <div class="field-row">
+      <div class="field" style="max-width:180px">
+        <label>SKU Code <span style="color:var(--error)">*</span></label>
+        <input type="text" id="sku-code" placeholder="e.g. GBAUBR100" maxlength="50" style="text-transform:uppercase"
+          oninput="this.value=this.value.toUpperCase()" />
+      </div>
+      <div class="field">
+        <label>SKU Name <span style="color:var(--error)">*</span></label>
+        <input type="text" id="sku-name" placeholder="e.g. Brazil Natural Catuaí" maxlength="200" />
+      </div>
+    </div>
+
+    <div class="modal-section">Classification</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Coffee Type</label>
+        <select id="sku-coffee-type"></select>
+      </div>
+      <div class="field">
+        <label>Origin Country</label>
+        <select id="sku-country"></select>
+      </div>
+      <div class="field">
+        <label>Default Supplier</label>
+        <select id="sku-supplier"></select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:0.25rem">
+      <label>Notes</label>
+      <textarea id="sku-notes" rows="2" maxlength="500" placeholder="Optional notes…"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-sku-cancel">Cancel</button>
+      <button class="btn" id="btn-sku-save">Save SKU</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 1.0 | product-skus.html
+
+// ── Dependency check ──────────────────────────────────────────────────────────
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API     === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let PAGE_DATA = { skus: [], countries: [], suppliers: [], coffee_types: [] };
+
+// ── Boot ───────────────────────────────────────────────────────────────────────
+(async () => {
+  const user    = Auth.getUser();
+  const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
+
+  try {
+    const data = await API.post({ action: 'getSkusPage' });
+    PAGE_DATA = data;
+    populateFilters();
+    renderTable();
+  } catch (e) {
+    console.error('Caught error:', e);
+    showToast('Failed to load data.', 'error');
+  }
+})();
+
+// ── Filters ────────────────────────────────────────────────────────────────────
+function populateFilters() {
+  const typeEl = document.getElementById('filter-type');
+  typeEl.innerHTML = '<option value="">All Coffee Types</option>' +
+    (PAGE_DATA.coffee_types || []).map(t => '<option value="' + t + '">' + t + '</option>').join('');
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+function renderTable() {
+  const search     = document.getElementById('filter-search').value.toLowerCase().trim();
+  const type       = document.getElementById('filter-type').value;
+  const showInact  = document.getElementById('filter-inactive').checked;
+
+  let skus = PAGE_DATA.skus || [];
+  if (!showInact) skus = skus.filter(s => s.is_active !== false);
+  if (search) skus = skus.filter(s =>
+    s.sku_code.toLowerCase().includes(search) ||
+    s.sku_name.toLowerCase().includes(search)
+  );
+  if (type) skus = skus.filter(s => s.coffee_type === type);
+
+  const wrap = document.getElementById('sku-table-wrap');
+  if (!skus.length) {
+    wrap.innerHTML = '<div class="empty">No SKUs found. Click "+ New SKU" to create one.</div>';
+    return;
+  }
+
+  const countryMap  = {};
+  const supplierMap = {};
+  (PAGE_DATA.countries  || []).forEach(c => { countryMap[String(c.country_id)]   = c.country_name; });
+  (PAGE_DATA.suppliers  || []).forEach(s => { supplierMap[String(s.supplier_id)] = s.supplier_name; });
+
+  const rows = skus.map(s => `<tr>
+    <td class="sku-code">${esc(s.sku_code)}</td>
+    <td>${esc(s.sku_name)}</td>
+    <td>${esc(s.coffee_type || '—')}</td>
+    <td>${esc(countryMap[String(s.country_id)] || '—')}</td>
+    <td>${esc(supplierMap[String(s.supplier_id)] || '—')}</td>
+    <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Active' : 'Inactive'}</span></td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick="openSkuModal(${s.sku_id})">Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleSku(${s.sku_id}, ${!s.is_active})">${s.is_active ? 'Deactivate' : 'Activate'}</button>
+    </td>
+  </tr>`).join('');
+
+  wrap.innerHTML = `<table class="sku-table">
+    <thead><tr>
+      <th>SKU Code</th><th>SKU Name</th><th>Coffee Type</th>
+      <th>Origin Country</th><th>Default Supplier</th><th>Status</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── SKU Modal ─────────────────────────────────────────────────────────────────
+function openSkuModal(skuId) {
+  const sku = skuId ? (PAGE_DATA.skus || []).find(s => String(s.sku_id) === String(skuId)) : null;
+
+  document.getElementById('modal-sku-title').textContent = sku ? 'Edit SKU' : 'New SKU';
+  document.getElementById('sku-id').value    = sku ? sku.sku_id   : '';
+  document.getElementById('sku-code').value  = sku ? sku.sku_code : '';
+  document.getElementById('sku-name').value  = sku ? sku.sku_name : '';
+  document.getElementById('sku-notes').value = sku ? sku.notes    : '';
+
+  const ct = document.getElementById('sku-coffee-type');
+  ct.innerHTML = '<option value="">— None —</option>' +
+    (PAGE_DATA.coffee_types || []).map(t =>
+      '<option value="' + t + '"' + (sku && sku.coffee_type === t ? ' selected' : '') + '>' + t + '</option>'
+    ).join('');
+
+  const co = document.getElementById('sku-country');
+  co.innerHTML = '<option value="">— Unknown —</option>' +
+    (PAGE_DATA.countries || []).map(c =>
+      '<option value="' + c.country_id + '"' +
+        (sku && String(sku.country_id) === String(c.country_id) ? ' selected' : '') +
+      '>' + esc(c.country_name) + '</option>'
+    ).join('');
+
+  const sp = document.getElementById('sku-supplier');
+  sp.innerHTML = '<option value="">— None —</option>' +
+    (PAGE_DATA.suppliers || []).map(s =>
+      '<option value="' + s.supplier_id + '"' +
+        (sku && String(sku.supplier_id) === String(s.supplier_id) ? ' selected' : '') +
+      '>' + esc(s.supplier_name) + '</option>'
+    ).join('');
+
+  clearModalError('modal-sku');
+  document.getElementById('modal-sku').classList.add('open');
+}
+
+document.getElementById('btn-new-sku').onclick  = () => openSkuModal(null);
+document.getElementById('btn-sku-cancel').onclick = () => document.getElementById('modal-sku').classList.remove('open');
+
+document.getElementById('btn-sku-save').onclick = async () => {
+  const btn = document.getElementById('btn-sku-save');
+  btn.disabled = true;
+  try {
+    const data = await API.post({
+      action:      'saveProductSku',
+      sku_id:      document.getElementById('sku-id').value      || null,
+      sku_code:    document.getElementById('sku-code').value.trim().toUpperCase(),
+      sku_name:    document.getElementById('sku-name').value.trim(),
+      coffee_type: document.getElementById('sku-coffee-type').value,
+      country_id:  document.getElementById('sku-country').value   || null,
+      supplier_id: document.getElementById('sku-supplier').value  || null,
+      notes:       document.getElementById('sku-notes').value
+    });
+    PAGE_DATA.skus = data.skus || PAGE_DATA.skus;
+    document.getElementById('modal-sku').classList.remove('open');
+    renderTable();
+    showToast('SKU saved.', 'success');
+  } catch (e) {
+    console.error('Caught error:', e);
+    showModalError('modal-sku', e.message || 'Save failed.');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+async function toggleSku(skuId, newActive) {
+  const sku = (PAGE_DATA.skus || []).find(s => String(s.sku_id) === String(skuId));
+  if (!confirm((newActive ? 'Activate' : 'Deactivate') + ' SKU "' + (sku ? sku.sku_code : skuId) + '"?')) return;
+  try {
+    const data = await API.post({ action: 'toggleSkuActive', sku_id: skuId, is_active: newActive });
+    PAGE_DATA.skus = data.skus || PAGE_DATA.skus;
+    renderTable();
+    showToast('SKU ' + (newActive ? 'activated' : 'deactivated') + '.', 'success');
+  } catch (e) {
+    console.error('Caught error:', e);
+    showToast(e.message || 'Failed.', 'error');
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + (type||'');
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+}
+function showModalError(modalId, message) {
+  const errEl = document.querySelector('#' + modalId + ' .modal-error');
+  if (!errEl) return;
+  errEl.textContent = String(message || 'An error occurred.');
+  errEl.classList.add('show');
+}
+function clearModalError(modalId) {
+  const errEl = document.querySelector('#' + modalId + ' .modal-error');
+  if (errEl) errEl.classList.remove('show');
+}
+</script>
+</body>
+</html>
