@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.4 | purchase-orders.html -->
+<!-- Version 2.1.5 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -773,8 +773,11 @@ function onLineAcPick(rowIdx, detailId) {
   r.sample_id          = d.sample_id          || '';
   r.sample_name        = d.sample_name        || '';
   r.origin_sample_code = d.origin_sample_code || '';
-  // Coffee type auto-fill (still editable; not required)
-  if (d.coffee_type)   r.coffee_type        = d.coffee_type;
+  // All auto-fills below are EDITABLE — user can override after picking
+  if (d.coffee_type)        r.coffee_type      = d.coffee_type;       // optional
+  if (d.bag_size)           r.bag_size         = d.bag_size;          // v2.3.1 auto-fill
+  if (d.cost_price)         r.cost_price       = d.cost_price;        // v2.3.1 auto-fill
+  if (d.cost_price_unit)    r.cost_price_unit  = d.cost_price_unit;   // v2.3.1 auto-fill
   closeLineAc(rowIdx);
   renderLineRows(); // re-render so the auto-filled values show
 }
