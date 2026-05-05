@@ -4,7 +4,7 @@
 
 const APP_CONFIG = {
   // ⚠️ Replace with your deployed GAS Web App URL
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbyOvVNirK6Fe1yzgtx61fw4yXPsPIM-VfhYfuuFdhaYLmVNUXnk9IUlsgqNNMs4l7CNzg/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycby4eLEJocZzdWeYrsEw0R_gfF1G8dxtUgChblk-KJUmLQI3vQcUYk3znWkxqoD_X9lQQw/exec',
   APP_NAME: 'Sample Tracker',
   SESSION_KEY: 'st_session',
 };
