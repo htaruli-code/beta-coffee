@@ -1,4 +1,4 @@
-<!-- Version 2.1.9 | purchase-orders.html -->
+<!-- Version 2.2.4 | purchase-orders.html -->
 <!-- Version 2.1.8 | purchase-orders.html -->
 <html lang="en">
 <head>
@@ -541,13 +541,22 @@
     <input type="hidden" id="issue-inbound-id" />
 
     <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;font-family:var(--font-sans)">
-      Creates a new internal Sample Code for this PO line. Fields are pre-filled from the PO line —
-      review and edit before saving. The new sample code will be linked back to the PO line.
+      Registers the small tasting sample (200g) that arrived with this shipment as an
+      <strong>inbound_detail</strong> inside an existing inbound parcel.
+      The <strong>Supplier Code</strong> is pre-filled from the PO line and must be kept —
+      it is the traceability link between this sample record and the original PO line,
+      so if issues arise on arrival you can trace:
+      <span style="font-family:var(--font-mono);font-size:0.72rem">
+        inventory_lot → po_line → inbound_detail → origin_sample_code
+      </span>
     </p>
 
     <div class="field-row">
       <div class="field">
-        <label>Inbound Shipment <span style="color:var(--error)">*</span></label>
+        <label>Inbound Parcel <span style="color:var(--error)">*</span>
+          <span style="color:var(--muted);font-weight:400"> — which supplier parcel to file this sample under</span>
+        </label>
+        <div id="issue-inbound-wrap"></div>
         <select id="issue-inbound-select"></select>
       </div>
     </div>
@@ -556,15 +565,27 @@
         <label>Sample Name <span style="color:var(--error)">*</span></label>
         <input type="text" id="issue-sample-name" placeholder="Sample name" maxlength="200" />
       </div>
-      <div class="field" style="max-width:160px">
-        <label>Origin Sample Code</label>
-        <input type="text" id="issue-origin-code" placeholder="Supplier ref" maxlength="100" />
+      <div class="field" style="max-width:200px">
+        <label>Supplier Code
+          <span style="color:var(--muted);font-weight:400;font-size:0.68rem"> — from original sample · read-only</span>
+        </label>
+        <input type="text" id="issue-origin-code" maxlength="100" readonly
+          style="background:var(--surface2);color:var(--muted);cursor:default"
+          title="Resolved from the original evaluation sample (inbound_detail_id on this PO line). Read-only — this is the traceability link." />
       </div>
     </div>
     <div class="field-row">
       <div class="field">
         <label>Coffee Type</label>
         <select id="issue-coffee-type"></select>
+      </div>
+      <div class="field" style="max-width:130px">
+        <label>Sample Type
+          <span style="color:var(--muted);font-weight:400;font-size:0.68rem"> — auto-set</span>
+        </label>
+        <input type="text" id="issue-sample-type" value="Arrival" readonly
+          style="background:var(--surface2);color:var(--muted);cursor:default"
+          title="Arrival samples are automatically tagged 'Arrival' so they can be found by type in all-samples.html" />
       </div>
       <div class="field" style="max-width:110px">
         <label>Bag Size</label>
@@ -1511,23 +1532,45 @@ document.getElementById('btn-recv-save').onclick = async () => {
   }
 };
 
-// ── Issue Sample Code Modal (v2.1.9) ─────────────────────────────────────────
+// ── Issue Sample Code Modal (v2.2.2) ─────────────────────────────────────────
 // Opens from 🔬 Sample button on each PO line.
-// Pre-fills inbound sample detail fields from PO line.
-// On save: creates inbound_detail and writes detail_id back to po_line.
+// Pre-fills from PO line. On save: creates inbound_detail (sample_type=Arrival)
+// and writes detail_id + sample_id back to po_line.
+//
+// origin_sample_code chain:
+//   PO line was created via autocomplete from inbound_details → line.inbound_detail_id
+//   is always populated and points to the ORIGINAL evaluation sample record.
+//   We read that detail's sample_id and use it as origin_sample_code on the new
+//   Arrival record — so both records share origin_sample_code and are findable
+//   together on all-samples.html by searching for that one code.
+//
+//   origin_sample_code resolution priority:
+//     1. PAGE_DATA.inbound_details[line.inbound_detail_id].sample_id  ← authoritative
+//     2. line.origin_sample_code  ← fallback if detail not in payload (older records)
 
 function openIssueSampleModal(poLineId, poId) {
   const po   = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
   const line = po ? (po.lines || []).find(l => String(l.po_line_id) === String(poLineId)) : null;
   if (!line) { showToast('PO line not found.', 'error'); return; }
 
+  // Resolve the original evaluation sample_id via inbound_detail_id (always set by autocomplete)
+  const originalDetail = line.inbound_detail_id
+    ? (PAGE_DATA.inbound_details || []).find(d => String(d.detail_id) === String(line.inbound_detail_id))
+    : null;
+
+  // This is the sample_id of the FIRST sample (Preship/Type) — becomes origin_sample_code
+  // on the new Arrival record so both can be found together in all-samples.html
+  const originalSampleId = originalDetail
+    ? (originalDetail.sample_id || '')
+    : (line.origin_sample_code || '');  // fallback for PO lines created before autocomplete was enforced
+
   document.getElementById('issue-po-line-id').value   = poLineId;
   document.getElementById('issue-po-id').value         = poId;
   document.getElementById('issue-inbound-id').value    = '';
-  document.getElementById('issue-sample-name').value   = line.sample_name        || '';
-  document.getElementById('issue-origin-code').value   = line.origin_sample_code || '';
-  document.getElementById('issue-bag-size').value      = line.bag_size           || '';
-  document.getElementById('issue-cost-price').value    = line.cost_price         || '';
+  document.getElementById('issue-sample-name').value   = line.sample_name   || '';
+  document.getElementById('issue-origin-code').value   = originalSampleId;  // ← from inbound_detail, not typed
+  document.getElementById('issue-bag-size').value      = line.bag_size      || '';
+  document.getElementById('issue-cost-price').value    = line.cost_price    || '';
 
   // Coffee type dropdown
   const ct = document.getElementById('issue-coffee-type');
@@ -1542,20 +1585,45 @@ function openIssueSampleModal(poLineId, poId) {
     '<option value="' + u + '"' + (u === (line.cost_price_unit || 'kg') ? ' selected' : '') + '>' + u + '</option>'
   ).join('');
 
-  // Inbound shipments for this PO's supplier — need a shipment to attach the sample to
-  // Use the supplier from the parent PO to filter inbound_samples
-  const supplierId = po ? String(po.supplier_id) : '';
+  // ── Inbound Samples dropdown ──────────────────────────────────────────────
+  // "Inbound Samples" = physical boxes of green coffee samples sent by suppliers
+  // (the v1 inbound world — supplier → warehouse).
+  // This is NOT the procurement Shipments page (container / BL numbers).
+  // The user is choosing which supplier parcel this new sample code will be
+  // filed under in the inbound_details table.
+  //
+  // SOURCE: PAGE_DATA.inbound_details, deduped by inbound_id.
+  // If no inbound parcels exist yet, we show a clear message instead of a
+  // fake-looking dropdown with one placeholder option.
+
+  const sel = document.getElementById('issue-inbound-select');
+  const selWrap = document.getElementById('issue-inbound-wrap');
+
+  // Dedupe inbound_details by inbound_id to get unique parent shipments
   const inboundShipments = (PAGE_DATA.inbound_details || [])
     .filter((d, idx, arr) => arr.findIndex(x => String(x.inbound_id) === String(d.inbound_id)) === idx)
     .filter(d => d.inbound_id);
 
-  const sel = document.getElementById('issue-inbound-select');
   if (!inboundShipments.length) {
-    sel.innerHTML = '<option value="">— No inbound shipments found —</option>';
+    // Hide the select, show a message so the user knows what to do
+    sel.style.display = 'none';
+    if (selWrap) {
+      selWrap.innerHTML =
+        '<div style="font-size:0.78rem;color:var(--error);font-family:var(--font-mono);padding:0.5rem 0">' +
+        '⚠ No inbound sample parcels found. ' +
+        'Create one first via Inbound Samples before issuing a sample code.' +
+        '</div>';
+    }
   } else {
-    sel.innerHTML = '<option value="">— Select inbound shipment —</option>' +
+    sel.style.display = '';
+    if (selWrap) selWrap.innerHTML = '';  // clear any previous warning
+    sel.innerHTML = '<option value="">— Select inbound parcel —</option>' +
       inboundShipments.map(d =>
-        '<option value="' + d.inbound_id + '">Shipment #' + d.inbound_id + '</option>'
+        // Show inbound_id + supplier reference if available, so user can tell them apart
+        '<option value="' + d.inbound_id + '">' +
+          'Inbound #' + d.inbound_id +
+          (d.origin_sample_code ? '  (' + d.origin_sample_code + ')' : '') +
+        '</option>'
       ).join('');
   }
 
@@ -1578,7 +1646,10 @@ document.getElementById('btn-issue-sample-save').onclick = async () => {
 
   btn.disabled = true;
   try {
-    // saveDetail creates a new inbound_detail and returns the detail_id
+    // saveDetail creates a new inbound_detail (sample_type=Arrival) inside the chosen parcel.
+    // origin_sample_code = the original evaluation sample_id — this IS the link back.
+    // We do NOT write back to po_lines: po_lines.inbound_detail_id already points to the
+    // original Preship/Type detail and must not be overwritten with the Arrival detail.
     const data = await API.post({
       action:             'saveDetail',
       inbound_id:         inboundId,
@@ -1588,31 +1659,21 @@ document.getElementById('btn-issue-sample-save').onclick = async () => {
       bag_size:           document.getElementById('issue-bag-size').value,
       cost_price:         document.getElementById('issue-cost-price').value,
       cost_price_unit:    document.getElementById('issue-cost-unit').value,
+      sample_type:        'Arrival',
       confirmed_purchase: true,
       buyer_available:    false,
       is_active:          true
     });
 
-    // Write-back: link the new detail_id to the PO line
-    if (data && data.detail_id) {
-      await API.post({
-        action:            'savePoLine',
-        po_id:             poId,
-        po_line_id:        poLineId,
-        inbound_detail_id: data.detail_id,
-        sample_id:         data.sample_id || ''
-      });
-      // Update PAGE_DATA
-      const po   = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
-      const line = po ? (po.lines || []).find(l => String(l.po_line_id) === String(poLineId)) : null;
-      if (line) {
-        line.inbound_detail_id = data.detail_id;
-        line.sample_id         = data.sample_id || '';
-      }
-    }
+    // No write-back to po_lines needed.
+    // The Arrival inbound_detail carries origin_sample_code = original sample_id.
+    // po_lines.inbound_detail_id is preserved pointing to the original evaluation sample.
 
     document.getElementById('modal-issue-sample').classList.remove('open');
-    showToast('Sample code issued and linked to PO line.', 'success');
+    showToast(
+      'Arrival sample ' + (data.sample_id || '') + ' created.',
+      'success'
+    );
   } catch (e) {
     console.error('Caught error:', e);
     showModalError('modal-issue-sample', e.message || 'Issue failed.');
