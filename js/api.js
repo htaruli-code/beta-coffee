@@ -1,4 +1,4 @@
-// Version 1.22
+// Version 1.23
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
@@ -33,31 +33,35 @@ const API = (() => {
   // Single function for all calls. GAS uses one endpoint, action-based routing.
 
   async function post(payload) {
-    // ── GAS Cross-Origin POST — the only reliable pattern ────────────────────
+    // ── GAS Cross-Origin POST fix (v1.23) ────────────────────────────────────
+    // GAS /exec does a 302 redirect to /macros/run before executing the script.
+    // That 302 response has no Access-Control-Allow-Origin header.
+    // Browser CORS check fires on the 302 — fails before ever reaching the 200.
+    // Result: ERR_FAILED 200 — server returns OK but browser rejects it.
     //
-    // GAS Web Apps do a server-side redirect before executing your script.
-    // This redirect causes CORS failures when using fetch() with mode:'cors'
-    // because the redirect target (googleusercontent.com) doesn't echo the
-    // Access-Control-Allow-Origin header.
-    //
-    // The ONLY approach that works reliably from a cross-origin page:
-    //   1. Use a plain HTML <form> POST — browser follows GAS redirects natively
-    //      but we can't read the response that way.
-    //   2. Use fetch with no-cors — browser allows the request but response is
-    //      opaque (unreadable). Can't use this either.
-    //   3. Use fetch to the /exec URL with form-urlencoded body, NO explicit
-    //      redirect or mode options — let the browser use defaults. This works
-    //      when GAS deployment is set to "Anyone" because GAS injects the CORS
-    //      header on the final response after its internal redirect resolves.
-    //
-    // v1.22: Strip all explicit fetch options except method and body.
-    //        mode and redirect options interfere with GAS redirect handling.
+    // Fix: redirect:'manual' catches the 302 as an opaqueredirect response.
+    // We read the Location header and re-POST directly to the final URL.
+    // The final URL responds with CORS headers — browser accepts it.
 
     const body = new URLSearchParams({ payload: JSON.stringify(payload) });
-    const res  = await fetch(APP_CONFIG.GAS_URL, {
+
+    // Step 1: catch the redirect without following it
+    const redirect = await fetch(APP_CONFIG.GAS_URL, {
+      method:   'POST',
+      redirect: 'manual',
+      body:     body
+    });
+
+    // Step 2: re-POST to the redirect target directly
+    const target = redirect.type === 'opaqueredirect'
+      ? redirect.url || APP_CONFIG.GAS_URL
+      : APP_CONFIG.GAS_URL;
+
+    const res = await fetch(target, {
       method: 'POST',
       body:   body
     });
+
     if (!res.ok) throw new Error('Network error: ' + res.status);
     const data = await res.json();
     if (!data.success) {
