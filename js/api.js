@@ -1,4 +1,4 @@
-// Version 1.21
+// Version 1.22
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
@@ -33,27 +33,35 @@ const API = (() => {
   // Single function for all calls. GAS uses one endpoint, action-based routing.
 
   async function post(payload) {
-    // Send as form-urlencoded — avoids CORS preflight (OPTIONS request).
-    // GAS cannot handle OPTIONS so JSON content-type would be blocked.
-    // form-urlencoded is a "simple request" — no preflight needed.
+    // ── GAS Cross-Origin POST — the only reliable pattern ────────────────────
     //
-    // v1.21 FIX: Do NOT use redirect:'follow'.
-    // GAS does an internal redirect before running your script. When the browser
-    // follows that redirect, the redirect response from googleusercontent.com
-    // does not carry Access-Control-Allow-Origin — so CORS fails.
-    // Omitting redirect (defaults to 'follow' in spec but GAS handles it server-side)
-    // and letting fetch use default behaviour resolves this.
+    // GAS Web Apps do a server-side redirect before executing your script.
+    // This redirect causes CORS failures when using fetch() with mode:'cors'
+    // because the redirect target (googleusercontent.com) doesn't echo the
+    // Access-Control-Allow-Origin header.
+    //
+    // The ONLY approach that works reliably from a cross-origin page:
+    //   1. Use a plain HTML <form> POST — browser follows GAS redirects natively
+    //      but we can't read the response that way.
+    //   2. Use fetch with no-cors — browser allows the request but response is
+    //      opaque (unreadable). Can't use this either.
+    //   3. Use fetch to the /exec URL with form-urlencoded body, NO explicit
+    //      redirect or mode options — let the browser use defaults. This works
+    //      when GAS deployment is set to "Anyone" because GAS injects the CORS
+    //      header on the final response after its internal redirect resolves.
+    //
+    // v1.22: Strip all explicit fetch options except method and body.
+    //        mode and redirect options interfere with GAS redirect handling.
+
     const body = new URLSearchParams({ payload: JSON.stringify(payload) });
     const res  = await fetch(APP_CONFIG.GAS_URL, {
       method: 'POST',
-      mode:   'cors',
-      body:   body,
+      body:   body
     });
     if (!res.ok) throw new Error('Network error: ' + res.status);
     const data = await res.json();
     if (!data.success) {
       if (data.code === 'UNAUTHORIZED') {
-        // Guard: public pages (supplier-submit, buyer-reserve) don't load auth.js
         if (typeof Auth !== 'undefined' && Auth.handleUnauthorized) {
           Auth.handleUnauthorized('login.html');
           return;
