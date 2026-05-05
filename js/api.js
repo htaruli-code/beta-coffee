@@ -1,4 +1,4 @@
-// Version 1.20
+// Version 1.21
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
@@ -33,25 +33,27 @@ const API = (() => {
   // Single function for all calls. GAS uses one endpoint, action-based routing.
 
   async function post(payload) {
-    // v1.8.1: Send as form-urlencoded — avoids CORS preflight (OPTIONS).
-    // Browsers send OPTIONS before POST with Content-Type: application/json.
-    // GAS cannot handle OPTIONS so request is blocked. form-urlencoded is a
-    // "simple request" — browser sends it directly with no preflight.
-    // Code.gs reads it via: JSON.parse(e.parameter.payload)
-    // v1.9.1: Intercept UNAUTHORIZED → Auth.handleUnauthorized() → redirect to login
+    // Send as form-urlencoded — avoids CORS preflight (OPTIONS request).
+    // GAS cannot handle OPTIONS so JSON content-type would be blocked.
+    // form-urlencoded is a "simple request" — no preflight needed.
+    //
+    // v1.21 FIX: Do NOT use redirect:'follow'.
+    // GAS does an internal redirect before running your script. When the browser
+    // follows that redirect, the redirect response from googleusercontent.com
+    // does not carry Access-Control-Allow-Origin — so CORS fails.
+    // Omitting redirect (defaults to 'follow' in spec but GAS handles it server-side)
+    // and letting fetch use default behaviour resolves this.
     const body = new URLSearchParams({ payload: JSON.stringify(payload) });
     const res  = await fetch(APP_CONFIG.GAS_URL, {
-      method:   'POST',
-      redirect: 'follow',
-      body:     body,
+      method: 'POST',
+      mode:   'cors',
+      body:   body,
     });
     if (!res.ok) throw new Error('Network error: ' + res.status);
     const data = await res.json();
     if (!data.success) {
       if (data.code === 'UNAUTHORIZED') {
-        // Guard: public pages (supplier-submit, buyer-reserve) don't load auth.js.
-        // They use token-based actions and never have a session — safe to ignore
-        // UNAUTHORIZED here and let the page handle it via the thrown error.
+        // Guard: public pages (supplier-submit, buyer-reserve) don't load auth.js
         if (typeof Auth !== 'undefined' && Auth.handleUnauthorized) {
           Auth.handleUnauthorized('login.html');
           return;
