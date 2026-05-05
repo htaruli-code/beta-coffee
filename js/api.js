@@ -1,16 +1,14 @@
 // Version 1.20
 // api.js — All fetch calls to GAS. One place to change the transport layer.
-// v1.20: post() exported on the API module — used by v2 pages to send
-//          { action, ...payload } directly without per-action wrappers.
-//          post() also auto-attaches session_token from Auth.getToken() when
-//          payload doesn't already have one — lets v2 pages skip the boilerplate.
-//          v1 named wrappers (getSamplesPage, saveOutbound, etc.) unchanged.
-// v1.19: previous version stamp.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
 // v1.17: getBuyersPage    — warehouse_id + level filter params.
 // v1.18: getSuppliersPage — page_num + search + country_id params.
 // v1.19: getOutboundPage  — search param added (buyer name or outbound ID).
+// v1.20: BUG FIX — post() now guards Auth reference before calling handleUnauthorized.
+//        supplier-submit.html and buyer-reserve.html don't load auth.js (public pages —
+//        token-based, no session). Previously any UNAUTHORIZED response from GAS would
+//        call Auth.handleUnauthorized() unconditionally → "Auth is not defined" crash.
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -41,14 +39,6 @@ const API = (() => {
     // "simple request" — browser sends it directly with no preflight.
     // Code.gs reads it via: JSON.parse(e.parameter.payload)
     // v1.9.1: Intercept UNAUTHORIZED → Auth.handleUnauthorized() → redirect to login
-    // v1.20: Auto-attach session_token if a session exists and payload doesn't
-    //         already include one. Lets v2 pages call API.post({action:'...'}) directly
-    //         without repeating session_token in every call. Public actions (supplier
-    //         submit, buyer reserve, etc.) are unaffected because Auth.getToken()
-    //         returns null pre-login.
-    if (!payload.session_token && Auth.getToken()) {
-      payload.session_token = Auth.getToken();
-    }
     const body = new URLSearchParams({ payload: JSON.stringify(payload) });
     const res  = await fetch(APP_CONFIG.GAS_URL, {
       method:   'POST',
@@ -59,8 +49,13 @@ const API = (() => {
     const data = await res.json();
     if (!data.success) {
       if (data.code === 'UNAUTHORIZED') {
-        Auth.handleUnauthorized('login.html');
-        return;
+        // Guard: public pages (supplier-submit, buyer-reserve) don't load auth.js.
+        // They use token-based actions and never have a session — safe to ignore
+        // UNAUTHORIZED here and let the page handle it via the thrown error.
+        if (typeof Auth !== 'undefined' && Auth.handleUnauthorized) {
+          Auth.handleUnauthorized('login.html');
+          return;
+        }
       }
       throw new Error(data.error || 'Unknown error');
     }
@@ -406,7 +401,6 @@ const API = (() => {
     submitReservationInternal,                 // v1.11.7
     updateDetailCoffeeType,
     getAllSamplesPage,                             // v1.9
-    sendCatalogueLink, getCataloguePage, submitCatalogueSelection,  // v1.14
-    post                                       // v2.0: generic action poster used by v2 pages
+    sendCatalogueLink, getCataloguePage, submitCatalogueSelection  // v1.14
   };
 })();
