@@ -1,5 +1,11 @@
 <!DOCTYPE html>
-<!-- Version 2.0.3 | drawdowns.html -->
+<!-- Version 2.0.7 | drawdowns.html -->
+<!-- v2.0.5: Contract line dropdown now correctly populated from con.lines[] (requires DataService_Contracts v2.0.2).
+             Line dropdown shows sample name + available bags.
+             Selecting a line updates bags input max and shows available count.
+             Submit validates bags do not exceed available.
+   v2.0.4: Added "+ New Drawdown" button and modal for staff to create drawdowns on behalf of buyers.
+             Buyer name displayed in modal header and info block so staff knows whose order they're creating. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -35,6 +41,8 @@
     .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
     select, input { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
     select:focus, input:focus { border-color: var(--accent); }
+    textarea { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; resize: vertical; min-height: 64px; }
+    textarea:focus { border-color: var(--accent); }
     label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
     .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
     .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
@@ -57,6 +65,10 @@
     .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
     .modal-error { display: none; background: rgba(192, 57, 43, 0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
     .modal-error.show { display: block; }
+    /* v2.0.4: buyer info block inside new drawdown modal */
+    .modal-buyer-info { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.65rem 0.85rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.6; display: none; }
+    .modal-buyer-info.show { display: block; }
+    .modal-buyer-info strong { color: var(--text); }
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
@@ -85,6 +97,8 @@
       <div class="page-title">Drawdowns</div>
       <div class="page-sub">Approve and dispatch buyer delivery requests</div>
     </div>
+    <!-- v2.0.4: staff can create a drawdown on behalf of a buyer -->
+    <button class="btn" id="btn-new-drawdown">+ New Drawdown</button>
   </div>
   <div class="toolbar">
     <select id="filter-status" style="width:auto"><option value="">All Statuses</option></select>
@@ -93,7 +107,7 @@
   <div id="dd-wrap"><div class="loading">Loading drawdowns…</div></div>
 </div>
 
-<!-- Status Update Modal -->
+<!-- ── Status Update Modal ──────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="modal-status">
   <div class="modal">
     <div class="modal-title" id="modal-status-title">Update Drawdown</div>
@@ -101,17 +115,59 @@
     <input type="hidden" id="ds-drawdown-id" />
     <input type="hidden" id="ds-contract-id" />
     <input type="hidden" id="ds-line-id" />
+    <!-- Inventory context — shown only when approving -->
+    <div id="ds-inventory-context" style="display:none;margin-bottom:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.65rem 0.85rem;font-family:var(--font-mono);font-size:0.72rem;line-height:1.8"></div>
     <div class="field" style="margin-bottom:0.75rem">
       <label>New Status</label>
       <select id="ds-status"></select>
     </div>
-    <div class="field" id="ds-outbound-field" style="display:none;margin-bottom:0.75rem">
-      <label>Outbound ID <span style="color:var(--muted);font-size:0.65rem">(if dispatching)</span></label>
-      <input type="number" id="ds-outbound-id" placeholder="Link outbound record" />
-    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-ds-cancel">Cancel</button>
       <button class="btn" id="btn-ds-save">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── New Drawdown Modal (staff on behalf of buyer) — v2.0.4 ──────────────── -->
+<div class="modal-overlay" id="modal-new-dd">
+  <div class="modal">
+    <div class="modal-title">New Drawdown</div>
+    <div class="modal-error" id="modal-new-dd-error"></div>
+
+    <!-- Buyer context block — shown once a contract is selected -->
+    <div class="modal-buyer-info" id="new-dd-buyer-info"></div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="new-dd-contract">Contract <span style="color:var(--error)">*</span></label>
+        <select id="new-dd-contract">
+          <option value="">— Select contract —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="new-dd-line">Contract Line <span style="color:var(--error)">*</span></label>
+        <select id="new-dd-line" disabled>
+          <option value="">— Select contract first —</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="new-dd-bags">Bags <span style="color:var(--error)">*</span> <span id="new-dd-bags-hint" style="color:var(--accent);font-size:0.65rem;font-weight:400"></span></label>
+        <input type="number" id="new-dd-bags" min="1" placeholder="0" />
+      </div>
+      <div class="field">
+        <label for="new-dd-date">Ship Date</label>
+        <input type="date" id="new-dd-date" />
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label for="new-dd-notes">Notes</label>
+      <textarea id="new-dd-notes" placeholder="Optional delivery notes…"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-new-dd-cancel">Cancel</button>
+      <button class="btn" id="btn-new-dd-save">Create Drawdown</button>
     </div>
   </div>
 </div>
@@ -123,7 +179,7 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.0 | drawdowns.html
+// Version 2.0.7 | drawdowns.html
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
@@ -185,7 +241,6 @@ function renderTable() {
     const sample = line ? line.sample_name : '—';
     const badgeKey = d.status.toLowerCase();
 
-    // Allowed next statuses for action buttons
     const NEXT = { 'Pending': ['Approved','Cancelled'], 'Approved': ['Dispatched','Cancelled'], 'Dispatched': ['Delivered'] };
     const next = NEXT[d.status] || [];
     const actions = next.map(s =>
@@ -214,6 +269,8 @@ function renderTable() {
   </table>`;
 }
 
+// ── Status update modal ───────────────────────────────────────────────────────
+
 function openStatusModal(drawdownId, contractId, lineId, presetStatus) {
   document.getElementById('ds-drawdown-id').value = drawdownId;
   document.getElementById('ds-contract-id').value  = contractId;
@@ -227,12 +284,59 @@ function openStatusModal(drawdownId, contractId, lineId, presetStatus) {
     `<option value="${s}" ${s === presetStatus ? 'selected' : ''}>${s}</option>`
   ).join('');
 
-  const toggleOutbound = () => {
-    document.getElementById('ds-outbound-field').style.display =
-      document.getElementById('ds-status').value === 'Dispatched' ? 'block' : 'none';
-  };
-  document.getElementById('ds-status').onchange = toggleOutbound;
-  toggleOutbound();
+  // ── Inventory context — shown only when approving ──────────────────────────
+  const ctx = document.getElementById('ds-inventory-context');
+  if (presetStatus === 'Approved' && dd) {
+    const con  = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
+    const line = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
+    const lot  = line && line.inventory_lot_id
+      ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id))
+      : null;
+
+    const requested = dd.requested_bags || 0;
+    const primaryAvail = lot ? (lot.available_bags || 0) : 0;
+    const subs = line ? (line.substitutions || []) : [];
+    const subTotal = subs.reduce((s, x) => s + (x.bags_count || 0), 0);
+    const total = primaryAvail + subTotal;
+    const short = requested - total;
+    const ok    = total >= requested;
+
+    let html = '<strong style="color:var(--text)">Inventory check — ' + requested + ' bags requested</strong><br>';
+
+    // Primary lot
+    if (lot) {
+      html += '<span style="color:var(--muted)">Primary lot:</span> ' + esc(lot.sample_name) +
+        ' &nbsp;·&nbsp; <strong>' + primaryAvail + '</strong> available<br>';
+    } else {
+      html += '<span style="color:var(--muted)">Primary lot:</span> <span style="color:var(--error)">no lot linked to this contract line</span><br>';
+    }
+
+    // Substitutions
+    if (subs.length) {
+      subs.forEach(s => {
+        const replLot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
+        html += '<span style="color:var(--muted)">↳ Substitution:</span> ' +
+          (replLot ? esc(replLot.sample_name) : 'Lot ' + s.replacement_lot_id) +
+          ' &nbsp;·&nbsp; <strong>' + s.bags_count + ' bags</strong>' +
+          (s.reason ? ' <span style="color:var(--muted)">— ' + esc(s.reason) + '</span>' : '') + '<br>';
+      });
+    }
+
+    html += '<span style="color:var(--muted)">Total coverable:</span> ';
+    if (ok) {
+      html += '<strong style="color:var(--success)">' + total + ' bags ✓</strong>';
+    } else {
+      html += '<strong style="color:var(--error)">' + total + ' bags — short by ' + short + '</strong>';
+      html += '<br><span style="color:var(--error);font-size:0.68rem">Record a substitution in Contracts before approving.</span>';
+    }
+
+    ctx.innerHTML = html;
+    ctx.style.display = 'block';
+    ctx.style.borderColor = ok ? 'rgba(46,125,82,0.3)' : 'rgba(192,57,43,0.3)';
+    ctx.style.background  = ok ? 'rgba(46,125,82,0.05)' : 'rgba(192,57,43,0.05)';
+  } else {
+    ctx.style.display = 'none';
+  }
 
   document.getElementById('modal-status-title').textContent = 'Move to: ' + presetStatus;
   clearModalError('modal-status'); document.getElementById('modal-status').classList.add('open');
@@ -246,26 +350,177 @@ document.getElementById('btn-ds-save').onclick = async () => {
   const payload = {
     action:       'updateDrawdownStatus',
     drawdown_id:  document.getElementById('ds-drawdown-id').value,
-    status:       status,
-    outbound_id:  status === 'Dispatched' ? document.getElementById('ds-outbound-id').value : null
+    status:       status
   };
   try {
     const data = await API.post(payload);
-    // Invalidate cache — update drawdowns + contract line in PAGE_DATA
-    const contractId = document.getElementById('ds-contract-id').value;
     data.drawdowns.forEach(d => {
       const idx = PAGE_DATA.drawdowns.findIndex(x => String(x.drawdown_id) === String(d.drawdown_id));
       if (idx >= 0) PAGE_DATA.drawdowns[idx] = d; else PAGE_DATA.drawdowns.push(d);
     });
-
     document.getElementById('modal-status').classList.remove('open');
     renderTable();
     showToast('Status updated.', 'success');
-  } catch (e) { console.error('Caught error:', e); showModalError('modal-status', e.message || 'Update failed.'); }
+  } catch (e) { showModalError('modal-status', e.message || 'Update failed.'); }
   finally { btn.disabled = false; }
 };
 
+// ── New Drawdown Modal (v2.0.4) — staff creates on behalf of buyer ────────────
+
+document.getElementById('btn-new-drawdown').onclick = function() {
+  clearModalError('modal-new-dd');
+  document.getElementById('new-dd-buyer-info').classList.remove('show');
+  document.getElementById('new-dd-bags').value  = '';
+  document.getElementById('new-dd-date').value  = '';
+  document.getElementById('new-dd-notes').value = '';
+
+  // Populate contract dropdown (active/partially drawn contracts only)
+  const sel = document.getElementById('new-dd-contract');
+  sel.innerHTML = '<option value="">— Select contract —</option>';
+  const activeContracts = PAGE_DATA.contracts.filter(c =>
+    c.status === 'Active' || c.status === 'Partially Drawn'
+  );
+  activeContracts.forEach(c => {
+    const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(c.buyer_id));
+    const label = (buyer ? buyer.company_name + ' · ' : '') + esc(c.contract_number);
+    const o = document.createElement('option'); o.value = c.contract_id; o.textContent = label;
+    sel.appendChild(o);
+  });
+
+  // Reset line dropdown
+  const lineSel = document.getElementById('new-dd-line');
+  lineSel.innerHTML = '<option value="">— Select contract first —</option>';
+  lineSel.disabled  = true;
+
+  document.getElementById('modal-new-dd').classList.add('open');
+};
+
+// When contract changes — populate lines and show buyer info
+document.getElementById('new-dd-contract').onchange = function() {
+  const contractId = this.value;
+  const lineSel    = document.getElementById('new-dd-line');
+  const buyerInfo  = document.getElementById('new-dd-buyer-info');
+  const bagsHint   = document.getElementById('new-dd-bags-hint');
+  const bagsInput  = document.getElementById('new-dd-bags');
+
+  lineSel.innerHTML = '<option value="">— Select line —</option>';
+  lineSel.disabled  = !contractId;
+  buyerInfo.classList.remove('show');
+  bagsHint.textContent = '';
+  bagsInput.value = '';
+  bagsInput.removeAttribute('max');
+
+  if (!contractId) return;
+
+  const con   = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
+  const buyer = con ? PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id)) : null;
+
+  if (buyer && con) {
+    buyerInfo.innerHTML =
+      'On behalf of: <strong>' + esc(buyer.company_name) + '</strong>' +
+      (buyer.contact_person ? ' · ' + esc(buyer.contact_person) : '') +
+      '<br>Contract: <strong>' + esc(con.contract_number) + '</strong>' +
+      ' · Status: <strong>' + esc(con.status) + '</strong>';
+    buyerInfo.classList.add('show');
+  }
+
+  // Lines[] now always present on con — populated by DataService_Contracts v2.0.2
+  const lines = con && con.lines ? con.lines : [];
+  lines.forEach(l => {
+    const available = (l.contracted_bags || 0) - (l.drawn_bags || 0);
+    if (available <= 0) return; // skip fully drawn lines
+    const o = document.createElement('option');
+    o.value = l.contract_line_id;
+    o.dataset.available = available;
+    o.dataset.bagSize   = l.bag_size || '';
+    o.dataset.bagUnit   = l.bag_size_unit || 'kg';
+    o.textContent = esc(l.sample_name) + ' · ' + available + ' bags available';
+    lineSel.appendChild(o);
+  });
+
+  if (lineSel.options.length === 1) {
+    lineSel.innerHTML = '<option value="">No lines with available bags</option>';
+    lineSel.disabled  = true;
+  }
+};
+
+// When line changes — update bags max + hint
+document.getElementById('new-dd-line').onchange = function() {
+  const bagsHint  = document.getElementById('new-dd-bags-hint');
+  const bagsInput = document.getElementById('new-dd-bags');
+  const selected  = this.options[this.selectedIndex];
+
+  bagsInput.value = '';
+  if (!this.value || !selected.dataset.available) {
+    bagsHint.textContent = '';
+    bagsInput.removeAttribute('max');
+    return;
+  }
+
+  const available = parseInt(selected.dataset.available);
+  const bagSize   = selected.dataset.bagSize;
+  const bagUnit   = selected.dataset.bagUnit;
+  bagsInput.max   = available;
+  bagsHint.textContent = '(max ' + available +
+    (bagSize ? ' · ' + bagSize + ' ' + bagUnit + '/bag' : '') + ')';
+};
+
+document.getElementById('btn-new-dd-cancel').onclick = () => {
+  document.getElementById('modal-new-dd').classList.remove('open');
+};
+
+document.getElementById('btn-new-dd-save').onclick = async function() {
+  const btn        = this;
+  const contractId = document.getElementById('new-dd-contract').value;
+  const lineId     = document.getElementById('new-dd-line').value;
+  const bags       = parseInt(document.getElementById('new-dd-bags').value) || 0;
+  const lineSel    = document.getElementById('new-dd-line');
+  const selected   = lineSel.options[lineSel.selectedIndex];
+  const available  = selected && selected.dataset.available ? parseInt(selected.dataset.available) : null;
+  clearModalError('modal-new-dd');
+
+  if (!contractId)                   { showModalError('modal-new-dd', 'Please select a contract.'); return; }
+  if (!lineId)                       { showModalError('modal-new-dd', 'Please select a contract line.'); return; }
+  if (bags <= 0)                     { showModalError('modal-new-dd', 'Bags must be greater than zero.'); return; }
+  if (available !== null && bags > available) {
+    showModalError('modal-new-dd', 'Requested bags (' + bags + ') exceed available (' + available + ').');
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const data = await API.post({
+      action:           'saveDrawdown',
+      contract_id:      contractId,
+      contract_line_id: lineId,
+      requested_bags:   bags,
+      shipping_date:    document.getElementById('new-dd-date').value  || '',
+      notes:            document.getElementById('new-dd-notes').value || '',
+      status:           'Pending'
+    });
+
+    // Merge new drawdown + updated lines into PAGE_DATA
+    if (data.drawdown) {
+      const idx = PAGE_DATA.drawdowns.findIndex(d => String(d.drawdown_id) === String(data.drawdown.drawdown_id));
+      if (idx >= 0) PAGE_DATA.drawdowns[idx] = data.drawdown;
+      else PAGE_DATA.drawdowns.unshift(data.drawdown);
+    }
+    if (data.contract) {
+      const ci = PAGE_DATA.contracts.findIndex(c => String(c.contract_id) === String(data.contract.contract_id));
+      if (ci >= 0) PAGE_DATA.contracts[ci] = data.contract;
+    }
+
+    document.getElementById('modal-new-dd').classList.remove('open');
+    renderTable();
+    showToast('Drawdown created.', 'success');
+  } catch (e) { showModalError('modal-new-dd', e.message || 'Failed to create drawdown.'); }
+  finally { btn.disabled = false; }
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 function showModalError(modalId, message) {
   const errEl = document.querySelector('#' + modalId + ' .modal-error');
   if (!errEl) return;
@@ -276,7 +531,6 @@ function clearModalError(modalId) {
   const errEl = document.querySelector('#' + modalId + ' .modal-error');
   if (errEl) errEl.classList.remove('show');
 }
-
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast '+(type||'');
