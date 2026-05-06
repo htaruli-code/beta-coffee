@@ -1,4 +1,4 @@
-// Version 1.2.3
+// Version 1.2.4
 // auth.js — Session management helpers. All session reads/writes go through here.
 // v1.1: No logic changes.
 // v1.2.2: sessionStorage → localStorage — session now persists across tabs and new windows
@@ -68,7 +68,6 @@ const Auth = (() => {
   // Clears the local session and redirects to login.
   function handleUnauthorized(redirectTo) {
     clearSession();
-    // Avoid redirect loops if we're already on the login page
     if (window.location.pathname.indexOf('login.html') === -1) {
       window.location.href = redirectTo || 'login.html';
     }

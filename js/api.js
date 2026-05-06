@@ -1,4 +1,4 @@
-// Version 1.23
+// Version 1.26
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
@@ -33,35 +33,18 @@ const API = (() => {
   // Single function for all calls. GAS uses one endpoint, action-based routing.
 
   async function post(payload) {
-    // ── GAS Cross-Origin POST fix (v1.23) ────────────────────────────────────
-    // GAS /exec does a 302 redirect to /macros/run before executing the script.
-    // That 302 response has no Access-Control-Allow-Origin header.
-    // Browser CORS check fires on the 302 — fails before ever reaching the 200.
-    // Result: ERR_FAILED 200 — server returns OK but browser rejects it.
-    //
-    // Fix: redirect:'manual' catches the 302 as an opaqueredirect response.
-    // We read the Location header and re-POST directly to the final URL.
-    // The final URL responds with CORS headers — browser accepts it.
-
-    const body = new URLSearchParams({ payload: JSON.stringify(payload) });
-
-    // Step 1: catch the redirect without following it
-    const redirect = await fetch(APP_CONFIG.GAS_URL, {
-      method:   'POST',
-      redirect: 'manual',
-      body:     body
-    });
-
-    // Step 2: re-POST to the redirect target directly
-    const target = redirect.type === 'opaqueredirect'
-      ? redirect.url || APP_CONFIG.GAS_URL
-      : APP_CONFIG.GAS_URL;
-
-    const res = await fetch(target, {
+    // Auto-attach session_token if Auth is available and user is logged in.
+    // V2 pages call API.post() directly without adding session_token manually.
+    // V1 named wrappers add it explicitly — having it twice is harmless (same value).
+    const enriched = Object.assign({}, payload);
+    if (typeof Auth !== 'undefined' && Auth.getToken && Auth.getToken()) {
+      enriched.session_token = Auth.getToken();
+    }
+    const body = new URLSearchParams({ payload: JSON.stringify(enriched) });
+    const res  = await fetch(APP_CONFIG.GAS_URL, {
       method: 'POST',
       body:   body
     });
-
     if (!res.ok) throw new Error('Network error: ' + res.status);
     const data = await res.json();
     if (!data.success) {
@@ -399,22 +382,23 @@ const API = (() => {
   }
 
   return {
+    post,                                             // v1.24 — exposed for v2 procurement pages
     sendAuthCode, verifyAuthCode,
     getSamplesPage, getSuppliersPage, getInboundDetailPage,
     saveSupplier, saveInbound, saveDetail, sendSupplierLink, updateTracking,
     getSupplierPage, supplierSubmit,
     getBuyersPage, saveBuyer,
     getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus,
-    saveSamplePrice, saveSamplePricesAll, savePriceTier,  // v1.3 / v1.13.2
-    getBuyerReservePage, submitReservation,       // v1.4
-    saveConfirmedPurchase,                        // v1.5
-    toggleDetailActive,                           // v1.7
-    saveBuyerMinimum, saveBuyerMinimumPublic,      // v1.8 / v1.11.4
-    saveEvaluation, sendEvaluation,            // v1.11.5
-    saveDetailField,                           // v1.11.6
-    submitReservationInternal,                 // v1.11.7
+    saveSamplePrice, saveSamplePricesAll, savePriceTier,
+    getBuyerReservePage, submitReservation,
+    saveConfirmedPurchase,
+    toggleDetailActive,
+    saveBuyerMinimum, saveBuyerMinimumPublic,
+    saveEvaluation, sendEvaluation,
+    saveDetailField,
+    submitReservationInternal,
     updateDetailCoffeeType,
-    getAllSamplesPage,                             // v1.9
-    sendCatalogueLink, getCataloguePage, submitCatalogueSelection  // v1.14
+    getAllSamplesPage,
+    sendCatalogueLink, getCataloguePage, submitCatalogueSelection
   };
 })();
