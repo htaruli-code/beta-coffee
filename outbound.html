@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.19 | outbound.html -->
+<!-- Version 1.20 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -327,6 +327,11 @@
       </select>
       <input type="text" id="search-input" class="toolbar-search"
              placeholder="Search company, ID or sample code…" />
+      <!-- v1.20: filter to outbounds with at least one reserved sample -->
+      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none">
+        <input type="checkbox" id="filter-has-reserve" style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer" />
+        Reserved &gt; 0
+      </label>
     </div>
 
     <div class="table-wrap">
@@ -524,7 +529,7 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.19 | outbound.html script
+    // Version 1.20 | outbound.html script
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -575,6 +580,11 @@
       document.getElementById('search-input').addEventListener('input', () => {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => { currentPage = 1; applyFilters(); }, 350);
+      });
+
+      // v1.20: has-reserve checkbox — client-side, no API call needed
+      document.getElementById('filter-has-reserve').addEventListener('change', () => {
+        renderTable(PAGE_DATA.outbounds);
       });
 
       await loadPageData();
@@ -702,6 +712,15 @@
         if (!detailMap[d.outbound_id]) detailMap[d.outbound_id] = [];
         detailMap[d.outbound_id].push(d);
       });
+
+      // v1.20: client-side filter — show only outbounds with at least one reserved sample
+      const onlyReserved = document.getElementById('filter-has-reserve').checked;
+      if (onlyReserved) {
+        outbounds = outbounds.filter(o => {
+          const dets = detailMap[o.outbound_id] || [];
+          return dets.some(d => (d.bags_reserved || 0) > 0);
+        });
+      }
 
       // v1.15: sort handled server-side (DESC by outbound_id)
 
