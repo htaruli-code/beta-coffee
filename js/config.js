@@ -4,7 +4,7 @@
 
 const APP_CONFIG = {
   // ⚠️ Replace with your deployed GAS Web App URL
-  GAS_URL: 'https://script.google.com/macros/s/AKfycby4eLEJocZzdWeYrsEw0R_gfF1G8dxtUgChblk-KJUmLQI3vQcUYk3znWkxqoD_X9lQQw/exec',
-  APP_NAME: 'Sample Tracker',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbxB1tqR7FT29rfvDh5rwXWGAKQcrnZ1ZjRWx9FJGnFnfysIFnTnwB_FkbVTIHPULQ-brw/exec',
+  APP_NAME: 'COFFEE TEST - Sample Tracker',
   SESSION_KEY: 'st_session',
 };
