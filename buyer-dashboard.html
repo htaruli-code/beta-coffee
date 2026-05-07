@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<!-- Version 1.1 | buyer-dashboard.html -->
+<!-- v1.1: Drawdown status badges. Substitution lots shown per line.
+           Forward lot ETA shown. Cancelled drawdowns excluded from display.
+           Request modal shows available bags correctly. Escape closes modal. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --surface2: #faf4ec;
+      --border: #f0e8da; --border2: #e8ddd0;
+      --accent: #c47a2b; --accent-dark: #a3621e; --accent-light: #fdf0dd;
+      --text: #1a1a1a; --muted: #8a7060; --faint: #b8a898;
+      --error: #c0392b; --error-bg: rgba(192,57,43,0.07);
+      --success: #2e7d52; --success-bg: rgba(46,125,82,0.07);
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --radius-lg: 8px;
+      --transition: 160ms ease;
+      --shadow: 0 2px 12px rgba(196,122,43,0.08);
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+
+    .nav { position: sticky; top: 0; z-index: 100; height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; }
+    .nav-right { display: flex; align-items: center; gap: 1.25rem; }
+    .nav-buyer { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+    .btn-logout { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); border: none; background: none; cursor: pointer; padding: 0; letter-spacing: 0.06em; text-transform: uppercase; transition: color var(--transition); }
+    .btn-logout:hover { color: var(--error); }
+
+    .page { max-width: 1020px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .page-header { margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+    .page-title { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+
+    #login-screen { min-height: calc(100vh - 52px); display: flex; align-items: center; justify-content: center; padding: 2rem; }
+    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2.5rem 2rem; width: 100%; max-width: 400px; box-shadow: var(--shadow); }
+    .login-logo { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 1.75rem; }
+    .login-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .login-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 1.75rem; line-height: 1.5; }
+    .login-step { display: none; }
+    .login-step.active { display: block; }
+
+    label { display: block; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 0.35rem; letter-spacing: 0.04em; }
+    input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-mono); font-size: 0.82rem; padding: 0.6rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 72px; font-size: 0.78rem; }
+    .field { margin-bottom: 1rem; }
+    .field-row { display: flex; gap: 0.75rem; }
+    .field-row .field { flex: 1; min-width: 0; }
+    .code-input { font-size: 1.4rem !important; letter-spacing: 0.22em; text-align: center; padding: 0.75rem 1rem !important; }
+
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.6rem 1.1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); width: 100%; justify-content: center; }
+    .btn:hover:not(:disabled) { background: var(--accent-dark); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); width: auto; }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.7rem; width: auto; }
+    .btn-link { background: none; border: none; color: var(--accent); font-family: var(--font-mono); font-size: 0.72rem; cursor: pointer; padding: 0; width: auto; text-decoration: underline; }
+    .btn-link:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .alert { border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.75rem; padding: 0.65rem 0.9rem; margin-bottom: 1rem; display: none; line-height: 1.5; }
+    .alert.show { display: block; }
+    .alert-error   { background: var(--error-bg);    color: var(--error);   border: 1px solid rgba(192,57,43,0.2); }
+    .alert-info    { background: var(--accent-light); color: var(--accent);  border: 1px solid rgba(196,122,43,0.2); }
+    .alert-success { background: var(--success-bg);  color: var(--success); border: 1px solid rgba(46,125,82,0.2); }
+    .resend-row { display: flex; align-items: center; justify-content: space-between; margin-top: 0.9rem; }
+    .resend-hint { font-family: var(--font-mono); font-size: 0.68rem; color: var(--faint); }
+
+    #dashboard-screen { display: none; }
+    #dashboard-screen.active { display: block; }
+    .section-title { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+
+    .contracts-list { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2.5rem; }
+    .contract-card { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .contract-card-head { background: var(--surface); padding: 0.85rem 1.1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+    .contract-num { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; }
+    .contract-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); }
+
+    .lines-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .lines-table th { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.45rem 1rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; background: var(--surface2); }
+    .lines-table td { padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .lines-table tr:last-child td { border-bottom: none; }
+    .lines-table tr:hover td { background: var(--surface); }
+
+    .progress-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .progress-bar { flex: 1; height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; min-width: 60px; }
+    .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.3s ease; }
+    .progress-label { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); white-space: nowrap; }
+
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.18rem 0.5rem; border-radius: 2px; }
+    .badge-draft           { background: #f0f0f0; color: #666; }
+    .badge-active          { background: #edf7f0; color: #1e6640; }
+    .badge-partially-drawn { background: #fef9ec; color: #854f0b; }
+    .badge-fully-drawn     { background: #eef4fd; color: #1a5ca8; }
+    .badge-cancelled       { background: #fdecea; color: #b00020; }
+    .badge-pending         { background: #f0f0f0; color: #666; }
+    .badge-approved        { background: #fef9ec; color: #854f0b; }
+    .badge-dispatched      { background: #eef4fd; color: #1a5ca8; }
+    .badge-delivered       { background: #edf7f0; color: #1e6640; }
+    .badge-current         { background: var(--accent-light); color: var(--accent); }
+    .badge-forward         { background: #f0ecfe; color: #5b2db0; }
+
+    .dd-panel { background: var(--surface2); border-top: 1px solid var(--border); padding: 0.75rem 1rem; }
+    .dd-panel-title { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .dd-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); padding: 0.25rem 0; border-bottom: 1px dashed var(--border); }
+    .dd-row:last-child { border-bottom: none; }
+    .dd-bags { color: var(--text); font-weight: 600; }
+    .eta-tag { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); display: block; margin-top: 0.15rem; }
+    .sub-tag { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent); background: var(--accent-light); padding: 0.1rem 0.35rem; border-radius: 2px; font-weight: 600; margin-top: 0.2rem; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; width: 100%; max-width: 460px; margin: auto; box-shadow: var(--shadow); }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-info { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.65rem 0.85rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.7; }
+    .modal-info strong { color: var(--text); }
+
+    .empty { text-align: center; padding: 3rem 1rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    .empty-icon { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.4; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-row { display: flex; align-items: center; gap: 0.75rem; font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); padding: 2.5rem; justify-content: center; }
+
+    #buyer-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+
+    @media (max-width: 640px) {
+      .lines-table th:nth-child(5), .lines-table td:nth-child(5) { display: none; }
+      .page { padding: 1.25rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand">Order Portal</span>
+  <div class="nav-right">
+    <span class="nav-buyer" id="nav-buyer"></span>
+    <button class="btn-logout" id="btn-nav-logout" style="display:none">Sign out</button>
+  </div>
+</nav>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">Sample Tracker</div>
+    <div class="login-title">Order Dashboard</div>
+    <div class="login-sub">Enter your email to receive a login code.</div>
+
+    <div class="login-step active" id="step-email">
+      <div class="alert alert-error" id="email-error"></div>
+      <div class="field">
+        <label for="input-email">Email address</label>
+        <input type="email" id="input-email" placeholder="you@company.com" autocomplete="email" />
+      </div>
+      <button class="btn" id="btn-send-code">Send Login Code</button>
+    </div>
+
+    <div class="login-step" id="step-otp">
+      <div class="alert alert-info show" id="otp-info"></div>
+      <div class="alert alert-error" id="otp-error"></div>
+      <div class="field">
+        <label for="input-code">8-digit login code</label>
+        <input type="text" inputmode="numeric" id="input-code" class="code-input"
+               placeholder="00000000" maxlength="8" autocomplete="one-time-code" />
+      </div>
+      <button class="btn" id="btn-verify-code">Verify Code</button>
+      <div class="resend-row">
+        <span class="resend-hint">Code expires in 10 minutes · 3 attempts</span>
+        <button class="btn-link" id="btn-resend">Resend</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="dashboard-screen">
+  <div class="page">
+    <div class="page-header">
+      <div class="page-title" id="dash-title">My Orders</div>
+      <div class="page-sub" id="dash-sub"></div>
+    </div>
+    <div class="section-title">Active Contracts</div>
+    <div id="contracts-list" class="contracts-list">
+      <div class="loading-row"><span class="spinner"></span> Loading your orders…</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-drawdown">
+  <div class="modal">
+    <div class="modal-title">Request Delivery</div>
+    <div class="alert alert-error" id="dd-error"></div>
+    <input type="hidden" id="dd-contract-id" />
+    <input type="hidden" id="dd-line-id" />
+    <div class="modal-info" id="dd-line-info"></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="dd-bags">Bags requested <span style="color:var(--error)">*</span>
+          <span id="dd-bags-hint" style="color:var(--muted);font-size:0.65rem;font-weight:400"></span>
+        </label>
+        <input type="number" id="dd-bags" min="1" placeholder="0" />
+      </div>
+      <div class="field">
+        <label for="dd-date">Preferred ship date</label>
+        <input type="date" id="dd-date" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="dd-notes">Notes <span style="color:var(--muted);font-size:0.65rem">(optional)</span></label>
+      <textarea id="dd-notes" placeholder="Any delivery instructions…"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-dd-cancel">Cancel</button>
+      <button class="btn" id="btn-dd-submit" style="width:auto">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<div id="buyer-toast"></div>
+
+<script src="js/buyer-config.js"></script>
+<script src="js/buyer-auth.js"></script>
+<script src="js/buyer-api.js"></script>
+<script src="js/buyer-ui.js"></script>
+<script>
+// Version 1.1 | buyer-dashboard.html
+
+if (typeof BUYER_API_URL === 'undefined') throw new Error('buyer-config.js not loaded');
+if (typeof BuyerAuth    === 'undefined') throw new Error('buyer-auth.js not loaded');
+if (typeof BuyerAPI     === 'undefined') throw new Error('buyer-api.js not loaded');
+if (typeof BuyerUI      === 'undefined') throw new Error('buyer-ui.js not loaded');
+
+let PAGE_DATA = { buyer: null, contracts: [] };
+
+(function init() {
+  if (BuyerAuth.isLoggedIn()) { showDashboard(); loadDashboard(); }
+  else showLogin();
+})();
+
+function showLogin() {
+  document.getElementById('login-screen').style.display    = 'flex';
+  document.getElementById('dashboard-screen').style.display = 'none';
+  document.getElementById('btn-nav-logout').style.display   = 'none';
+  document.getElementById('nav-buyer').textContent          = '';
+}
+
+function showDashboard() {
+  document.getElementById('login-screen').style.display     = 'none';
+  document.getElementById('dashboard-screen').style.display = 'block';
+  const buyer = BuyerAuth.getBuyer();
+  if (buyer) {
+    document.getElementById('nav-buyer').textContent  = buyer.company_name || '';
+    document.getElementById('dash-title').textContent = 'My Orders';
+    document.getElementById('dash-sub').textContent   = 'Welcome back, ' + (buyer.contact_person || buyer.company_name) + '.';
+  }
+  document.getElementById('btn-nav-logout').style.display = 'inline';
+}
+
+async function loadDashboard() {
+  try {
+    const data = await BuyerAPI.getDashboard();
+    PAGE_DATA  = data;
+    renderContracts();
+  } catch (e) {
+    const expired = (e.code && e.code === 'SESSION_EXPIRED') || (e.message && e.message.includes('SESSION_EXPIRED'));
+    if (expired) { BuyerAuth.clearSession(); showLogin(); }
+    else document.getElementById('contracts-list').innerHTML =
+      '<div class="empty"><div class="empty-icon">⚠</div>Failed to load. Please refresh.</div>';
+  }
+}
+
+function renderContracts() {
+  const list = document.getElementById('contracts-list');
+  const contracts = (PAGE_DATA.contracts || []).filter(c => c.status !== 'Cancelled');
+  if (!contracts.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No active contracts found.</div>';
+    return;
+  }
+  list.innerHTML = contracts.map(buildContractCard).join('');
+}
+
+function buildContractCard(con) {
+  const statusKey = (con.status || '').toLowerCase().replace(/ /g, '-');
+  const lines     = con.lines || [];
+  const linesHtml = lines.length
+    ? '<table class="lines-table"><thead><tr>' +
+      '<th>Product</th><th>Type</th><th style="text-align:right">Contracted</th>' +
+      '<th style="text-align:right">Drawn</th><th>Progress</th><th></th>' +
+      '</tr></thead><tbody>' + lines.map(l => buildLineRow(con, l)).join('') + '</tbody></table>' +
+      buildDrawdownHistory(lines)
+    : '<div style="padding:1rem;font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">No lines on this contract.</div>';
+
+  return '<div class="contract-card">' +
+    '<div class="contract-card-head">' +
+      '<div><span class="contract-num">' + esc(con.contract_number) + '</span>' +
+      (con.contract_date ? '<span class="contract-meta" style="margin-left:0.75rem">' + esc(con.contract_date) + '</span>' : '') +
+      '</div>' +
+      '<span class="badge badge-' + statusKey + '">' + esc(con.status) + '</span>' +
+    '</div>' + linesHtml + '</div>';
+}
+
+function buildLineRow(con, line) {
+  const contracted = line.contracted_bags || 0;
+  const drawn      = line.drawn_bags      || 0;
+  const available  = contracted - drawn;
+  const pct        = contracted > 0 ? Math.min(100, Math.round((drawn / contracted) * 100)) : 0;
+  const typeKey    = (line.availability_type || 'current').toLowerCase();
+  const canRequest = available > 0 && con.status !== 'Cancelled' && con.status !== 'Fully Drawn';
+
+  const etaNote = (line.availability_type === 'forward' && line.eta)
+    ? '<span class="eta-tag">ETA ' + esc(line.eta) + (line.sailing_status ? ' · ' + esc(line.sailing_status) : '') + '</span>'
+    : '';
+
+  // Substitution indicator — only show if substitutions exist on this line
+  const subs = (line.substitutions || []);
+  const subNote = subs.length
+    ? '<div style="margin-top:0.2rem"><span class="sub-tag">ALT LOT</span></div>'
+    : '';
+
+  const requestBtn = canRequest
+    ? '<button class="btn btn-sm" onclick="openDrawdownModal(\'' + con.contract_id + '\',\'' +
+      line.contract_line_id + '\',' + available + ',' + (line.bag_size || 0) + ',\'' +
+      esc(line.bag_size_unit || 'kg') + '\',\'' + esc(line.sample_name) + '\')">Request</button>'
+    : '<span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--faint)">' +
+      (available === 0 ? 'Fully drawn' : '—') + '</span>';
+
+  return '<tr>' +
+    '<td><span style="font-weight:500">' + esc(line.sample_name) + '</span>' + etaNote + subNote + '</td>' +
+    '<td><span class="badge badge-' + typeKey + '">' + esc(line.availability_type || 'Current') + '</span></td>' +
+    '<td style="text-align:right;font-family:var(--font-mono)">' + contracted + '</td>' +
+    '<td style="text-align:right;font-family:var(--font-mono)">' + drawn + '</td>' +
+    '<td><div class="progress-bar-wrap">' +
+      '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<span class="progress-label">' + pct + '%</span>' +
+    '</div></td>' +
+    '<td>' + requestBtn + '</td></tr>';
+}
+
+function buildDrawdownHistory(lines) {
+  const allDds = lines
+    .flatMap(l => (l.drawdowns || []).map(d => Object.assign({}, d, { sample_name: l.sample_name })))
+    .filter(d => d.status !== 'Cancelled')
+    .sort((a, b) => (b.drawdown_id || 0) - (a.drawdown_id || 0));
+  if (!allDds.length) return '';
+  const rows = allDds.map(d => {
+    const statusKey = (d.status || '').toLowerCase();
+    return '<div class="dd-row">' +
+      '<span class="badge badge-' + statusKey + '">' + esc(d.status) + '</span>' +
+      '<span class="dd-bags">' + (d.requested_bags || 0) + ' bags</span>' +
+      '<span>' + esc(d.sample_name) + '</span>' +
+      (d.shipping_date ? '<span>' + esc(d.shipping_date) + '</span>' : '') +
+      (d.notes ? '<span style="color:var(--faint)">' + esc(d.notes) + '</span>' : '') +
+    '</div>';
+  }).join('');
+  return '<div class="dd-panel"><div class="dd-panel-title">Delivery Requests</div>' + rows + '</div>';
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+document.getElementById('btn-send-code').onclick = async function() {
+  const btn = this, email = document.getElementById('input-email').value.trim();
+  hideAlert('email-error');
+  if (!email) { showAlert('email-error', 'Please enter your email address.', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await BuyerAPI.sendAuthCode(email);
+    document.getElementById('otp-info').textContent = 'A code has been sent to ' + email + ' if it is registered.';
+    switchStep('step-otp');
+    document.getElementById('input-code').focus();
+    document.getElementById('btn-resend').dataset.email = email;
+    document.getElementById('btn-verify-code').dataset.email = email;
+  } catch (e) {
+    showAlert('email-error', e.message || 'Failed to send code.', 'error');
+  } finally { btn.disabled = false; btn.textContent = 'Send Login Code'; }
+};
+
+document.getElementById('btn-verify-code').onclick = async function() {
+  const btn = this;
+  const email = btn.dataset.email || document.getElementById('input-email').value.trim();
+  const code  = document.getElementById('input-code').value.trim();
+  hideAlert('otp-error');
+  if (!code || code.length !== 8) { showAlert('otp-error', 'Please enter the 8-digit code from your email.', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    const data = await BuyerAPI.verifyAuthCode(email, code);
+    BuyerAuth.setSession(data.session_token, data.buyer);
+    showDashboard(); loadDashboard();
+  } catch (e) {
+    showAlert('otp-error', e.message || 'Invalid code. Please try again.', 'error');
+    document.getElementById('input-code').value = '';
+    document.getElementById('input-code').focus();
+  } finally { btn.disabled = false; btn.textContent = 'Verify Code'; }
+};
+
+document.getElementById('btn-resend').onclick = async function() {
+  const btn = this, email = btn.dataset.email;
+  if (!email) return;
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await BuyerAPI.sendAuthCode(email);
+    hideAlert('otp-error');
+    document.getElementById('otp-info').textContent = 'A new code has been sent to ' + email + '.';
+    document.getElementById('input-code').value = '';
+    document.getElementById('input-code').focus();
+  } catch (e) {
+    showAlert('otp-error', e.message || 'Could not resend. Please wait and try again.', 'error');
+  } finally { btn.disabled = false; btn.textContent = 'Resend'; }
+};
+
+document.getElementById('input-email').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-send-code').click(); });
+document.getElementById('input-code').addEventListener('keydown',  e => { if (e.key === 'Enter') document.getElementById('btn-verify-code').click(); });
+document.getElementById('input-code').addEventListener('input', function() { this.value = this.value.replace(/\D/g, '').slice(0, 8); });
+
+document.getElementById('btn-nav-logout').onclick = async function() {
+  try { await BuyerAPI.logout(); } catch (e) {}
+  BuyerAuth.clearSession();
+  PAGE_DATA = { buyer: null, contracts: [] };
+  document.getElementById('input-email').value = '';
+  document.getElementById('input-code').value  = '';
+  switchStep('step-email');
+  showLogin();
+};
+
+// ── Drawdown Modal ────────────────────────────────────────────────────────────
+function openDrawdownModal(contractId, lineId, available, bagSize, bagSizeUnit, sampleName) {
+  document.getElementById('dd-contract-id').value  = contractId;
+  document.getElementById('dd-line-id').value      = lineId;
+  document.getElementById('dd-bags').value          = '';
+  document.getElementById('dd-bags').max            = available;
+  document.getElementById('dd-date').value          = '';
+  document.getElementById('dd-notes').value         = '';
+  hideAlert('dd-error');
+  document.getElementById('dd-bags-hint').textContent = '(max ' + available + ')';
+  document.getElementById('dd-line-info').innerHTML  =
+    '<strong>' + esc(sampleName) + '</strong>' +
+    (bagSize ? ' · ' + bagSize + ' ' + bagSizeUnit + '/bag' : '') +
+    '<br>Available to request: <strong>' + available + ' bags</strong>';
+  document.getElementById('modal-drawdown').classList.add('open');
+  document.getElementById('dd-bags').focus();
+}
+
+document.getElementById('btn-dd-cancel').onclick = () =>
+  document.getElementById('modal-drawdown').classList.remove('open');
+
+document.getElementById('btn-dd-submit').onclick = async function() {
+  const btn  = this;
+  const bags = parseInt(document.getElementById('dd-bags').value) || 0;
+  const max  = parseInt(document.getElementById('dd-bags').max)   || 0;
+  hideAlert('dd-error');
+  if (bags <= 0)  { showAlert('dd-error', 'Please enter a number greater than zero.', 'error'); return; }
+  if (bags > max) { showAlert('dd-error', 'Requested bags (' + bags + ') exceed available (' + max + ').', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    const data = await BuyerAPI.submitDrawdown(
+      document.getElementById('dd-contract-id').value,
+      document.getElementById('dd-line-id').value,
+      bags,
+      document.getElementById('dd-date').value,
+      document.getElementById('dd-notes').value
+    );
+    PAGE_DATA = data;
+    document.getElementById('modal-drawdown').classList.remove('open');
+    renderContracts();
+    BuyerUI.showToast('Delivery request submitted.', 'success');
+  } catch (e) {
+    showAlert('dd-error', e.message || 'Submission failed. Please try again.', 'error');
+  } finally { btn.disabled = false; btn.textContent = 'Submit Request'; }
+};
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+});
+
+function switchStep(id) {
+  document.querySelectorAll('.login-step').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.className = 'alert alert-' + (type || 'error') + ' show'; }
+}
+function hideAlert(id) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'alert';
+}
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+</script>
+</body>
+</html>
