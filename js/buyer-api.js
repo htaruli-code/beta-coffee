@@ -1,6 +1,8 @@
-// Version 2.2
+// Version 2.3
 // buyer-api.js — All API calls for buyer-facing pages.
 // Calls BUYER_API_URL (defined in buyer-config.js).
+// v2.3: post() now unwraps { success, data } envelope — mirrors main api.js.
+//         Throws on success:false with the server error message and code.
 // v2.2: Replaced URL-token model with session_token from OTP login.
 //       Token attached automatically from BuyerAuth.getToken() on every call.
 
@@ -26,7 +28,14 @@ const BuyerAPI = (() => {
     });
 
     if (!response.ok) throw new Error('HTTP ' + response.status);
-    return response.json();
+
+    const json = await response.json();
+    if (!json.success) {
+      const err  = new Error(json.error || 'Request failed');
+      err.code   = json.code  || '';
+      throw err;
+    }
+    return json.data;
   }
 
   // ── Public actions (no session) ──────────────────────────────────────────
