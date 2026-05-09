@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.1 | inventory.html -->
+<!-- Version 2.1.3 | inventory.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -103,7 +103,8 @@
   </div>
 
   <div class="toolbar">
-    <select id="filter-wh"   style="width:auto" onchange="renderTable()"><option value="">All Warehouses</option></select>
+    <select id="filter-wh"   style="width:auto" onchange="onWarehouseFilter()"><option value="">All Warehouses</option></select>
+    <select id="filter-loc"  style="width:auto" onchange="renderTable()"><option value="">All Locations</option></select>
     <select id="filter-type" style="width:auto" onchange="renderTable()"><option value="">All Coffee Types</option></select>
     <select id="filter-sku"  style="width:auto" onchange="renderTable()"><option value="">All SKUs</option></select>
     <input  id="filter-search" type="text" placeholder="Search sample name…" style="width:200px" oninput="renderTable()" />
@@ -197,6 +198,8 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
+// v2.1.3: dates formatted via UI.formatDate (dd MMM yyyy)
+const fmtDate = v => UI.formatDate(v);
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API  === 'undefined') throw new Error('api.js not loaded');
@@ -244,15 +247,34 @@ function populateFilters() {
     [...skuSet].sort().map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
 }
 
+// v2.1.2: cascade — when warehouse changes, repopulate location filter then re-render
+function onWarehouseFilter() {
+  const wh = document.getElementById('filter-wh').value;
+  const locs = (PAGE_DATA.locations || []).filter(l =>
+    (!wh || String(l.warehouse_id) === wh) && l.is_active
+  );
+  const locEl = document.getElementById('filter-loc');
+  locEl.innerHTML = '<option value="">All Locations</option>' +
+    locs.map(l => '<option value="' + l.location_id + '">' + esc(l.facility_name) + '</option>').join('');
+  renderTable();
+}
+
 function renderTable() {
   const wh         = document.getElementById('filter-wh').value;
+  const loc        = document.getElementById('filter-loc').value;
   const type       = document.getElementById('filter-type').value;
   const sku        = document.getElementById('filter-sku').value;
   const search     = document.getElementById('filter-search').value.toLowerCase().trim();
   const showLegacy = document.getElementById('filter-legacy').checked;
 
+  // Build location name lookup
+  const locMap = {};
+  (PAGE_DATA.locations || []).forEach(l => { locMap[String(l.location_id)] = l.facility_name; });
+
   let lots = PAGE_DATA.inventory_lots || [];
   if (wh)     lots = lots.filter(l => String(l.warehouse_id) === wh);
+  // v2.1.2: filter lots to those with ≥1 bin in selected location
+  if (loc)    lots = lots.filter(l => (l.bins || []).some(b => String(b.location_id) === loc));
   if (type)   lots = lots.filter(l => l.coffee_type === type);
   if (sku)    lots = lots.filter(l => l.sku_code === sku);
   if (search) lots = lots.filter(l => (l.sample_name || '').toLowerCase().includes(search));
@@ -299,17 +321,21 @@ function renderTable() {
       '<td class="num ' + availClass + '">' + l.available_bags + '</td>' +
       '<td class="num">' + l.bag_size + ' ' + esc(l.cost_price_unit || 'kg') + '</td>' +
       '<td class="num">' + (l.cost_price ? l.cost_price + ' / ' + esc(l.cost_price_unit || 'kg') : '—') + '</td>' +
-      '<td>' + esc(l.received_date || '—') + '</td>' +
+      '<td>' + fmtDate(l.received_date) + '</td>' +
       '<td>' + binToggle + '</td>' +
       '<td>' + (ddCount > 0 ? ddToggle : '<span class="dd-empty">no drawdowns</span>') + '</td>' +
       '<td><button class="btn btn-ghost btn-sm" onclick="openLotModal(' + l.lot_id + ')">Edit</button></td>' +
     '</tr>');
 
     if (isExpanded && bins.length) {
-      bins.forEach(b => {
+      // v2.1.2: when location filter active, show only matching bins; else show all
+      const visibleBins = loc ? bins.filter(b => String(b.location_id) === loc) : bins;
+      visibleBins.forEach(b => {
+        const locName = locMap[String(b.location_id)] || '';
         rows.push('<tr class="bin-row">' +
           '<td></td>' +
-          '<td colspan="3">📦 ' + esc(b.bin_label || '—') + '</td>' +
+          '<td colspan="2">📦 ' + esc(b.bin_label || '—') + '</td>' +
+          '<td>' + (locName ? '<span class="legacy-badge">' + esc(locName) + '</span>' : '') + '</td>' +
           '<td colspan="3">' + esc(b.notes || '') + '</td>' +
           '<td></td><td></td>' +
           '<td class="num">' + b.qty_bags + ' bags</td>' +
@@ -418,7 +444,7 @@ function buildLotDrawdownPanel(lotId, lotDrawdowns) {
       '<span>' + esc((d.contract_line && d.contract_line.sample_name) || '—') + '</span>' +
       '<span style="color:var(--muted)">·</span>' +
       '<span class="dd-bags">' + (d.requested_bags || 0) + ' bags</span>' +
-      (d.shipping_date ? '<span style="color:var(--muted)">ship ' + esc(d.shipping_date) + '</span>' : '') +
+      (d.shipping_date ? '<span style="color:var(--muted)">ship ' + fmtDate(d.shipping_date) + '</span>' : '') +
     '</div>';
   }).join('');
 

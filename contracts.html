@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.5 | contracts.html -->
+<!-- Version 2.5.1 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -23,7 +23,7 @@
     .nav-links a:hover, .nav-links a.active { color: var(--accent); }
     .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
     .nav-user:hover { color: var(--error); }
-    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page { max-width: 1300px; margin: 0 auto; padding: 2rem; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
     .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
@@ -283,7 +283,9 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.5 | contracts.html
+// Version 2.5.1 | contracts.html
+// v2.5.1: dates formatted via UI.formatDate (dd MMM yyyy)
+const fmtDate = v => UI.formatDate(v);
 // v2.5: Product Name autocomplete by SKU name/code.
 // v2.3: Lot substitution panel — staff can record replacement lots per contract line.
 // v2.2: 📧 Dashboard button removed — buyers now log in via OTP at buyer-dashboard.html
@@ -409,7 +411,7 @@ function renderContracts() {
       <div class="card-header">
         <div>
           <div class="card-title">${esc(con.contract_number)} <span class="badge badge-${badgeKey}">${esc(con.status)}</span></div>
-          <div class="card-sub">${buyer ? esc(buyer.company_name) : '—'} · ${esc(con.contract_date)} · ${lines.length} line${lines.length!==1?'s':''} · <strong>${total}</strong></div>
+          <div class="card-sub">${buyer ? esc(buyer.company_name) : '—'} · ${fmtDate(con.contract_date)} · ${lines.length} line${lines.length!==1?'s':''} · <strong>${total}</strong></div>
         </div>
         <div class="card-actions">
           <button class="btn btn-ghost btn-sm" onclick="openLineModal(${con.contract_id})">+ Line</button>
@@ -506,8 +508,8 @@ function openLineModal(contractId, lineId) {
   ).join('');
 
   document.getElementById('l-shipment').innerHTML = `<option value="">— Select shipment —</option>` +
-    PAGE_DATA.shipments.filter(s => s.sailing_status !== 'Arrived').map(s =>
-      `<option value="${s.shipment_id}" ${line && String(line.expected_shipment_id)===String(s.shipment_id)?'selected':''}>${esc(s.container_number)} · ETA ${esc(s.eta)}</option>`
+    PAGE_DATA.shipments.filter(s => s.sailing_status !== 'Arrived' || (line && String(s.shipment_id) === String(line.expected_shipment_id))).map(s =>
+      `<option value="${s.shipment_id}" ${line && String(line.expected_shipment_id)===String(s.shipment_id)?'selected':''}>${esc(s.container_number)} · ETA ${fmtDate(s.eta)}</option>`
     ).join('');
 
   const toggleFwd = () => {

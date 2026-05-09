@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.1 | drawdowns.html -->
+<!-- Version 2.1.2 | drawdowns.html -->
 <!-- v2.0.5: Contract line dropdown now correctly populated from con.lines[] (requires DataService_Contracts v2.0.2).
              Line dropdown shows sample name + available bags.
              Selecting a line updates bags input max and shows available count.
@@ -29,7 +29,7 @@
     .nav-links a:hover, .nav-links a.active { color: var(--accent); }
     .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
     .nav-user:hover { color: var(--error); }
-    .page { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+    .page { max-width: 1300px; margin: 0 auto; padding: 2rem; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
     .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
@@ -225,7 +225,9 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.1.1 | drawdowns.html
+// Version 2.1.2 | drawdowns.html
+// v2.1.2: dates formatted via UI.formatDate (dd MMM yyyy)
+const fmtDate = v => UI.formatDate(v);
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
@@ -312,8 +314,8 @@ function renderTable() {
       <td>${esc(sample)}</td>
       <td style="text-align:right;font-family:var(--font-mono)">${d.requested_bags}</td>
       <td>${lotToggle}</td>
-      <td>${esc(d.shipping_date || '—')}</td>
-      <td>${esc(d.drawdown_date || d.created_at || '—')}</td>
+      <td>${fmtDate(d.shipping_date)}</td>
+      <td>${fmtDate(d.drawdown_date || d.created_at)}</td>
       <td>${d.outbound_id ? '<a href="outbound.html" style="font-family:var(--font-mono);font-size:0.75rem">OUT-' + d.outbound_id + '</a>' : '—'}</td>
       <td><div class="action-group">${actions}</div></td>
     </tr>`;
