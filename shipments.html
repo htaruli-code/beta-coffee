@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.4 | shipments.html -->
+<!-- Version 2.1.5 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -212,8 +212,8 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.1.4 | shipments.html
-// v2.1.4: dates formatted via UI.formatDate (dd MMM yyyy)
+// Version 2.1.5 | shipments.html
+// v2.1.5: isNaN guard on bags link field. dates via UI.formatDate.
 const fmtDate = v => UI.formatDate(v);
 // v2.1: Linked PO Lines picker added — Add/Remove junction rows inline
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
@@ -358,9 +358,15 @@ document.getElementById('btn-s-add-line').onclick = async () => {
   const poId       = document.getElementById('s-add-po').value;
   const poLineId   = document.getElementById('s-add-poline').value;
   const bags       = document.getElementById('s-add-bags').value;
+  const parsedBags = parseInt(bags);
 
-  if (!poId || !poLineId || !bags) {
-    showToast('Pick PO, line, and enter bags loaded.', 'error');
+  if (!poId || !poLineId) {
+    showToast('Pick PO and line.', 'error');
+    return;
+  }
+  // v2.1.5: isNaN guard — catches 'abc', '∞', '', '1e3'
+  if (isNaN(parsedBags) || parsedBags <= 0) {
+    showToast('Bags must be a whole number greater than zero.', 'error');
     return;
   }
   const btn = document.getElementById('btn-s-add-line');
@@ -371,7 +377,7 @@ document.getElementById('btn-s-add-line').onclick = async () => {
       shipment_id: shipmentId,
       po_id:       poId,
       po_line_id:  poLineId,
-      qty_bags:    bags
+      qty_bags:    parsedBags   // v2.1.5: sanitised integer
     });
     // Update local shipment with returned junction rows
     const ship = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.2.2 | login.html -->
+<!-- Version 1.2.3 | login.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -353,6 +353,12 @@
 
   <div class="login-card">
     <div class="login-logo">Sample Tracker</div>
+
+    <!-- v1.2.2: shown when redirected here due to session expiry -->
+    <div id="expired-banner" style="display:none;background:rgba(192,57,43,0.08);border:1px solid var(--error);color:var(--error);font-family:var(--font-mono);font-size:0.78rem;padding:0.65rem 0.85rem;border-radius:var(--radius);margin-bottom:1.25rem">
+      Your session has expired. Please sign in again.
+    </div>
+
     <h1 class="login-title">Sign in</h1>
     <p class="login-sub">Enter your work email to receive a login code.</p>
 
@@ -389,7 +395,8 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.2 | login.html script
+    // Version 1.2.3 | login.html script
+    // v1.2.3: added missing expired-banner element (previously threw null reference error).
 
     // Redirect if already logged in
     if (Auth.isLoggedIn()) window.location.href = 'samples.html';

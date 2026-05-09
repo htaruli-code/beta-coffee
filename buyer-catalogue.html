@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<!-- Version 1.17.1 | buyer-catalogue.html -->
+<!-- Version 1.17.4 | buyer-catalogue.html -->
+<!-- v1.17.4: Reserve Bags input — type="text" inputmode="numeric" for mobile; strips non-digits
+              character by character on oninput — works on all mobile browsers. Server re-validates. -->
 <!-- Public page — token-authenticated. No login required. -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <!-- v1.15: js/config.js path fixed. getCataloguePage + submitCatalogueSelection added to Code.gs public block. -->
@@ -123,6 +125,10 @@
     /* Empty lots */
     .no-lots { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; }
 
+    /* v1.17.3: reserve input validation states */
+    .lot-reserve-input.input-error { border-color: var(--error); }
+    .lot-reserve-hint.hint-error   { color: var(--error); font-weight: 500; }
+
     /* Tooltip — v1.16 */
     .tooltip-wrap { position: relative; display: inline-flex; align-items: center; gap: 0.35rem; }
     .tooltip-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border2); color: var(--muted); font-size: 0.6rem; font-family: var(--font-mono); cursor: default; flex-shrink: 0; user-select: none; }
@@ -215,7 +221,9 @@
 
   <script src="js/config.js"></script>
   <script>
-    // Version 1.17.1 | buyer-catalogue.html script
+    // Version 1.17.4 | buyer-catalogue.html script
+    // v1.17.4: type="text" inputmode="numeric" — strips non-digits on every keystroke.
+    //          Works on iOS/Android where type="number" oninput is unreliable.
 
     // ── Dependency check ──────────────────────────────────────────────────────
     if (typeof APP_CONFIG === 'undefined' || !APP_CONFIG.GAS_URL) {
@@ -337,11 +345,13 @@
              </div>`
           : `<div class="lot-reserve-row">
                <span class="lot-reserve-label">Reserve Bags</span>
-               <input type="number" class="lot-reserve-input" id="reserve-${esc(lot.detail_id)}"
-                 min="1" max="${lot.available_bags || 0}" step="1" placeholder="0"
+               <input type="text" inputmode="numeric" pattern="[0-9]*"
+                 class="lot-reserve-input" id="reserve-${esc(lot.detail_id)}"
+                 placeholder="0"
                  data-max="${lot.available_bags || 0}"
+                 oninput="onReserveInput(this)"
                  title="Max ${lot.available_bags || 0} bags available" />
-               <span class="lot-reserve-hint">Optional — enter a quantity if you want to reserve bags now. Max: <strong>${lot.available_bags || 0} bags</strong>.</span>
+               <span class="lot-reserve-hint">Optional — enter a quantity to reserve bags now. Max: <strong>${lot.available_bags || 0} bags</strong>.</span>
              </div>`;
 
         const card = document.createElement('div');
@@ -382,6 +392,46 @@
       });
     }
 
+    // v1.17.4: Live validation for reserve bag input — mobile-safe integer enforcement.
+    // Uses type="text" + inputmode="numeric" so mobile keyboard shows numbers but we
+    // control exactly what's accepted. Strips non-digits on every keystroke.
+    function onReserveInput(inp) {
+      const hint = inp.closest('.lot-reserve-row') ? inp.closest('.lot-reserve-row').querySelector('.lot-reserve-hint') : null;
+      const max  = parseInt(inp.dataset.max) || 0;
+
+      // Step 1: strip anything that is not a digit — handles all mobile input methods
+      const stripped = inp.value.replace(/[^0-9]/g, '');
+      if (inp.value !== stripped) inp.value = stripped;
+
+      // Step 2: empty = clear errors (no reservation = valid)
+      if (stripped === '') {
+        inp.classList.remove('input-error');
+        if (hint) { hint.classList.remove('hint-error'); hint.textContent = 'Optional — enter a quantity to reserve bags now. Max: ' + max + ' bags.'; }
+        return;
+      }
+
+      const parsed = parseInt(stripped, 10);
+
+      // Step 3: clamp to max (mirrors buyer-reserve.html input.max behaviour)
+      if (parsed > max) {
+        inp.value = String(max);
+        inp.classList.add('input-error');
+        if (hint) { hint.classList.add('hint-error'); hint.textContent = 'Only ' + max + ' bag' + (max === 1 ? '' : 's') + ' available — value reduced.'; }
+        return;
+      }
+
+      // Step 4: zero entered explicitly
+      if (parsed === 0) {
+        inp.classList.add('input-error');
+        if (hint) { hint.classList.add('hint-error'); hint.textContent = 'Enter at least 1 bag, or leave blank.'; }
+        return;
+      }
+
+      // Valid
+      inp.classList.remove('input-error');
+      if (hint) { hint.classList.remove('hint-error'); hint.textContent = 'Reserving ' + parsed + ' bag' + (parsed === 1 ? '' : 's') + ' (max ' + max + ').'; }
+    }
+
     function onLotCheck() {
       const checked = document.querySelectorAll('.lot-checkbox:checked');
 
@@ -419,19 +469,31 @@
       if (!selectedIds.length) { toast('Select at least one lot.', true); return; }
       if (!beans)              { toast('Please select a beans type.', true); return; }
 
-      // v1.17: collect and validate per-lot reserve quantities
+      // v1.17.3: collect and validate per-lot reserve quantities — integer enforcement + isNaN guard
       const bags_to_reserve = {};
       let reserveError = null;
 
       selectedIds.forEach(dId => {
         const inp = document.getElementById('reserve-' + dId);
         if (!inp) return; // has reserve_link instead — no input to read
-        const qty = parseInt(inp.value) || 0;
-        if (qty <= 0) return; // 0 = no reservation for this lot, skip
+        const raw = inp.value.trim();
+        if (raw === '' || raw === '0') return; // empty = no reservation for this lot, skip
+
+        // Integer check — catches 'abc', '∞', '$5', '1.5'
+        const qty = parseInt(raw);
+        if (isNaN(qty) || qty !== Math.floor(parseFloat(raw))) {
+          const lot = (PAGE_DATA.lots || []).find(l => String(l.detail_id) === String(dId));
+          reserveError = 'Reserve quantity for "' + (lot ? lot.sample_name : dId) + '" must be a whole number.';
+          return;
+        }
+        if (qty <= 0) return; // skip zero
+
+        // Availability check against data-max (page load value — server re-validates as final guard)
         const max = parseInt(inp.dataset.max) || 0;
         if (qty > max) {
           const lot = (PAGE_DATA.lots || []).find(l => String(l.detail_id) === String(dId));
-          reserveError = 'Reserve quantity for "' + (lot ? lot.sample_name : dId) + '" (' + qty + ' bags) exceeds available (' + max + ' bags).';
+          reserveError = '"' + (lot ? lot.sample_name : dId) + '": only ' + max + ' bag' + (max === 1 ? '' : 's') + ' available (server will re-validate).';
+          return;
         }
         bags_to_reserve[dId] = qty;
       });

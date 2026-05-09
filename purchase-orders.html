@@ -1,4 +1,4 @@
-<!-- Version 2.2.6 | purchase-orders.html -->
+<!-- Version 2.2.7 | purchase-orders.html -->
 <!-- Version 2.1.8 | purchase-orders.html -->
 <html lang="en">
 <head>
@@ -616,7 +616,9 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.1 | purchase-orders.html
+// Version 2.2.7 | purchase-orders.html
+// v2.2.7: dates formatted via UI.formatDate (computer locale, dd MMM yyyy)
+const fmtDate = v => UI.formatDate(v);
 // v2.1: Shipping Instructions modal added — Save Draft + Save & Send Email
 
 // ── Dependency check ──────────────────────────────────────────────────────────
@@ -682,7 +684,7 @@ function renderPoList() {
       <div class="card-header">
         <div>
           <div class="card-title">${esc(po.po_number)} <span class="badge badge-${po.status.toLowerCase().replace(' ','-')}">${esc(po.status)}</span></div>
-          <div class="card-sub">${supplier ? esc(supplier.supplier_name) : '—'} · ${esc(po.po_date)} · ${esc(currency)} · ${lines.length} line${lines.length !== 1 ? 's' : ''}</div>
+          <div class="card-sub">${supplier ? esc(supplier.supplier_name) : '—'} · ${fmtDate(po.po_date)} · ${esc(currency)} · ${lines.length} line${lines.length !== 1 ? 's' : ''}</div>
         </div>
         <div class="card-actions">
           <button class="btn btn-ghost btn-sm" onclick="openLineModal(${po.po_id})">+ Line</button>
@@ -1290,7 +1292,7 @@ function openSIModal(poId) {
   document.getElementById('si-special').value     = '';
   document.getElementById('si-po-summary').innerHTML =
     '<strong>' + esc(po.po_number) + '</strong><br>' +
-    'Date: ' + esc(po.po_date) + ' · ' + (po.lines || []).length + ' line item(s)';
+    'Date: ' + fmtDate(po.po_date) + ' · ' + (po.lines || []).length + ' line item(s)';
   clearModalError('modal-si'); document.getElementById('modal-si').classList.add('open');
 }
 

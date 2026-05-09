@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.15 | samples.html -->
+<!-- Version 1.15.1 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -434,7 +434,8 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.13.8 | samples.html script
+    // Version 1.13.9 | samples.html script
+    // v1.13.9: isNaN guard on inline-edit numeric fields (qty_grams, available_bags, bag_size, cost_price).
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -728,6 +729,15 @@
       const commit = async () => {
         const newVal = input.value.trim();
         if (newVal === cur) { renderTable(); return; }
+        // v1.13.5: validate numeric fields before send
+        const numericFields = ['qty_grams', 'available_bags', 'bag_size', 'cost_price'];
+        if (numericFields.includes(field) && newVal !== '') {
+          const parsed = parseFloat(newVal);
+          if (isNaN(parsed) || parsed < 0) {
+            UI.toastError(field.replace(/_/g,' ') + ' must be a valid number.');
+            renderTable(); return;
+          }
+        }
         try {
           const res = await API.saveDetailField(detailId, field, newVal);
           // Update local data

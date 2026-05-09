@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.3 | inventory.html -->
+<!-- Version 2.1.4 | inventory.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -198,7 +198,9 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// v2.1.3: dates formatted via UI.formatDate (dd MMM yyyy)
+// Version 2.1.4 | inventory.html
+// v2.1.4: isNaN guards + sanitised numeric fields on lot save. Client-side required validation.
+//         Location filter (cascades from warehouse). dates via UI.formatDate.
 const fmtDate = v => UI.formatDate(v);
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
@@ -247,7 +249,7 @@ function populateFilters() {
     [...skuSet].sort().map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
 }
 
-// v2.1.2: cascade — when warehouse changes, repopulate location filter then re-render
+// v2.1.4: location filter cascades from warehouse selection
 function onWarehouseFilter() {
   const wh = document.getElementById('filter-wh').value;
   const locs = (PAGE_DATA.locations || []).filter(l =>
@@ -273,7 +275,6 @@ function renderTable() {
 
   let lots = PAGE_DATA.inventory_lots || [];
   if (wh)     lots = lots.filter(l => String(l.warehouse_id) === wh);
-  // v2.1.2: filter lots to those with ≥1 bin in selected location
   if (loc)    lots = lots.filter(l => (l.bins || []).some(b => String(b.location_id) === loc));
   if (type)   lots = lots.filter(l => l.coffee_type === type);
   if (sku)    lots = lots.filter(l => l.sku_code === sku);
@@ -328,7 +329,6 @@ function renderTable() {
     '</tr>');
 
     if (isExpanded && bins.length) {
-      // v2.1.2: when location filter active, show only matching bins; else show all
       const visibleBins = loc ? bins.filter(b => String(b.location_id) === loc) : bins;
       visibleBins.forEach(b => {
         const locName = locMap[String(b.location_id)] || '';
@@ -509,19 +509,51 @@ document.getElementById('btn-lot-cancel').onclick = () =>
 document.getElementById('btn-lot-save').onclick = async () => {
   const btn = document.getElementById('btn-lot-save');
   btn.disabled = true;
+
+  // v2.1.4: client-side validation before send
+  const sampleName  = document.getElementById('lot-name').value.trim();
+  const warehouseId = document.getElementById('lot-warehouse').value;
+  const rawBags     = document.getElementById('lot-bags').value;
+  const rawBagSize  = document.getElementById('lot-bag-size').value;
+  const rawCost     = document.getElementById('lot-cost').value;
+  const parsedBags  = parseInt(rawBags);
+  const parsedSize  = parseFloat(rawBagSize);
+  const parsedCost  = parseFloat(rawCost);
+
+  if (!sampleName) {
+    showModalError('modal-lot', 'Sample Name is required.');
+    btn.disabled = false; return;
+  }
+  if (!warehouseId) {
+    showModalError('modal-lot', 'Warehouse is required.');
+    btn.disabled = false; return;
+  }
+  if (isNaN(parsedBags) || parsedBags <= 0) {
+    showModalError('modal-lot', 'Received Bags must be a whole number greater than zero.');
+    btn.disabled = false; return;
+  }
+  if (rawBagSize !== '' && isNaN(parsedSize)) {
+    showModalError('modal-lot', 'Bag Size must be a number (e.g. 60).');
+    btn.disabled = false; return;
+  }
+  if (rawCost !== '' && isNaN(parsedCost)) {
+    showModalError('modal-lot', 'Cost Price must be a number (e.g. 4.50, not $4.50).');
+    btn.disabled = false; return;
+  }
+
   try {
     const data = await API.post({
       action:             'saveInventoryLot',
       lot_id:             document.getElementById('lot-id').value          || null,
-      warehouse_id:       document.getElementById('lot-warehouse').value,
+      warehouse_id:       warehouseId,
       location_id:        document.getElementById('lot-location').value    || '',
-      sample_name:        document.getElementById('lot-name').value,
+      sample_name:        sampleName,
       lot_number:         document.getElementById('lot-number').value,
       origin_sample_code: document.getElementById('lot-origin-code').value,
       coffee_type:        document.getElementById('lot-coffee-type').value,
-      received_bags:      document.getElementById('lot-bags').value,
-      bag_size:           document.getElementById('lot-bag-size').value,
-      cost_price:         document.getElementById('lot-cost').value,
+      received_bags:      parsedBags,                                        // v2.1.4: sanitised
+      bag_size:           rawBagSize !== '' ? parsedSize : 0,               // v2.1.4: sanitised
+      cost_price:         rawCost    !== '' ? parsedCost : 0,               // v2.1.4: sanitised
       cost_price_unit:    document.getElementById('lot-cost-unit').value,
       received_date:      document.getElementById('lot-received-date').value,
       origin_country_id:  document.getElementById('lot-country').value    || ''

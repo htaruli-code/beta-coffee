@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.5.1 | contracts.html -->
+<!-- Version 2.5.2 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -283,8 +283,9 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.5.1 | contracts.html
-// v2.5.1: dates formatted via UI.formatDate (dd MMM yyyy)
+// Version 2.5.2 | contracts.html
+// v2.5.2: isNaN guards + sanitised numeric fields on contract line and substitution save.
+//         dates via UI.formatDate. page-width 1300px.
 const fmtDate = v => UI.formatDate(v);
 // v2.5: Product Name autocomplete by SKU name/code.
 // v2.3: Lot substitution panel — staff can record replacement lots per contract line.
@@ -539,6 +540,27 @@ document.getElementById('btn-l-cancel').onclick = () => document.getElementById(
 document.getElementById('btn-l-save').onclick = async () => {
   const btn = document.getElementById('btn-l-save'); btn.disabled = true;
   const isFwd = document.getElementById('l-avail-type').value === 'forward';
+
+  // v2.5.2: validate numeric fields — catch 'abc', '$4.50', '1e3', '∞'
+  const rawBags    = document.getElementById('l-bags').value;
+  const rawBagSize = document.getElementById('l-bag-size').value;
+  const rawPrice   = document.getElementById('l-price').value;
+  const parsedBags = parseInt(rawBags);
+  const parsedSize = parseFloat(rawBagSize);
+  const parsedPrice = parseFloat(rawPrice);
+  if (isNaN(parsedBags) || parsedBags <= 0) {
+    showModalError('modal-line', 'Contracted Bags must be a whole number greater than zero.');
+    btn.disabled = false; return;
+  }
+  if (rawBagSize !== '' && isNaN(parsedSize)) {
+    showModalError('modal-line', 'Bag Size must be a number (e.g. 60).');
+    btn.disabled = false; return;
+  }
+  if (rawPrice !== '' && isNaN(parsedPrice)) {
+    showModalError('modal-line', 'Unit Price must be a number (e.g. 4.50, not $4.50).');
+    btn.disabled = false; return;
+  }
+
   const payload = {
     action:               'saveContractLine',
     contract_id:          document.getElementById('l-contract-id').value,
@@ -547,10 +569,10 @@ document.getElementById('btn-l-save').onclick = async () => {
     sample_name:          document.getElementById('l-name').value,
     sku_id:               document.getElementById('l-sku-id').value   || '',
     sku_code:             document.getElementById('l-sku-code').value || '',
-    contracted_bags:      document.getElementById('l-bags').value,
-    bag_size:             document.getElementById('l-bag-size').value,
+    contracted_bags:      parsedBags,                             // v2.5.2: sanitised
+    bag_size:             rawBagSize !== '' ? parsedSize : 0,     // v2.5.2: sanitised
     bag_size_unit:        document.getElementById('l-bag-unit').value,
-    unit_price:           document.getElementById('l-price').value,
+    unit_price:           rawPrice   !== '' ? parsedPrice : 0,    // v2.5.2: sanitised
     price_unit:           document.getElementById('l-price-unit').value,
     availability_type:    document.getElementById('l-avail-type').value,
     expected_shipment_id: isFwd ? document.getElementById('l-shipment').value : ''
@@ -691,14 +713,14 @@ document.getElementById('btn-sub-save').onclick = async function() {
   const lineId        = document.getElementById('sub-contract-line-id').value;
   const origLotId     = document.getElementById('sub-original-lot-id').value;
   const replLotId     = document.getElementById('sub-replacement-lot').value;
-  const bags          = parseInt(document.getElementById('sub-bags').value) || 0;
+  const bags          = parseInt(document.getElementById('sub-bags').value);  // v2.5.2: no || 0 — catch NaN
   const maxBags       = parseInt(document.getElementById('sub-bags').max) || null;
   clearModalError('modal-sub');
 
   const maxSub  = document.getElementById('sub-bags').dataset.maxSub !== ''
     ? parseInt(document.getElementById('sub-bags').dataset.maxSub) : null;
   if (!replLotId) { showModalError('modal-sub', 'Please select a replacement lot.'); return; }
-  if (bags <= 0)  { showModalError('modal-sub', 'Bags must be greater than zero.'); return; }
+  if (isNaN(bags) || bags <= 0) { showModalError('modal-sub', 'Bags must be a whole number greater than zero.'); return; }
   if (maxBags !== null && bags > maxBags) {
     showModalError('modal-sub', 'Bags (' + bags + ') exceed available on replacement lot (' + maxBags + ').');
     return;

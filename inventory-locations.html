@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.0.3 | inventory-locations.html -->
+<!-- Version 2.0.4 | inventory-locations.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -125,7 +125,8 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.0 | inventory-locations.html
+// Version 2.0.4 | inventory-locations.html
+// v2.0.4: client-side required validation on facility_name and warehouse_id.
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
@@ -205,11 +206,18 @@ document.getElementById('btn-loc-cancel').onclick = () => document.getElementByI
 document.getElementById('btn-loc-save').onclick = async () => {
   const btn = document.getElementById('btn-loc-save');
   btn.disabled = true;
+
+  // v2.0.4: client-side required validation
+  const facilityName = document.getElementById('loc-name').value.trim();
+  const warehouseId  = document.getElementById('loc-warehouse').value;
+  if (!warehouseId)  { showModalError('modal-loc', 'Warehouse is required.'); btn.disabled = false; return; }
+  if (!facilityName) { showModalError('modal-loc', 'Facility Name is required.'); btn.disabled = false; return; }
+
   const payload = {
     action:        'saveInventoryLocation',
     location_id:   document.getElementById('loc-id').value || null,
-    warehouse_id:  document.getElementById('loc-warehouse').value,
-    facility_name: document.getElementById('loc-name').value,
+    warehouse_id:  warehouseId,
+    facility_name: facilityName,
     contact_person:document.getElementById('loc-person').value,
     contact_email: document.getElementById('loc-email').value,
     is_active:     true

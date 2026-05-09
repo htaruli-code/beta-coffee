@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.0 | product-skus.html -->
+<!-- Version 1.1 | product-skus.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -157,7 +157,8 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 1.0 | product-skus.html
+// Version 1.1 | product-skus.html
+// v1.1: client-side required validation on sku_code and sku_name before save.
 
 // ── Dependency check ──────────────────────────────────────────────────────────
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
@@ -283,12 +284,19 @@ document.getElementById('btn-sku-cancel').onclick = () => document.getElementByI
 document.getElementById('btn-sku-save').onclick = async () => {
   const btn = document.getElementById('btn-sku-save');
   btn.disabled = true;
+
+  // v1.1: client-side required validation
+  const skuCode = document.getElementById('sku-code').value.trim().toUpperCase();
+  const skuName = document.getElementById('sku-name').value.trim();
+  if (!skuCode) { showModalError('modal-sku', 'SKU Code is required.'); btn.disabled = false; return; }
+  if (!skuName) { showModalError('modal-sku', 'SKU Name is required.'); btn.disabled = false; return; }
+
   try {
     const data = await API.post({
       action:      'saveProductSku',
       sku_id:      document.getElementById('sku-id').value      || null,
-      sku_code:    document.getElementById('sku-code').value.trim().toUpperCase(),
-      sku_name:    document.getElementById('sku-name').value.trim(),
+      sku_code:    skuCode,
+      sku_name:    skuName,
       coffee_type: document.getElementById('sku-coffee-type').value,
       country_id:  document.getElementById('sku-country').value   || null,
       supplier_id: document.getElementById('sku-supplier').value  || null,
