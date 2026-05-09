@@ -1,5 +1,6 @@
-// Version 1.2
+// Version 1.3
 // ui.js — Shared UI helpers. Loading states, alerts, form utilities, modals.
+// v1.3: formatDate — uses computer locale with day: 2-digit, month: short, year: numeric.
 // v1.1: No logic changes. Version bump for release consistency.
 
 const UI = (() => {
@@ -125,7 +126,7 @@ const UI = (() => {
   function formatDate(val) {
     if (!val) return '—';
     const d = new Date(val);
-    return isNaN(d) ? val : d.toLocaleDateString();
+    return isNaN(d) ? val : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   function todayISO() {
