@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.1 | buyer-dashboard.html -->
+<!-- Version 1.2 | buyer-dashboard.html -->
 <!-- v1.1: Drawdown status badges. Substitution lots shown per line.
            Forward lot ETA shown. Cancelled drawdowns excluded from display.
            Request modal shows available bags correctly. Escape closes modal. -->
@@ -229,7 +229,14 @@
 <script src="js/buyer-api.js"></script>
 <script src="js/buyer-ui.js"></script>
 <script>
-// Version 1.1 | buyer-dashboard.html
+// Version 1.2 | buyer-dashboard.html
+// v1.2: isNaN guard on dd-bags. dates formatted dd MMM yyyy via computer locale.
+
+function fmtDate(val) {
+  if (!val) return '—';
+  const d = new Date(val);
+  return isNaN(d) ? val : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
 
 if (typeof BUYER_API_URL === 'undefined') throw new Error('buyer-config.js not loaded');
 if (typeof BuyerAuth    === 'undefined') throw new Error('buyer-auth.js not loaded');
@@ -299,7 +306,7 @@ function buildContractCard(con) {
   return '<div class="contract-card">' +
     '<div class="contract-card-head">' +
       '<div><span class="contract-num">' + esc(con.contract_number) + '</span>' +
-      (con.contract_date ? '<span class="contract-meta" style="margin-left:0.75rem">' + esc(con.contract_date) + '</span>' : '') +
+      (con.contract_date ? '<span class="contract-meta" style="margin-left:0.75rem">' + fmtDate(con.contract_date) + '</span>' : '') +
       '</div>' +
       '<span class="badge badge-' + statusKey + '">' + esc(con.status) + '</span>' +
     '</div>' + linesHtml + '</div>';
@@ -314,7 +321,7 @@ function buildLineRow(con, line) {
   const canRequest = available > 0 && con.status !== 'Cancelled' && con.status !== 'Fully Drawn';
 
   const etaNote = (line.availability_type === 'forward' && line.eta)
-    ? '<span class="eta-tag">ETA ' + esc(line.eta) + (line.sailing_status ? ' · ' + esc(line.sailing_status) : '') + '</span>'
+    ? '<span class="eta-tag">ETA ' + fmtDate(line.eta) + (line.sailing_status ? ' · ' + esc(line.sailing_status) : '') + '</span>'
     : '';
 
   // Substitution indicator — only show if substitutions exist on this line
@@ -354,7 +361,7 @@ function buildDrawdownHistory(lines) {
       '<span class="badge badge-' + statusKey + '">' + esc(d.status) + '</span>' +
       '<span class="dd-bags">' + (d.requested_bags || 0) + ' bags</span>' +
       '<span>' + esc(d.sample_name) + '</span>' +
-      (d.shipping_date ? '<span>' + esc(d.shipping_date) + '</span>' : '') +
+      (d.shipping_date ? '<span>' + fmtDate(d.shipping_date) + '</span>' : '') +
       (d.notes ? '<span style="color:var(--faint)">' + esc(d.notes) + '</span>' : '') +
     '</div>';
   }).join('');
@@ -449,10 +456,10 @@ document.getElementById('btn-dd-cancel').onclick = () =>
 
 document.getElementById('btn-dd-submit').onclick = async function() {
   const btn  = this;
-  const bags = parseInt(document.getElementById('dd-bags').value) || 0;
+  const bags = parseInt(document.getElementById('dd-bags').value);  // v1.2: no || 0 — catch NaN
   const max  = parseInt(document.getElementById('dd-bags').max)   || 0;
   hideAlert('dd-error');
-  if (bags <= 0)  { showAlert('dd-error', 'Please enter a number greater than zero.', 'error'); return; }
+  if (isNaN(bags) || bags <= 0) { showAlert('dd-error', 'Please enter a whole number greater than zero.', 'error'); return; }
   if (bags > max) { showAlert('dd-error', 'Requested bags (' + bags + ') exceed available (' + max + ').', 'error'); return; }
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
