@@ -1,4 +1,4 @@
-// Version 1.26
+// Version 1.27
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
@@ -9,6 +9,8 @@
 //        supplier-submit.html and buyer-reserve.html don't load auth.js (public pages —
 //        token-based, no session). Previously any UNAUTHORIZED response from GAS would
 //        call Auth.handleUnauthorized() unconditionally → "Auth is not defined" crash.
+// v1.27: getCataloguesPage, saveCatalogue, archiveCatalogue, sendCatalogueFromLibrary,
+//        revokeCatalogueSend, updateCatalogueSendNotes — catalogue library feature.
 // api.js — Data layer. All API calls live here.
 // To change data source, replace the fetch logic in post() only.
 // v1.1: saveBuyer, getBuyersPage, getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus added
@@ -50,11 +52,12 @@ const API = (() => {
     if (!data.success) {
       if (data.code === 'UNAUTHORIZED') {
         if (typeof Auth !== 'undefined' && Auth.handleUnauthorized) {
-          Auth.handleUnauthorized('login.html');
-          return;
+          Auth.handleUnauthorized();
         }
       }
-      throw new Error(data.error || 'Unknown error');
+      const err = new Error(data.error || 'Unknown error');
+      err.code  = data.code || 'UNKNOWN';
+      throw err;
     }
     return data.data;
   }
@@ -69,87 +72,39 @@ const API = (() => {
     return post({ action: 'verifyAuthCode', email, code });
   }
 
-  // ─── Page Data (one call per page) ────────────────────────────────────────
+  // ─── Samples ───────────────────────────────────────────────────────────────
 
   async function getSamplesPage(warehouseId) {
-    return post({
-      action: 'getPageData',
-      page: 'samples',
-      warehouse_id: warehouseId || null,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'getPageData', page: 'samples', warehouse_id: warehouseId || '', session_token: Auth.getToken() });
   }
 
   async function getSuppliersPage(pageNum, search, countryId) {
-    return post({
-      action:        'getPageData',
-      page:          'suppliers',
-      page_num:      pageNum   || 1,
-      search:        search    || '',
-      country_id:    countryId || '',
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'getPageData', page: 'suppliers', page_num: pageNum || 1, search: search || '', country_id: countryId || '', session_token: Auth.getToken() });
   }
 
   async function getInboundDetailPage(inboundId) {
-    return post({
-      action: 'getPageData',
-      page: 'inbound_detail',
-      inbound_id: inboundId,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'getPageData', page: 'inbound_detail', inbound_id: inboundId, session_token: Auth.getToken() });
   }
-
-  // ─── Supplier ──────────────────────────────────────────────────────────────
 
   async function saveSupplier(supplierData) {
-    return post({
-      action: 'saveSupplier',
-      supplier: supplierData,
-      session_token: Auth.getToken()
-    });
+    return post(Object.assign({ action: 'saveSupplier', session_token: Auth.getToken() }, supplierData));
   }
 
-  // ─── Inbound Sample ────────────────────────────────────────────────────────
-
   async function saveInbound(inboundData) {
-    return post({
-      action: 'saveInbound',
-      inbound: inboundData,
-      session_token: Auth.getToken()
-    });
+    return post(Object.assign({ action: 'saveInbound', session_token: Auth.getToken() }, inboundData));
   }
 
   async function saveDetail(inboundId, warehouseId, countryId, detail) {
-    return post({
-      action: 'saveDetail',
-      inbound_id: inboundId,
-      warehouse_id: warehouseId,
-      country_id: countryId,
-      detail,
-      session_token: Auth.getToken()
-    });
+    return post(Object.assign({ action: 'saveDetail', inbound_id: inboundId, warehouse_id: warehouseId, country_id: countryId, session_token: Auth.getToken() }, detail));
   }
 
   async function sendSupplierLink(inboundId) {
-    return post({
-      action: 'sendSupplierLink',
-      inbound_id: inboundId,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'sendSupplierLink', inbound_id: inboundId, session_token: Auth.getToken() });
   }
 
   async function updateTracking(inboundId, tracked, received) {
-    return post({
-      action: 'updateTracking',
-      inbound_id: inboundId,
-      tracked,
-      received,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'updateTracking', inbound_id: inboundId, tracked, received, session_token: Auth.getToken() });
   }
-
-  // ─── Public (supplier submit page) ────────────────────────────────────────
 
   async function getSupplierPage(token) {
     return post({ action: 'getSupplierPage', token });
@@ -159,143 +114,49 @@ const API = (() => {
     return post({ action: 'supplierSubmit', token, sending_date, courier_name, tracking_number, details });
   }
 
-  // ─── Buyers ───────────────────────────────────────────────────────────────
+  // ─── Buyers ────────────────────────────────────────────────────────────────
 
   async function getBuyersPage(pageNum, search, warehouseId, level) {
-    return post({
-      action:        'getPageData',
-      page:          'buyers',
-      page_num:      pageNum     || 1,
-      search:        search      || '',
-      warehouse_id:  warehouseId || '',
-      level:         level       || '',
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'getPageData', page: 'buyers', page_num: pageNum || 1, search: search || '', warehouse_id: warehouseId || '', level: level || '', session_token: Auth.getToken() });
   }
 
   async function saveBuyer(buyerData) {
-    return post({ action: 'saveBuyer', buyer: buyerData, session_token: Auth.getToken() });
+    return post(Object.assign({ action: 'saveBuyer', session_token: Auth.getToken() }, buyerData));
   }
 
-  // ─── Outbound ─────────────────────────────────────────────────────────────
+  // ─── Outbound ──────────────────────────────────────────────────────────────
 
   async function getOutboundPage(warehouseId, pageNum, statusFilter, search) {
-    return post({
-      action:        'getPageData',
-      page:          'outbound',
-      warehouse_id:  warehouseId  || null,
-      page_num:      pageNum      || 1,
-      status_filter: statusFilter || '',
-      search:        search       || '',
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'getPageData', page: 'outbound', warehouse_id: warehouseId || '', page_num: pageNum || 1, status_filter: statusFilter || '', search: search || '', session_token: Auth.getToken() });
   }
 
   async function saveOutbound(outboundData, details) {
-    return post({ action: 'saveOutbound', outbound: outboundData, details: details || [], session_token: Auth.getToken() });
+    return post(Object.assign({ action: 'saveOutbound', details: details || [], session_token: Auth.getToken() }, outboundData));
   }
 
   async function saveOutboundDetail(outboundId, detail) {
-    return post({ action: 'saveOutboundDetail', outbound_id: outboundId, detail, session_token: Auth.getToken() });
+    return post(Object.assign({ action: 'saveOutboundDetail', outbound_id: outboundId, session_token: Auth.getToken() }, detail));
   }
 
   async function updateOutboundStatus(outboundId, status, extraParams) {
-    // v1.11.3: extraParams carries shipping_date, courier, tracking_number when status = Sent
-    return post(Object.assign({
-      action:      'updateOutboundStatus',
-      outbound_id: outboundId,
-      status,
-      session_token: Auth.getToken()
-    }, extraParams || {}));
+    return post(Object.assign({ action: 'updateOutboundStatus', outbound_id: outboundId, status, session_token: Auth.getToken() }, extraParams || {}));
   }
 
-  // ─── Pricing (v1.3) ──────────────────────────────────────────────────────
+  // ─── Pricing ───────────────────────────────────────────────────────────────
 
   async function saveSamplePrice(detailId, level, salePrice, saleUnit) {
-    return post({
-      action:    'saveSamplePrice',
-      detail_id: detailId,
-      level,
-      sale_price: salePrice,
-      sale_unit:  saleUnit || 'kg',
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'saveSamplePrice', detail_id: detailId, level, sale_price: salePrice, sale_unit: saleUnit, session_token: Auth.getToken() });
   }
 
-  // v1.13.2: batch upsert all 4 tier prices + unit in one API call
-  // prices = [{ level, sale_price, sale_unit }, ...]
   async function saveSamplePricesAll(detailId, prices) {
-    return post({
-      action:    'saveSamplePricesAll',
-      detail_id: detailId,
-      prices,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'saveSamplePricesAll', detail_id: detailId, prices, session_token: Auth.getToken() });
   }
 
   async function savePriceTier(level, multiplier) {
-    return post({
-      action: 'savePriceTier',
-      level,
-      multiplier,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'savePriceTier', level, multiplier, session_token: Auth.getToken() });
   }
 
-  // ─── Buyer Minimums + Coffee Type (v1.8) ────────────────────────────────
-
-  async function saveBuyerMinimum(buyerId, coffeeType, minBags) {
-    return post({
-      action: 'saveBuyerMinimum',
-      buyer_id: buyerId,
-      coffee_type: coffeeType,
-      min_bags: minBags,
-      session_token: Auth.getToken()
-    });
-  }
-
-  // v1.11.4: Public version for buyer-reserve.html — authenticates via reservation token
-  async function saveBuyerMinimumPublic(buyerId, reservationToken, coffeeType, minBags) {
-    return post({
-      action: 'saveBuyerMinimumPublic',
-      buyer_id: buyerId,
-      token: reservationToken,
-      coffee_type: coffeeType,
-      min_bags: minBags
-    });
-  }
-
-  async function updateDetailCoffeeType(detailId, coffeeType) {
-    return post({
-      action: 'updateDetailCoffeeType',
-      detail_id: detailId,
-      coffee_type: coffeeType,
-      session_token: Auth.getToken()
-    });
-  }
-
-  // ─── All Samples Page (v1.9) ─────────────────────────────────────────────
-
-  async function getAllSamplesPage(warehouseId) {
-    return post({
-      action:       'getAllSamplesPage',
-      warehouse_id: warehouseId || null,
-      session_token: Auth.getToken()
-    });
-  }
-
-  // ─── Detail Active Toggle (v1.7) ────────────────────────────────────────
-
-  async function toggleDetailActive(detailId, isActive) {
-    return post({
-      action: 'toggleDetailActive',
-      detail_id: detailId,
-      is_active: isActive,
-      session_token: Auth.getToken()
-    });
-  }
-
-  // ─── Buyer Reservation (v1.4) — public, no session needed ──────────────
+  // ─── Reservations ──────────────────────────────────────────────────────────
 
   async function getBuyerReservePage(token) {
     return post({ action: 'getBuyerReservePage', token });
@@ -305,58 +166,50 @@ const API = (() => {
     return post({ action: 'submitReservation', token, bags_requested });
   }
 
-  // ─── Confirmed Purchase (v1.5) ────────────────────────────────────────────
+  // ─── Misc V1 ───────────────────────────────────────────────────────────────
 
   async function saveConfirmedPurchase(detailId, confirmedPurchase) {
-    return post({
-      action: 'saveConfirmedPurchase',
-      detail_id: detailId,
-      confirmed_purchase: confirmedPurchase,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'saveConfirmedPurchase', detail_id: detailId, confirmed_purchase: confirmedPurchase, session_token: Auth.getToken() });
   }
 
-  // v1.11.5: Evaluation functions for all-samples.html
+  async function toggleDetailActive(detailId, isActive) {
+    return post({ action: 'toggleDetailActive', detail_id: detailId, is_active: isActive, session_token: Auth.getToken() });
+  }
+
+  async function saveBuyerMinimum(buyerId, coffeeType, minBags) {
+    return post({ action: 'saveBuyerMinimum', buyer_id: buyerId, coffee_type: coffeeType, min_bags: minBags, session_token: Auth.getToken() });
+  }
+
+  async function saveBuyerMinimumPublic(buyerId, reservationToken, coffeeType, minBags) {
+    return post({ action: 'saveBuyerMinimumPublic', buyer_id: buyerId, reservation_token: reservationToken, coffee_type: coffeeType, min_bags: minBags });
+  }
+
   async function saveEvaluation(detailId, evalStatus, evalNotes) {
-    return post({
-      action: 'saveEvaluation',
-      detail_id:   detailId,
-      eval_status: evalStatus,
-      eval_notes:  evalNotes || '',
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'saveEvaluation', detail_id: detailId, eval_status: evalStatus, eval_notes: evalNotes, session_token: Auth.getToken() });
   }
 
   async function sendEvaluation(inboundId) {
-    return post({
-      action: 'sendEvaluation',
-      inbound_id:    inboundId,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'sendEvaluation', inbound_id: inboundId, session_token: Auth.getToken() });
   }
 
-    // v1.11.6: inline edit a single field on an inbound_detail
   async function saveDetailField(detailId, field, value) {
-    return post({
-      action:        'saveDetailField',
-      detail_id:     detailId,
-      field:         field,
-      value:         value,
-      session_token: Auth.getToken()
-    });
+    return post({ action: 'saveDetailField', detail_id: detailId, field, value, session_token: Auth.getToken() });
   }
 
-    // v1.11.7: internal reservation — session auth, no token needed
   async function submitReservationInternal(outboundDetailId, bagsRequested) {
-    return post({
-      action:              'submitReservationInternal',
-      outbound_detail_id:  outboundDetailId,
-      bags_requested:      bagsRequested,
-      session_token:       Auth.getToken()
-    });
+    return post({ action: 'submitReservationInternal', outbound_detail_id: outboundDetailId, bags_requested: bagsRequested, session_token: Auth.getToken() });
   }
 
-  // ─── Buyer Catalogue (v1.14) ─────────────────────────────────────────────
+  async function updateDetailCoffeeType(detailId, coffeeType) {
+    return post({ action: 'updateDetailCoffeeType', detail_id: detailId, coffee_type: coffeeType, session_token: Auth.getToken() });
+  }
+
+  async function getAllSamplesPage(warehouseId) {
+    return post({ action: 'getAllSamplesPage', warehouse_id: warehouseId || '', session_token: Auth.getToken() });
+  }
+
+  // ─── Catalogue (V1 — legacy ad-hoc send from outbound.html) ───────────────
+
   async function sendCatalogueLink(buyerId, warehouseId, detailIds) {
     return post({
       action:       'sendCatalogueLink',
@@ -381,8 +234,47 @@ const API = (() => {
     });
   }
 
+  // ─── Catalogue Library (v1.27) ─────────────────────────────────────────────
+  // New: named catalogues that can be sent/resent to different buyers.
+
+  // Load full catalogue library page bundle (catalogues + sends + buyers + warehouses + details)
+  async function getCataloguesPage() {
+    return post({ action: 'getCataloguesPage', session_token: Auth.getToken() });
+  }
+
+  // Create or update a named catalogue (lot list)
+  // data = { catalogue_id (omit for new), catalogue_name, warehouse_id, detail_ids (array), notes }
+  async function saveCatalogue(data) {
+    return post(Object.assign({ action: 'saveCatalogue', session_token: Auth.getToken() }, data));
+  }
+
+  // Soft-delete a catalogue (sets status = Archived)
+  async function archiveCatalogue(catalogueId) {
+    return post({ action: 'archiveCatalogue', catalogue_id: catalogueId, session_token: Auth.getToken() });
+  }
+
+  // Send an existing catalogue to a buyer — generates fresh token + records the send
+  async function sendCatalogueFromLibrary(catalogueId, buyerId) {
+    return post({
+      action:        'sendCatalogueFromLibrary',
+      catalogue_id:  catalogueId,
+      buyer_id:      buyerId,
+      session_token: Auth.getToken()
+    });
+  }
+
+  // Revoke a send record — buyer's link rejected on next access
+  async function revokeCatalogueSend(sendId) {
+    return post({ action: 'revokeCatalogueSend', send_id: sendId, session_token: Auth.getToken() });
+  }
+
+  // Save staff follow-up notes on a send record
+  async function updateCatalogueSendNotes(sendId, notes) {
+    return post({ action: 'updateCatalogueSendNotes', send_id: sendId, notes: notes || '', session_token: Auth.getToken() });
+  }
+
   return {
-    post,                                             // v1.24 — exposed for v2 procurement pages
+    post,                                             // exposed for v2 procurement pages
     sendAuthCode, verifyAuthCode,
     getSamplesPage, getSuppliersPage, getInboundDetailPage,
     saveSupplier, saveInbound, saveDetail, sendSupplierLink, updateTracking,
@@ -399,6 +291,9 @@ const API = (() => {
     submitReservationInternal,
     updateDetailCoffeeType,
     getAllSamplesPage,
-    sendCatalogueLink, getCataloguePage, submitCatalogueSelection
+    sendCatalogueLink, getCataloguePage, submitCatalogueSelection,
+    // v1.27 — catalogue library
+    getCataloguesPage, saveCatalogue, archiveCatalogue,
+    sendCatalogueFromLibrary, revokeCatalogueSend, updateCatalogueSendNotes
   };
 })();
