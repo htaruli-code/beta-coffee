@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.0.7 | drawdowns.html -->
+<!-- Version 2.1.1 | drawdowns.html -->
 <!-- v2.0.5: Contract line dropdown now correctly populated from con.lines[] (requires DataService_Contracts v2.0.2).
              Line dropdown shows sample name + available bags.
              Selecting a line updates bags input max and shows available count.
@@ -72,6 +72,29 @@
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+
+    /* ── Drawdown lot panel (v2.0.8) ──────────────────────────────────────── */
+    .lot-expand-row td { background: #f0f7f4; padding: 0; }
+    .lot-panel { padding: 0.45rem 0.75rem 0.55rem 0.75rem; font-family: var(--font-mono); font-size: 0.72rem; }
+    .lot-panel-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; padding: 0.2rem 0; border-bottom: 1px dashed var(--border); color: var(--muted); }
+    .lot-panel-row:last-child { border-bottom: none; }
+    .lot-panel-row .lp-bags { color: var(--text); font-weight: 600; }
+    .lot-panel-row .lp-lot  { color: var(--text); }
+    .lot-sub-tag { font-size: 0.62rem; color: var(--accent); background: #fff3e0; padding: 0.1rem 0.35rem; border-radius: 2px; font-weight: 600; }
+    .lot-toggle { font-family: var(--font-mono); font-size: 0.68rem; cursor: pointer; color: var(--accent); background: none; border: none; padding: 0; text-decoration: underline; white-space: nowrap; }
+
+    /* ── Inline substitution form in Approve modal (v2.1) ──────────────────── */
+    .sub-inline { background: var(--surface); border: 1px solid rgba(196,122,43,0.3); border-radius: var(--radius); padding: 0.75rem; margin-top: 0.75rem; }
+    .sub-inline-title { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; font-weight: 600; }
+    .sub-inline .field-row { margin-bottom: 0.5rem; }
+    .sub-inline label { font-size: 0.68rem; }
+    .sub-inline input, .sub-inline select { font-size: 0.75rem; padding: 0.35rem 0.6rem; }
+    .sub-inline .btn { width: auto; font-size: 0.7rem; padding: 0.35rem 0.75rem; }
+    .sub-list { margin-top: 0.5rem; }
+    .sub-list-row { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); padding: 0.2rem 0; border-bottom: 1px dashed var(--border); }
+    .sub-list-row:last-child { border-bottom: none; }
+    .sub-list-row .sub-bags { color: var(--text); font-weight: 600; }
+    .sub-list-row .sub-del { background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.8rem; padding: 0; margin-left: auto; }
   </style>
 </head>
 <body>
@@ -115,9 +138,32 @@
     <input type="hidden" id="ds-drawdown-id" />
     <input type="hidden" id="ds-contract-id" />
     <input type="hidden" id="ds-line-id" />
+    <input type="hidden" id="ds-original-lot-id" />
     <!-- Inventory context — shown only when approving -->
     <div id="ds-inventory-context" style="display:none;margin-bottom:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.65rem 0.85rem;font-family:var(--font-mono);font-size:0.72rem;line-height:1.8"></div>
-    <div class="field" style="margin-bottom:0.75rem">
+    <!-- Inline substitution form — shown when inventory is short on Approve -->
+    <div id="ds-sub-form" style="display:none">
+      <div class="sub-inline">
+        <div class="sub-inline-title">Add Lot Substitution</div>
+        <div class="sub-list" id="ds-sub-list"></div>
+        <div class="field-row" style="margin-top:0.6rem">
+          <div class="field">
+            <label>Replacement Lot</label>
+            <select id="ds-sub-lot"></select>
+          </div>
+          <div class="field" style="max-width:100px">
+            <label>Bags <span id="ds-sub-bags-hint" style="color:var(--accent);font-weight:400"></span></label>
+            <input type="number" id="ds-sub-bags" min="1" placeholder="0" />
+          </div>
+          <div class="field" style="max-width:180px">
+            <label>Reason (optional)</label>
+            <input type="text" id="ds-sub-reason" placeholder="optional" maxlength="200" />
+          </div>
+        </div>
+        <button class="btn btn-ghost" id="btn-ds-add-sub" style="margin-top:0.25rem">+ Add Substitution</button>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:0.75rem;margin-top:0.75rem">
       <label>New Status</label>
       <select id="ds-status"></select>
     </div>
@@ -179,13 +225,14 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.0.7 | drawdowns.html
+// Version 2.1.1 | drawdowns.html
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-let PAGE_DATA = { drawdowns: [], contracts: [], buyers: [], inventory_lots: [], drawdown_statuses: [] };
+let expandedRows = new Set();
+let PAGE_DATA = { drawdowns: [], contracts: [], buyers: [], inventory_lots: [], drawdown_statuses: [], lot_substitutions: [] };
 
 (async () => {
   const user = Auth.getUser(); const company = Auth.getCompany();
@@ -243,27 +290,56 @@ function renderTable() {
 
     const NEXT = { 'Pending': ['Approved','Cancelled'], 'Approved': ['Dispatched','Cancelled'], 'Dispatched': ['Delivered'] };
     const next = NEXT[d.status] || [];
-    const actions = next.map(s =>
+    let actions = next.map(s =>
       `<button class="btn btn-ghost btn-sm" onclick="openStatusModal(${d.drawdown_id}, '${d.contract_id}', '${d.contract_line_id}', '${s}')">${s}</button>`
     ).join('');
+    // v2.1.1: Resend warehouse notification email for Approved drawdowns
+    if (d.status === 'Approved') {
+      actions += `<button class="btn btn-ghost btn-sm" onclick="resendDrawdownEmail(${d.drawdown_id})" title="Resend warehouse notification email">📧 Resend</button>`;
+    }
 
-    return `<tr>
+    const lotSummary = buildDrawdownLotSummary(d);
+    const isExpanded = expandedRows.has(String(d.drawdown_id));
+    const lotToggle  = lotSummary.lines.length
+      ? `<button class="lot-toggle" onclick="toggleDdRow(${d.drawdown_id})">${isExpanded ? '▲' : '▼'} ${lotSummary.lines.length} lot${lotSummary.lines.length !== 1 ? 's' : ''}</button>`
+      : '<span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted)">—</span>';
+    const colCount   = 10;
+
+    let html = `<tr>
       <td><span class="badge badge-${badgeKey}">${esc(d.status)}</span></td>
       <td>${buyer ? esc(buyer.company_name) : '—'}</td>
       <td>${con  ? esc(con.contract_number) : '—'}</td>
       <td>${esc(sample)}</td>
       <td style="text-align:right;font-family:var(--font-mono)">${d.requested_bags}</td>
+      <td>${lotToggle}</td>
       <td>${esc(d.shipping_date || '—')}</td>
       <td>${esc(d.drawdown_date || d.created_at || '—')}</td>
       <td>${d.outbound_id ? '<a href="outbound.html" style="font-family:var(--font-mono);font-size:0.75rem">OUT-' + d.outbound_id + '</a>' : '—'}</td>
       <td><div class="action-group">${actions}</div></td>
     </tr>`;
+
+    if (isExpanded && lotSummary.lines.length) {
+      html += `<tr class="lot-expand-row"><td colspan="${colCount}">
+        <div class="lot-panel">
+          ${lotSummary.lines.map(line => `<div class="lot-panel-row">
+            ${line.is_sub ? '<span class="lot-sub-tag">SUB</span>' : ''}
+            <span class="lp-bags">${line.bags} bags</span>
+            <span style="color:var(--muted)">·</span>
+            <span class="lp-lot">${esc(line.lot_name)}</span>
+            ${line.lot_number ? '<span style="color:var(--muted)">Lot ' + esc(line.lot_number) + '</span>' : ''}
+            ${line.location ? '<span style="color:var(--muted)">· ' + esc(line.location) + '</span>' : ''}
+          </div>`).join('')}
+        </div>
+      </td></tr>`;
+    }
+
+    return html;
   }).join('');
 
   wrap.innerHTML = `<table class="dd-table">
     <thead><tr>
       <th>Status</th><th>Buyer</th><th>Contract</th><th>Sample</th>
-      <th style="text-align:right">Bags</th><th>Ship Date</th><th>Created</th><th>Outbound</th><th>Actions</th>
+      <th style="text-align:right">Bags</th><th>Lots</th><th>Ship Date</th><th>Created</th><th>Outbound</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
@@ -271,21 +347,26 @@ function renderTable() {
 
 // ── Status update modal ───────────────────────────────────────────────────────
 
+// Drawdown-level subs recorded in this session (before saving status)
+// [{ replacement_lot_id, bags_count, reason }]
+let pendingSubstitutions = [];
+
 function openStatusModal(drawdownId, contractId, lineId, presetStatus) {
-  document.getElementById('ds-drawdown-id').value = drawdownId;
-  document.getElementById('ds-contract-id').value  = contractId;
-  document.getElementById('ds-line-id').value      = lineId;
+  pendingSubstitutions = [];
+  document.getElementById('ds-drawdown-id').value   = drawdownId;
+  document.getElementById('ds-contract-id').value   = contractId;
+  document.getElementById('ds-line-id').value        = lineId;
 
   const ALLOWED = { 'Pending': ['Approved','Cancelled'], 'Approved': ['Dispatched','Cancelled'], 'Dispatched': ['Delivered'] };
   const dd      = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
   const options = dd ? (ALLOWED[dd.status] || []) : PAGE_DATA.drawdown_statuses;
-
   document.getElementById('ds-status').innerHTML = options.map(s =>
     `<option value="${s}" ${s === presetStatus ? 'selected' : ''}>${s}</option>`
   ).join('');
 
   // ── Inventory context — shown only when approving ──────────────────────────
-  const ctx = document.getElementById('ds-inventory-context');
+  const ctx     = document.getElementById('ds-inventory-context');
+  const subForm = document.getElementById('ds-sub-form');
   if (presetStatus === 'Approved' && dd) {
     const con  = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
     const line = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
@@ -293,67 +374,223 @@ function openStatusModal(drawdownId, contractId, lineId, presetStatus) {
       ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id))
       : null;
 
-    const requested = dd.requested_bags || 0;
+    // Store original lot id for substitution form
+    document.getElementById('ds-original-lot-id').value = lot ? lot.lot_id : '';
+
+    const requested    = dd.requested_bags || 0;
     const primaryAvail = lot ? (lot.available_bags || 0) : 0;
-    const subs = line ? (line.substitutions || []) : [];
-    const subTotal = subs.reduce((s, x) => s + (x.bags_count || 0), 0);
-    const total = primaryAvail + subTotal;
-    const short = requested - total;
-    const ok    = total >= requested;
+    // v2.1: subs filtered to THIS drawdown only
+    const existingSubs = (PAGE_DATA.lot_substitutions || [])
+      .filter(s => String(s.drawdown_id) === String(drawdownId));
+    const subTotal     = existingSubs.reduce((s, x) => s + (x.bags_count || 0), 0) +
+                         pendingSubstitutions.reduce((s, x) => s + (x.bags_count || 0), 0);
+    const total        = primaryAvail + subTotal;
+    const short        = Math.max(0, requested - total);
+    const ok           = total >= requested;
 
     let html = '<strong style="color:var(--text)">Inventory check — ' + requested + ' bags requested</strong><br>';
-
-    // Primary lot
     if (lot) {
       html += '<span style="color:var(--muted)">Primary lot:</span> ' + esc(lot.sample_name) +
         ' &nbsp;·&nbsp; <strong>' + primaryAvail + '</strong> available<br>';
     } else {
-      html += '<span style="color:var(--muted)">Primary lot:</span> <span style="color:var(--error)">no lot linked to this contract line</span><br>';
+      html += '<span style="color:var(--muted)">Primary lot:</span> <span style="color:var(--error)">no lot linked</span><br>';
     }
-
-    // Substitutions
-    if (subs.length) {
-      subs.forEach(s => {
-        const replLot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
-        html += '<span style="color:var(--muted)">↳ Substitution:</span> ' +
-          (replLot ? esc(replLot.sample_name) : 'Lot ' + s.replacement_lot_id) +
-          ' &nbsp;·&nbsp; <strong>' + s.bags_count + ' bags</strong>' +
-          (s.reason ? ' <span style="color:var(--muted)">— ' + esc(s.reason) + '</span>' : '') + '<br>';
-      });
-    }
-
+    existingSubs.forEach(s => {
+      const replLot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
+      html += '<span style="color:var(--muted)">↳ Sub (saved):</span> ' +
+        (replLot ? esc(replLot.sample_name) : 'Lot ' + s.replacement_lot_id) +
+        ' &nbsp;·&nbsp; <strong>' + s.bags_count + ' bags</strong><br>';
+    });
     html += '<span style="color:var(--muted)">Total coverable:</span> ';
     if (ok) {
       html += '<strong style="color:var(--success)">' + total + ' bags ✓</strong>';
     } else {
       html += '<strong style="color:var(--error)">' + total + ' bags — short by ' + short + '</strong>';
-      html += '<br><span style="color:var(--error);font-size:0.68rem">Record a substitution in Contracts before approving.</span>';
     }
-
     ctx.innerHTML = html;
     ctx.style.display = 'block';
     ctx.style.borderColor = ok ? 'rgba(46,125,82,0.3)' : 'rgba(192,57,43,0.3)';
     ctx.style.background  = ok ? 'rgba(46,125,82,0.05)' : 'rgba(192,57,43,0.05)';
+
+    // Show sub form if short, hide if covered
+    if (!ok) {
+      subForm.style.display = 'block';
+      refreshSubForm(drawdownId, lineId, lot, requested, primaryAvail, existingSubs);
+    } else {
+      subForm.style.display = 'none';
+    }
   } else {
-    ctx.style.display = 'none';
+    ctx.style.display     = 'none';
+    subForm.style.display = 'none';
   }
 
   document.getElementById('modal-status-title').textContent = 'Move to: ' + presetStatus;
-  clearModalError('modal-status'); document.getElementById('modal-status').classList.add('open');
+  clearModalError('modal-status');
+  document.getElementById('modal-status').classList.add('open');
+}
+
+function refreshSubForm(drawdownId, lineId, primaryLot, requested, primaryAvail, existingSubs) {
+  const pendingTotal   = pendingSubstitutions.reduce((s, x) => s + (x.bags_count || 0), 0);
+  const existingTotal  = existingSubs.reduce((s, x) => s + (x.bags_count || 0), 0);
+  const alreadyCovered = primaryAvail + existingTotal + pendingTotal;
+  const gap            = Math.max(0, requested - alreadyCovered);
+  const origLotId      = document.getElementById('ds-original-lot-id').value;
+
+  // Pending sub list
+  const listEl = document.getElementById('ds-sub-list');
+  if (pendingSubstitutions.length) {
+    listEl.innerHTML = pendingSubstitutions.map((s, i) => {
+      const lot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
+      return '<div class="sub-list-row">' +
+        '<span class="sub-bags">' + s.bags_count + ' bags</span>' +
+        '<span>from ' + (lot ? esc(lot.sample_name) : 'Lot ' + s.replacement_lot_id) + '</span>' +
+        (s.reason ? '<span>— ' + esc(s.reason) + '</span>' : '') +
+        '<button class="sub-del" onclick="removePendingSub(' + i + ',\'' + drawdownId + '\',\'' + lineId + '\')" title="Remove">✕</button>' +
+      '</div>';
+    }).join('');
+  } else {
+    listEl.innerHTML = '';
+  }
+
+  // Replacement lot dropdown — exclude original lot, only lots with available bags
+  const lotSel = document.getElementById('ds-sub-lot');
+  lotSel.innerHTML = '<option value="">— Select lot —</option>' +
+    PAGE_DATA.inventory_lots
+      .filter(l => String(l.lot_id) !== String(origLotId) && (l.available_bags || 0) > 0)
+      .map(l => {
+        const effectiveMax = Math.min(l.available_bags, gap);
+        return '<option value="' + l.lot_id + '" data-avail="' + l.available_bags + '" data-max="' + effectiveMax + '">' +
+          esc(l.sample_name) + ' · ' + l.available_bags + ' avail' +
+          '</option>';
+      }).join('');
+
+  // Bags hint
+  const hintEl = document.getElementById('ds-sub-bags-hint');
+  hintEl.textContent = gap > 0 ? '(gap: ' + gap + ')' : '';
+  document.getElementById('ds-sub-bags').value = '';
+  document.getElementById('ds-sub-bags').max   = gap;
+  document.getElementById('ds-sub-reason').value = '';
+
+  // Update lot onchange for per-lot max
+  lotSel.onchange = function() {
+    const opt = lotSel.options[lotSel.selectedIndex];
+    const effectiveMax = opt && opt.dataset.max ? parseInt(opt.dataset.max) : gap;
+    document.getElementById('ds-sub-bags').max = effectiveMax;
+    hintEl.textContent = effectiveMax > 0 ? '(max ' + effectiveMax + ')' : '';
+  };
+}
+
+function removePendingSub(idx, drawdownId, lineId) {
+  pendingSubstitutions.splice(idx, 1);
+  const dd      = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
+  const con     = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd.contract_id));
+  const line    = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
+  const lot     = line && line.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id)) : null;
+  const existingSubs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId));
+  const primaryAvail = lot ? (lot.available_bags || 0) : 0;
+  refreshSubForm(drawdownId, lineId, lot, dd.requested_bags || 0, primaryAvail, existingSubs);
+  refreshApproveContext(drawdownId, lineId);
+}
+
+document.getElementById('btn-ds-add-sub').onclick = function() {
+  const lotSel  = document.getElementById('ds-sub-lot');
+  const lotId   = lotSel.value;
+  const bags    = parseInt(document.getElementById('ds-sub-bags').value) || 0;
+  const reason  = document.getElementById('ds-sub-reason').value.trim();
+  const max     = parseInt(document.getElementById('ds-sub-bags').max) || 0;
+  if (!lotId) { showModalError('modal-status', 'Select a replacement lot.'); return; }
+  if (bags <= 0) { showModalError('modal-status', 'Bags must be greater than zero.'); return; }
+  if (bags > max) { showModalError('modal-status', 'Bags (' + bags + ') exceed maximum (' + max + ').'); return; }
+  clearModalError('modal-status');
+  pendingSubstitutions.push({ replacement_lot_id: lotId, bags_count: bags, reason: reason });
+  const drawdownId = document.getElementById('ds-drawdown-id').value;
+  const lineId     = document.getElementById('ds-line-id').value;
+  const dd         = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
+  const con        = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd.contract_id));
+  const line       = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
+  const lot        = line && line.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id)) : null;
+  const existingSubs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId));
+  refreshSubForm(drawdownId, lineId, lot, dd.requested_bags || 0, lot ? (lot.available_bags || 0) : 0, existingSubs);
+  refreshApproveContext(drawdownId, lineId);
+};
+
+function refreshApproveContext(drawdownId, lineId) {
+  const dd       = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
+  const con      = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd && dd.contract_id));
+  const line     = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
+  const lot      = line && line.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id)) : null;
+  const existing = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId));
+  const pending  = pendingSubstitutions.reduce((s, x) => s + (x.bags_count || 0), 0);
+  const existTotal = existing.reduce((s, x) => s + (x.bags_count || 0), 0);
+  const primaryAvail = lot ? (lot.available_bags || 0) : 0;
+  const total    = primaryAvail + existTotal + pending;
+  const requested = dd ? (dd.requested_bags || 0) : 0;
+  const ok       = total >= requested;
+  const ctx      = document.getElementById('ds-inventory-context');
+  const subForm  = document.getElementById('ds-sub-form');
+
+  let html = '<strong style="color:var(--text)">Inventory check — ' + requested + ' bags requested</strong><br>';
+  if (lot) html += '<span style="color:var(--muted)">Primary lot:</span> ' + esc(lot.sample_name) + ' &nbsp;·&nbsp; <strong>' + primaryAvail + '</strong> available<br>';
+  existing.forEach(s => {
+    const rl = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
+    html += '<span style="color:var(--muted)">↳ Sub (saved):</span> ' + (rl ? esc(rl.sample_name) : 'Lot ' + s.replacement_lot_id) + ' &nbsp;·&nbsp; <strong>' + s.bags_count + ' bags</strong><br>';
+  });
+  pendingSubstitutions.forEach(s => {
+    const rl = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
+    html += '<span style="color:var(--accent)">↳ Sub (pending):</span> ' + (rl ? esc(rl.sample_name) : 'Lot ' + s.replacement_lot_id) + ' &nbsp;·&nbsp; <strong>' + s.bags_count + ' bags</strong><br>';
+  });
+  html += '<span style="color:var(--muted)">Total coverable:</span> ';
+  html += ok
+    ? '<strong style="color:var(--success)">' + total + ' bags ✓</strong>'
+    : '<strong style="color:var(--error)">' + total + ' — short by ' + (requested - total) + '</strong>';
+  ctx.innerHTML = html;
+  ctx.style.borderColor = ok ? 'rgba(46,125,82,0.3)' : 'rgba(192,57,43,0.3)';
+  ctx.style.background  = ok ? 'rgba(46,125,82,0.05)' : 'rgba(192,57,43,0.05)';
+  subForm.style.display = ok ? 'none' : 'block';
 }
 
 document.getElementById('btn-ds-cancel').onclick = () => document.getElementById('modal-status').classList.remove('open');
 
 document.getElementById('btn-ds-save').onclick = async () => {
-  const btn = document.getElementById('btn-ds-save'); btn.disabled = true;
-  const status = document.getElementById('ds-status').value;
-  const payload = {
-    action:       'updateDrawdownStatus',
-    drawdown_id:  document.getElementById('ds-drawdown-id').value,
-    status:       status
-  };
+  const btn        = document.getElementById('btn-ds-save'); btn.disabled = true;
+  const status     = document.getElementById('ds-status').value;
+  const drawdownId = document.getElementById('ds-drawdown-id').value;
+  const lineId     = document.getElementById('ds-line-id').value;
+  const origLotId  = document.getElementById('ds-original-lot-id').value;
+  clearModalError('modal-status');
+
   try {
-    const data = await API.post(payload);
+    // v2.1: Save any pending substitutions first (drawdown-level, before approving)
+    if (status === 'Approved' && pendingSubstitutions.length > 0) {
+      for (const sub of pendingSubstitutions) {
+        const subData = await API.post({
+          action:             'saveLotSubstitution',
+          contract_line_id:   lineId,
+          original_lot_id:    origLotId,
+          replacement_lot_id: sub.replacement_lot_id,
+          bags_count:         sub.bags_count,
+          reason:             sub.reason || '',
+          drawdown_id:        drawdownId
+        });
+        // Merge new sub into PAGE_DATA.lot_substitutions
+        if (subData.drawdown_subs) {
+          subData.drawdown_subs.forEach(s => {
+            const idx = PAGE_DATA.lot_substitutions.findIndex(x => String(x.substitution_id) === String(s.substitution_id));
+            if (idx >= 0) PAGE_DATA.lot_substitutions[idx] = s; else PAGE_DATA.lot_substitutions.push(s);
+          });
+        }
+        if (subData.original_lot)    mergeLot(subData.original_lot);
+        if (subData.replacement_lot) mergeLot(subData.replacement_lot);
+      }
+      pendingSubstitutions = [];
+    }
+
+    // Now update the drawdown status
+    const data = await API.post({
+      action:       'updateDrawdownStatus',
+      drawdown_id:  drawdownId,
+      status:       status
+    });
     data.drawdowns.forEach(d => {
       const idx = PAGE_DATA.drawdowns.findIndex(x => String(x.drawdown_id) === String(d.drawdown_id));
       if (idx >= 0) PAGE_DATA.drawdowns[idx] = d; else PAGE_DATA.drawdowns.push(d);
@@ -364,6 +601,12 @@ document.getElementById('btn-ds-save').onclick = async () => {
   } catch (e) { showModalError('modal-status', e.message || 'Update failed.'); }
   finally { btn.disabled = false; }
 };
+
+function mergeLot(updatedLot) {
+  if (!updatedLot) return;
+  const idx = PAGE_DATA.inventory_lots.findIndex(l => String(l.lot_id) === String(updatedLot.lot_id));
+  if (idx >= 0) PAGE_DATA.inventory_lots[idx] = updatedLot;
+}
 
 // ── New Drawdown Modal (v2.0.4) — staff creates on behalf of buyer ────────────
 
@@ -518,6 +761,88 @@ document.getElementById('btn-new-dd-save').onclick = async function() {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+// ── Drawdown lot summary ──────────────────────────────────────────────────────
+// For a given drawdown, returns the lots fulfilling it:
+//   Primary lot (from contract_line.inventory_lot_id) + substitution lots.
+// Bags split: primary = requested - sub_total, each sub = substitution.bags_count.
+
+function buildDrawdownLotSummary(drawdown) {
+  // Cancelled drawdowns have no active lot commitment — show nothing.
+  if (drawdown.status === 'Cancelled') return { lines: [] };
+
+  const line    = drawdown.contract_line;
+  const lines   = [];
+
+  if (!line) return { lines: [] };
+
+  const primaryLot = line.inventory_lot_id
+    ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id))
+    : null;
+
+  // v2.1: Substitutions scoped to THIS drawdown only via drawdown_id.
+  // Legacy records (drawdown_id='') are matched by contract_line_id as fallback.
+  const drawdownIdStr = String(drawdown.drawdown_id);
+  const drawdownSubs  = (PAGE_DATA.lot_substitutions || []).filter(s =>
+    s.drawdown_id && String(s.drawdown_id) === drawdownIdStr
+  );
+  const legacySubs = drawdownSubs.length === 0
+    ? (PAGE_DATA.lot_substitutions || []).filter(s =>
+        !s.drawdown_id && String(s.contract_line_id) === String(line.contract_line_id)
+      )
+    : [];
+  const subs = drawdownSubs.length > 0 ? drawdownSubs : legacySubs;
+  const subTotal = subs.reduce((s, x) => s + (x.bags_count || 0), 0);
+
+  // Primary lot bags = requested minus what substitutions cover
+  const primaryBags = Math.max(0, (drawdown.requested_bags || 0) - subTotal);
+
+  if (primaryLot && primaryBags > 0) {
+    const loc = primaryLot.location_name || primaryLot.warehouse_name || '';
+    lines.push({
+      is_sub:     false,
+      bags:       primaryBags,
+      lot_name:   primaryLot.sample_name || '—',
+      lot_number: primaryLot.lot_number  || '',
+      location:   loc
+    });
+  } else if (!primaryLot && primaryBags > 0) {
+    lines.push({ is_sub: false, bags: primaryBags, lot_name: 'No lot linked', lot_number: '', location: '' });
+  }
+
+  subs.forEach(s => {
+    const replLot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
+    const loc = replLot ? (replLot.location_name || replLot.warehouse_name || '') : '';
+    lines.push({
+      is_sub:     true,
+      bags:       s.bags_count,
+      lot_name:   replLot ? replLot.sample_name : 'Lot ' + s.replacement_lot_id,
+      lot_number: replLot ? (replLot.lot_number || '') : '',
+      location:   loc
+    });
+  });
+
+  return { lines: lines };
+}
+
+function toggleDdRow(drawdownId) {
+  const k = String(drawdownId);
+  if (expandedRows.has(k)) expandedRows.delete(k);
+  else expandedRows.add(k);
+  renderTable();
+}
+
+
+async function resendDrawdownEmail(drawdownId) {
+  if (!confirm('Resend warehouse notification email for this drawdown?')) return;
+  try {
+    await API.post({ action: 'resendDrawdownEmail', drawdown_id: drawdownId });
+    showToast('Notification email resent.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to resend email.', 'error');
+  }
+}
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 

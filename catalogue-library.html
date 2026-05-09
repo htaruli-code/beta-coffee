@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<!-- Version 1.0 | catalogue-library.html -->
+<!-- Theme: Warm Precision v1.0 — matches existing app aesthetic -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catalogue Library — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2;
+      --border: #f0e8da; --accent: #c47a2b; --text: #1a1a1a;
+      --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --warn: #b45309; --info: #2563eb;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
+    .nav-user:hover { color: var(--error); }
+
+    /* ── Layout ── */
+    .page { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+
+    /* ── Split layout — catalogue list left, send history right ── */
+    .split { display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; align-items: start; }
+    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+    /* ── Panel ── */
+    .panel { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1rem; border-bottom: 1px solid var(--border); }
+    .panel-title { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+    /* ── Catalogue list items ── */
+    .cat-list { list-style: none; }
+    .cat-item { padding: 0.875rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: background var(--transition); display: flex; align-items: flex-start; gap: 0.75rem; }
+    .cat-item:last-child { border-bottom: none; }
+    .cat-item:hover { background: #fef4e8; }
+    .cat-item.active { background: #fef4e8; border-left: 3px solid var(--accent); padding-left: calc(1rem - 3px); }
+    .cat-item.archived { opacity: 0.5; }
+    .cat-item-info { flex: 1; min-width: 0; }
+    .cat-name { font-weight: 500; font-size: 0.85rem; margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cat-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); }
+    .cat-badge { font-family: var(--font-mono); font-size: 0.62rem; padding: 0.15rem 0.4rem; border-radius: 3px; white-space: nowrap; }
+    .badge-active   { background: #dcfce7; color: var(--success); }
+    .badge-archived { background: #f3f4f6; color: var(--muted); }
+    .cat-empty { padding: 2rem 1rem; text-align: center; color: var(--muted); font-size: 0.82rem; }
+
+    /* ── Send history table ── */
+    .panel-body { padding: 0; }
+    .sends-empty { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.82rem; }
+    .sends-table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fef4e8; }
+
+    /* ── Status badges (sends) ── */
+    .send-badge { font-family: var(--font-mono); font-size: 0.62rem; padding: 0.15rem 0.45rem; border-radius: 3px; white-space: nowrap; display: inline-block; }
+    .sb-sent      { background: #dbeafe; color: var(--info); }
+    .sb-opened    { background: #fef9c3; color: #92400e; }
+    .sb-submitted { background: #dcfce7; color: var(--success); }
+    .sb-expired   { background: #f3f4f6; color: var(--muted); }
+    .sb-revoked   { background: #fee2e2; color: var(--error); }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); white-space: nowrap; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { background: #a0611f; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); background: transparent; }
+    .btn-sm { padding: 0.28rem 0.55rem; font-size: 0.65rem; }
+    .btn-danger { background: var(--error); }
+    .btn-danger:hover:not(:disabled) { background: #a93226; }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(26,16,8,0.35); align-items: center; justify-content: center; padding: 1rem; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; width: 100%; overflow: hidden; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .modal-title { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+    .modal-close { background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--muted); padding: 0.25rem; }
+    .modal-body { padding: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1rem 1.25rem; border-top: 1px solid var(--border); }
+
+    /* ── Form fields ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 0.78rem; font-weight: 500; margin-bottom: 0.35rem; color: var(--muted); }
+    input[type="text"], select, textarea {
+      width: 100%; border: 1px solid var(--border); border-radius: var(--radius);
+      font-family: var(--font-sans); font-size: 0.83rem; padding: 0.5rem 0.75rem;
+      background: var(--surface); color: var(--text); outline: none;
+      transition: border-color var(--transition);
+    }
+    input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+
+    /* ── Lot picker ── */
+    .lot-picker { border: 1px solid var(--border); border-radius: var(--radius); max-height: 280px; overflow-y: auto; background: var(--surface); }
+    .lot-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.8rem; transition: background var(--transition); }
+    .lot-row:last-child { border-bottom: none; }
+    .lot-row:hover { background: #fef4e8; }
+    .lot-row input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+    .lot-code { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent); margin-left: auto; }
+    .lot-avail { font-family: var(--font-mono); font-size: 0.68rem; color: var(--success); margin-left: 0.4rem; }
+    .lot-count { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent); margin-left: 0.5rem; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
+    .toast-msg { font-family: var(--font-mono); font-size: 0.75rem; padding: 0.6rem 1rem; border-radius: var(--radius); color: #fff; animation: fadeIn 0.2s ease; max-width: 320px; }
+    .toast-success { background: var(--success); }
+    .toast-error   { background: var(--error); }
+    .toast-info    { background: var(--info); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+    /* ── Notes inline edit ── */
+    .notes-edit { font-size: 0.78rem; color: var(--muted); cursor: pointer; border-bottom: 1px dashed var(--border); max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+    .notes-edit:hover { color: var(--accent); }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; gap: 0.5rem; align-items: center; padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); }
+    .filter-bar input[type="text"] { font-size: 0.75rem; padding: 0.35rem 0.6rem; }
+    .filter-bar select { font-size: 0.75rem; padding: 0.35rem 0.6rem; }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+    <div class="nav-links">
+      <a href="samples.html">Inbound</a>
+      <a href="all-samples.html">All Samples</a>
+      <a href="suppliers.html">Suppliers</a>
+      <a href="buyers.html">Buyers</a>
+      <a href="outbound.html">Outbound</a>
+      <a href="catalogue-library.html" class="active">Catalogues</a>
+    </div>
+    <span class="nav-user" id="nav-user">Sign out</span>
+  </nav>
+
+  <div class="page">
+    <div class="page-header">
+      <div class="page-title">Catalogue Library</div>
+      <button class="btn" id="btn-new-cat">+ New Catalogue</button>
+    </div>
+
+    <div class="split">
+
+      <!-- ── Left: catalogue list ── -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Catalogues</span>
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            <label style="font-size:0.72rem;color:var(--muted);display:flex;gap:0.3rem;align-items:center;cursor:pointer;margin:0">
+              <input type="checkbox" id="show-archived" style="accent-color:var(--accent);" />
+              Show archived
+            </label>
+          </div>
+        </div>
+        <div id="cat-spinner" style="padding:2rem;text-align:center;color:var(--muted);font-size:0.82rem">Loading…</div>
+        <ul class="cat-list" id="cat-list" style="display:none"></ul>
+      </div>
+
+      <!-- ── Right: send history for selected catalogue ── -->
+      <div class="panel" id="panel-sends">
+        <div class="panel-header">
+          <span class="panel-title" id="sends-title">Select a catalogue</span>
+          <div style="display:flex;gap:0.5rem" id="sends-actions" style="display:none">
+            <button class="btn btn-ghost btn-sm" id="btn-edit-cat" style="display:none">Edit</button>
+            <button class="btn btn-ghost btn-sm" id="btn-archive-cat" style="display:none">Archive</button>
+            <button class="btn btn-sm" id="btn-send-cat" style="display:none">✉ Send to Buyer</button>
+          </div>
+        </div>
+        <div id="sends-body" class="panel-body">
+          <div class="sends-empty">Select a catalogue on the left to see its send history.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Toast container ── -->
+  <div id="toast"></div>
+
+  <!-- ── Modal: New / Edit Catalogue ── -->
+  <div class="modal-overlay" id="modal-cat">
+    <div class="modal-box" style="max-width:680px">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-cat-title">New Catalogue</span>
+        <button class="modal-close" id="btn-modal-cat-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-cat-id" />
+        <div class="field">
+          <label for="cat-name">Catalogue Name <span style="color:var(--error)">*</span></label>
+          <input type="text" id="cat-name" placeholder="e.g. Ethiopia Naturals May 2026" />
+        </div>
+        <div class="field">
+          <label for="cat-warehouse">Warehouse <span style="color:var(--error)">*</span></label>
+          <select id="cat-warehouse">
+            <option value="">Select warehouse…</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>
+            Lots to include
+            <span id="cat-lot-count" class="lot-count"></span>
+            <span style="color:var(--error)"> *</span>
+          </label>
+          <div class="lot-picker" id="cat-lot-picker">
+            <div style="padding:1rem;color:var(--muted);font-size:0.82rem">Select a warehouse to see available lots.</div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="cat-notes">Notes (internal)</label>
+          <textarea id="cat-notes" placeholder="Internal notes about this catalogue…"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-modal-cat-cancel">Cancel</button>
+        <button class="btn" id="btn-modal-cat-save">Save Catalogue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Send to Buyer ── -->
+  <div class="modal-overlay" id="modal-send">
+    <div class="modal-box" style="max-width:400px">
+      <div class="modal-header">
+        <span class="modal-title">Send Catalogue</span>
+        <button class="modal-close" id="btn-modal-send-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:1rem">
+          Select a buyer to send this catalogue to. They will receive an email with a link valid for 7 days.
+        </p>
+        <div id="send-cat-name" style="font-family:var(--font-mono);font-size:0.78rem;color:var(--accent);margin-bottom:1rem"></div>
+        <div class="field">
+          <label for="send-buyer">Buyer <span style="color:var(--error)">*</span></label>
+          <select id="send-buyer">
+            <option value="">Select buyer…</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-modal-send-cancel">Cancel</button>
+        <button class="btn" id="btn-modal-send-confirm">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Edit send notes ── -->
+  <div class="modal-overlay" id="modal-notes">
+    <div class="modal-box" style="max-width:360px">
+      <div class="modal-header">
+        <span class="modal-title">Follow-up Notes</span>
+        <button class="modal-close" id="btn-modal-notes-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="notes-send-id" />
+        <div class="field">
+          <label for="notes-text">Notes</label>
+          <textarea id="notes-text" placeholder="e.g. Called buyer, very interested. Follow up next week."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-modal-notes-cancel">Cancel</button>
+        <button class="btn" id="btn-modal-notes-save">Save Notes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // Version 1.0 | catalogue-library.html script
+    // Dependency check
+    if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+    if (typeof Auth      === 'undefined') throw new Error('auth.js not loaded');
+    if (typeof API       === 'undefined') throw new Error('api.js not loaded');
+    if (typeof UI        === 'undefined') throw new Error('ui.js not loaded');
+
+    if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let PAGE_DATA      = { catalogues: [], sends: [], buyers: [], warehouses: [], details: [] };
+    let selectedCatId  = null;
+    let showArchived   = false;
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('nav-user').addEventListener('click', () => UI.logout());
+
+      // Toolbar
+      document.getElementById('btn-new-cat').addEventListener('click', openNewCatModal);
+      document.getElementById('show-archived').addEventListener('change', e => {
+        showArchived = e.target.checked;
+        renderCatList();
+      });
+
+      // Catalogue panel actions
+      document.getElementById('btn-edit-cat').addEventListener('click', openEditCatModal);
+      document.getElementById('btn-archive-cat').addEventListener('click', doArchiveCatalogue);
+      document.getElementById('btn-send-cat').addEventListener('click', openSendModal);
+
+      // Modal: catalogue
+      document.getElementById('btn-modal-cat-close').addEventListener('click',  () => closeModal('modal-cat'));
+      document.getElementById('btn-modal-cat-cancel').addEventListener('click', () => closeModal('modal-cat'));
+      document.getElementById('btn-modal-cat-save').addEventListener('click',   saveCatalogue);
+      document.getElementById('cat-warehouse').addEventListener('change', e => renderLotPicker(e.target.value));
+
+      // Modal: send
+      document.getElementById('btn-modal-send-close').addEventListener('click',   () => closeModal('modal-send'));
+      document.getElementById('btn-modal-send-cancel').addEventListener('click',  () => closeModal('modal-send'));
+      document.getElementById('btn-modal-send-confirm').addEventListener('click', doSendCatalogue);
+
+      // Modal: notes
+      document.getElementById('btn-modal-notes-close').addEventListener('click',  () => closeModal('modal-notes'));
+      document.getElementById('btn-modal-notes-cancel').addEventListener('click', () => closeModal('modal-notes'));
+      document.getElementById('btn-modal-notes-save').addEventListener('click',   saveNotes);
+
+      loadPage();
+    });
+
+    // ── Load ──────────────────────────────────────────────────────────────────
+    async function loadPage() {
+      try {
+        PAGE_DATA = await API.getCataloguesPage();
+        document.getElementById('cat-spinner').style.display = 'none';
+        document.getElementById('cat-list').style.display    = '';
+
+        // Populate warehouse select in modal
+        const whSel = document.getElementById('cat-warehouse');
+        whSel.innerHTML = '<option value="">Select warehouse…</option>';
+        (PAGE_DATA.warehouses || []).forEach(w => {
+          const o = document.createElement('option');
+          o.value = w.warehouse_id;
+          o.textContent = w.warehouse_name;
+          whSel.appendChild(o);
+        });
+
+        // Populate buyer select in send modal
+        const bySel = document.getElementById('send-buyer');
+        bySel.innerHTML = '<option value="">Select buyer…</option>';
+        (PAGE_DATA.buyers || []).forEach(b => {
+          const o = document.createElement('option');
+          o.value = b.buyer_id;
+          o.textContent = b.company_name + (b.contact_person ? ' — ' + b.contact_person : '');
+          bySel.appendChild(o);
+        });
+
+        renderCatList();
+      } catch (err) {
+        UI.toastError(err.message || 'Failed to load catalogue library');
+      }
+    }
+
+    // ── Render catalogue list ─────────────────────────────────────────────────
+    function renderCatList() {
+      const ul   = document.getElementById('cat-list');
+      const cats = (PAGE_DATA.catalogues || []).filter(c => showArchived || c.status !== 'Archived');
+      ul.innerHTML = '';
+
+      if (cats.length === 0) {
+        ul.innerHTML = '<li class="cat-empty">No catalogues yet. Click "+ New Catalogue" to create one.</li>';
+        return;
+      }
+
+      cats.forEach(cat => {
+        const sends  = (PAGE_DATA.sends || []).filter(s => String(s.catalogue_id) === String(cat.catalogue_id));
+        const lotCnt = cat.detail_ids ? cat.detail_ids.split(',').filter(Boolean).length : 0;
+        const li     = document.createElement('li');
+        li.className = 'cat-item' + (cat.status === 'Archived' ? ' archived' : '') + (String(cat.catalogue_id) === String(selectedCatId) ? ' active' : '');
+        li.dataset.id = cat.catalogue_id;
+        li.innerHTML = `
+          <div class="cat-item-info">
+            <div class="cat-name">${UI.esc(cat.catalogue_name)}</div>
+            <div class="cat-meta">${lotCnt} lot${lotCnt !== 1 ? 's' : ''} · ${sends.length} send${sends.length !== 1 ? 's' : ''}</div>
+          </div>
+          <span class="cat-badge ${cat.status === 'Archived' ? 'badge-archived' : 'badge-active'}">${UI.esc(cat.status)}</span>
+        `;
+        li.addEventListener('click', () => selectCatalogue(cat.catalogue_id));
+        ul.appendChild(li);
+      });
+    }
+
+    // ── Select catalogue — show send history ──────────────────────────────────
+    function selectCatalogue(catId) {
+      selectedCatId = catId;
+      renderCatList();
+
+      const cat   = (PAGE_DATA.catalogues || []).find(c => String(c.catalogue_id) === String(catId));
+      if (!cat) return;
+
+      // Update panel header
+      document.getElementById('sends-title').textContent = cat.catalogue_name;
+      document.getElementById('btn-edit-cat').style.display    = '';
+      document.getElementById('btn-archive-cat').style.display = cat.status === 'Archived' ? 'none' : '';
+      document.getElementById('btn-send-cat').style.display    = cat.status === 'Archived' ? 'none' : '';
+      document.getElementById('btn-edit-cat').dataset.id    = catId;
+      document.getElementById('btn-archive-cat').dataset.id = catId;
+      document.getElementById('btn-send-cat').dataset.id    = catId;
+
+      renderSendHistory(catId);
+    }
+
+    // ── Render send history table ─────────────────────────────────────────────
+    function renderSendHistory(catId) {
+      const sends  = (PAGE_DATA.sends || []).filter(s => String(s.catalogue_id) === String(catId));
+      const buyMap = {};
+      (PAGE_DATA.buyers || []).forEach(b => { buyMap[String(b.buyer_id)] = b; });
+      const body   = document.getElementById('sends-body');
+
+      if (sends.length === 0) {
+        body.innerHTML = '<div class="sends-empty">No sends yet. Click "✉ Send to Buyer" to send this catalogue.</div>';
+        return;
+      }
+
+      // Sort newest first
+      sends.sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at));
+
+      const statusClass = { Sent:'sb-sent', Opened:'sb-opened', Submitted:'sb-submitted', Expired:'sb-expired', Revoked:'sb-revoked' };
+
+      let rows = sends.map(s => {
+        const buyer    = buyMap[String(s.buyer_id)] || {};
+        const expires  = s.expires_at ? UI.formatDate(s.expires_at) : '—';
+        const sentAt   = s.sent_at   ? UI.formatDate(s.sent_at)    : '—';
+        const canSend  = ['Sent','Opened','Expired'].includes(s.status);
+        const canRevoke = ['Sent','Opened'].includes(s.status);
+        const notes    = s.notes || '';
+        return `
+          <tr>
+            <td>${UI.esc(buyer.company_name || '—')}</td>
+            <td>${sentAt}</td>
+            <td>${expires}</td>
+            <td><span class="send-badge ${statusClass[s.status] || ''}">${UI.esc(s.status)}</span></td>
+            <td>
+              <span class="notes-edit" data-send-id="${s.send_id}" title="Click to edit notes">${UI.esc(notes) || '+ add note'}</span>
+            </td>
+            <td style="white-space:nowrap">
+              ${canSend   ? `<button class="btn btn-ghost btn-sm" onclick="doResend('${s.send_id}','${s.buyer_id}')">Resend</button>` : ''}
+              ${canRevoke ? `<button class="btn btn-danger btn-sm" style="margin-left:0.25rem" onclick="doRevoke('${s.send_id}')">Revoke</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      body.innerHTML = `
+        <div class="sends-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Buyer</th>
+                <th>Sent</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+
+      // Notes inline edit
+      body.querySelectorAll('.notes-edit').forEach(el => {
+        el.addEventListener('click', () => openNotesModal(el.dataset.sendId, el.textContent.trim() === '+ add note' ? '' : el.textContent.trim()));
+      });
+    }
+
+    // ── Lot picker ─────────────────────────────────────────────────────────────
+    function renderLotPicker(warehouseId, selectedIds) {
+      const picker  = document.getElementById('cat-lot-picker');
+      const details = (PAGE_DATA.details || []).filter(d => !warehouseId || String(d.warehouse_id) === String(warehouseId));
+      const selSet  = new Set((selectedIds || []).map(String));
+
+      if (!warehouseId) {
+        picker.innerHTML = '<div style="padding:1rem;color:var(--muted);font-size:0.82rem">Select a warehouse to see available lots.</div>';
+        updateLotCount();
+        return;
+      }
+      if (details.length === 0) {
+        picker.innerHTML = '<div style="padding:1rem;color:var(--muted);font-size:0.82rem">No active lots in this warehouse.</div>';
+        updateLotCount();
+        return;
+      }
+
+      picker.innerHTML = details.map(d => `
+        <label class="lot-row">
+          <input type="checkbox" class="lot-check" value="${d.detail_id}" ${selSet.has(String(d.detail_id)) ? 'checked' : ''} />
+          <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${UI.esc(d.sample_name || d.sample_id)}</span>
+          <span class="lot-code">${UI.esc(d.sample_id || '')}</span>
+          <span class="lot-avail">${d.buyer_available || d.available_bags || 0}bg</span>
+        </label>
+      `).join('');
+
+      picker.querySelectorAll('.lot-check').forEach(cb => cb.addEventListener('change', updateLotCount));
+      updateLotCount();
+    }
+
+    function updateLotCount() {
+      const checked = document.querySelectorAll('.lot-check:checked').length;
+      document.getElementById('cat-lot-count').textContent = checked ? `(${checked} selected)` : '';
+    }
+
+    function getSelectedDetailIds() {
+      return Array.from(document.querySelectorAll('.lot-check:checked')).map(cb => cb.value);
+    }
+
+    // ── Modal helpers ──────────────────────────────────────────────────────────
+    function openModal(id)  { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    function openNewCatModal() {
+      document.getElementById('edit-cat-id').value = '';
+      document.getElementById('cat-name').value    = '';
+      document.getElementById('cat-warehouse').value = '';
+      document.getElementById('cat-notes').value   = '';
+      document.getElementById('modal-cat-title').textContent = 'New Catalogue';
+      renderLotPicker('');
+      openModal('modal-cat');
+    }
+
+    function openEditCatModal() {
+      const cat = (PAGE_DATA.catalogues || []).find(c => String(c.catalogue_id) === String(selectedCatId));
+      if (!cat) return;
+      document.getElementById('edit-cat-id').value   = cat.catalogue_id;
+      document.getElementById('cat-name').value      = cat.catalogue_name;
+      document.getElementById('cat-warehouse').value = cat.warehouse_id;
+      document.getElementById('cat-notes').value     = cat.notes || '';
+      document.getElementById('modal-cat-title').textContent = 'Edit Catalogue';
+      const selectedIds = cat.detail_ids ? cat.detail_ids.split(',').filter(Boolean) : [];
+      renderLotPicker(cat.warehouse_id, selectedIds);
+      openModal('modal-cat');
+    }
+
+    function openSendModal() {
+      const cat = (PAGE_DATA.catalogues || []).find(c => String(c.catalogue_id) === String(selectedCatId));
+      if (!cat) return;
+      document.getElementById('send-cat-name').textContent = cat.catalogue_name;
+      document.getElementById('send-buyer').value = '';
+      openModal('modal-send');
+    }
+
+    function openNotesModal(sendId, currentNotes) {
+      document.getElementById('notes-send-id').value = sendId;
+      document.getElementById('notes-text').value    = currentNotes || '';
+      openModal('modal-notes');
+    }
+
+    // ── Save catalogue ─────────────────────────────────────────────────────────
+    async function saveCatalogue() {
+      const name       = document.getElementById('cat-name').value.trim();
+      const warehouseId = document.getElementById('cat-warehouse').value;
+      const detailIds  = getSelectedDetailIds();
+      const notes      = document.getElementById('cat-notes').value.trim();
+      const catId      = document.getElementById('edit-cat-id').value || null;
+
+      if (!name)            return UI.toastError('Catalogue name is required');
+      if (!warehouseId)     return UI.toastError('Please select a warehouse');
+      if (!detailIds.length) return UI.toastError('Please select at least one lot');
+
+      const btn = document.getElementById('btn-modal-cat-save');
+      UI.setLoading(btn, true);
+      try {
+        await API.saveCatalogue({ catalogue_id: catId, catalogue_name: name, warehouse_id: warehouseId, detail_ids: detailIds, notes });
+        UI.toastSuccess(catId ? 'Catalogue updated' : 'Catalogue created');
+        closeModal('modal-cat');
+        await reload();
+      } catch (err) {
+        UI.toastError(err.message || 'Save failed');
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    }
+
+    // ── Archive catalogue ──────────────────────────────────────────────────────
+    async function doArchiveCatalogue() {
+      if (!selectedCatId) return;
+      if (!confirm('Archive this catalogue? It will be hidden but send history is preserved.')) return;
+      try {
+        await API.archiveCatalogue(selectedCatId);
+        UI.toastSuccess('Catalogue archived');
+        selectedCatId = null;
+        document.getElementById('sends-body').innerHTML = '<div class="sends-empty">Select a catalogue on the left to see its send history.</div>';
+        document.getElementById('sends-title').textContent = 'Select a catalogue';
+        ['btn-edit-cat','btn-archive-cat','btn-send-cat'].forEach(id => document.getElementById(id).style.display = 'none');
+        await reload();
+      } catch (err) {
+        UI.toastError(err.message || 'Archive failed');
+      }
+    }
+
+    // ── Send catalogue to buyer ────────────────────────────────────────────────
+    async function doSendCatalogue() {
+      const buyerId = document.getElementById('send-buyer').value;
+      if (!buyerId)      return UI.toastError('Please select a buyer');
+      if (!selectedCatId) return;
+
+      const btn = document.getElementById('btn-modal-send-confirm');
+      UI.setLoading(btn, true);
+      try {
+        const result = await API.sendCatalogueFromLibrary(selectedCatId, buyerId);
+        UI.toastSuccess('Catalogue sent — ' + result.lot_count + ' lots');
+        closeModal('modal-send');
+        await reload();
+        if (selectedCatId) renderSendHistory(selectedCatId);
+      } catch (err) {
+        UI.toastError(err.message || 'Send failed');
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    }
+
+    // ── Resend (called from table row button) ──────────────────────────────────
+    async function doResend(sendId, buyerId) {
+      if (!selectedCatId) return;
+      if (!confirm('Resend this catalogue to the same buyer with a fresh 7-day link?')) return;
+      try {
+        await API.sendCatalogueFromLibrary(selectedCatId, buyerId);
+        UI.toastSuccess('Catalogue resent');
+        await reload();
+        if (selectedCatId) renderSendHistory(selectedCatId);
+      } catch (err) {
+        UI.toastError(err.message || 'Resend failed');
+      }
+    }
+
+    // ── Revoke send ────────────────────────────────────────────────────────────
+    async function doRevoke(sendId) {
+      if (!confirm('Revoke this link? The buyer will not be able to open it anymore.')) return;
+      try {
+        await API.revokeCatalogueSend(sendId);
+        UI.toastSuccess('Send revoked');
+        await reload();
+        if (selectedCatId) renderSendHistory(selectedCatId);
+      } catch (err) {
+        UI.toastError(err.message || 'Revoke failed');
+      }
+    }
+
+    // ── Save notes ─────────────────────────────────────────────────────────────
+    async function saveNotes() {
+      const sendId = document.getElementById('notes-send-id').value;
+      const notes  = document.getElementById('notes-text').value.trim();
+      if (!sendId) return;
+      const btn = document.getElementById('btn-modal-notes-save');
+      UI.setLoading(btn, true);
+      try {
+        await API.updateCatalogueSendNotes(sendId, notes);
+        UI.toastSuccess('Notes saved');
+        closeModal('modal-notes');
+        await reload();
+        if (selectedCatId) renderSendHistory(selectedCatId);
+      } catch (err) {
+        UI.toastError(err.message || 'Save failed');
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    }
+
+    // ── Reload without losing selection ───────────────────────────────────────
+    async function reload() {
+      PAGE_DATA = await API.getCataloguesPage();
+      renderCatList();
+    }
+
+    // ── Keyboard: Escape closes modals ────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        ['modal-cat','modal-send','modal-notes'].forEach(id => closeModal(id));
+      }
+    });
+  </script>
+</body>
+</html>

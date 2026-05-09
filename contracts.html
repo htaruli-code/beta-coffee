@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.2.3 | contracts.html -->
+<!-- Version 2.5 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -71,6 +71,37 @@
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+
+    /* ── Substitution panel ─────────────────────────────────────────────────── */
+    .sub-panel { background: #fdf4e8; border-top: 1px solid var(--border); padding: 0.6rem 0.75rem; }
+    .sub-panel-title { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: space-between; }
+    .sub-row { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text); padding: 0.2rem 0; flex-wrap: wrap; }
+    .sub-row .sub-label { color: var(--muted); }
+    .sub-empty { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); font-style: italic; }
+
+    /* ── Product Name SKU autocomplete (v2.5) ──────────────────────────────── */
+    .sku-ac-wrap { position: relative; }
+    .sku-ac-input-wrap { position: relative; }
+    .sku-ac-dropdown {
+      position: absolute; z-index: 300; background: var(--bg);
+      border: 1px solid var(--border2); border-radius: var(--radius);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+      max-height: 220px; overflow-y: auto;
+      min-width: 100%; top: calc(100% + 2px); left: 0;
+    }
+    .sku-ac-item {
+      padding: 0.45rem 0.75rem; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.78rem;
+    }
+    .sku-ac-item:last-child { border-bottom: none; }
+    .sku-ac-item:hover, .sku-ac-item.ac-active { background: var(--surface); }
+    .sku-ac-code { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); font-weight: 600; }
+    .sku-ac-name { color: var(--text); }
+    .sku-ac-clear { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem;
+      padding: 0; line-height: 1; display: none; }
+    .sku-ac-clear.show { display: block; }
   </style>
 </head>
 <body>
@@ -150,9 +181,16 @@
     <input type="hidden" id="l-contract-id" />
     <input type="hidden" id="l-id" />
     <div class="field-row">
-      <div class="field" style="flex:2">
-        <label>Sample Name <span style="color:var(--error)">*</span></label>
-        <input type="text" id="l-name" placeholder="e.g. Natural Catuaí" />
+      <div class="field sku-ac-wrap" style="flex:2">
+        <label>Product Name <span style="color:var(--error)">*</span></label>
+        <input type="hidden" id="l-sku-id" />
+        <input type="hidden" id="l-sku-code" />
+        <div class="sku-ac-input-wrap">
+          <input type="text" id="l-name" placeholder="Search by product name or SKU code…"
+                 autocomplete="off" oninput="skuAcInput(this)" onkeydown="skuAcKeydown(event)" />
+          <button type="button" class="sku-ac-clear" id="l-name-clear" onclick="clearSkuAc()" title="Clear">✕</button>
+        </div>
+        <div class="sku-ac-dropdown" id="l-name-dropdown" style="display:none"></div>
       </div>
       <div class="field">
         <label>Inventory Lot</label>
@@ -201,6 +239,43 @@
   </div>
 </div>
 
+
+<!-- Substitution Modal -->
+<div class="modal-overlay" id="modal-sub">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" id="modal-sub-title">Add Lot Substitution</div>
+    <div class="modal-error" id="modal-sub-error"></div>
+    <input type="hidden" id="sub-id" />
+    <input type="hidden" id="sub-contract-line-id" />
+    <input type="hidden" id="sub-original-lot-id" />
+    <input type="hidden" id="sub-drawdown-id" />
+
+    <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted);margin-bottom:0.5rem;padding:0.6rem 0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+      Original lot: <span id="sub-original-lot-label" style="color:var(--text);font-weight:600"></span>
+    </div>
+    <div id="sub-gap-info" style="display:none;font-family:var(--font-mono);font-size:0.72rem;padding:0.5rem 0.75rem;border-radius:var(--radius);margin-bottom:0.75rem;background:var(--accent-light);border:1px solid rgba(196,122,43,0.2)"></div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="sub-replacement-lot">Replacement Lot <span style="color:var(--error)">*</span></label>
+        <select id="sub-replacement-lot"></select>
+      </div>
+      <div class="field" style="max-width:120px">
+        <label for="sub-bags">Bags <span style="color:var(--error)">*</span> <span id="sub-bags-hint" style="color:var(--accent);font-size:0.65rem"></span></label>
+        <input type="number" id="sub-bags" min="1" placeholder="0" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="sub-reason">Reason <span style="color:var(--muted);font-size:0.65rem">(optional)</span></label>
+      <input type="text" id="sub-reason" placeholder="e.g. Original lot exhausted, same SKU replacement" maxlength="500" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-sub-cancel">Cancel</button>
+      <button class="btn" id="btn-sub-save">Save Substitution</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="js/config.js"></script>
@@ -208,7 +283,9 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.2 | contracts.html
+// Version 2.5 | contracts.html
+// v2.5: Product Name autocomplete by SKU name/code.
+// v2.3: Lot substitution panel — staff can record replacement lots per contract line.
 // v2.2: 📧 Dashboard button removed — buyers now log in via OTP at buyer-dashboard.html
 // v2.1: 📧 Dashboard button — sendBuyerDashboardLink emails personal token URL
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
@@ -216,7 +293,7 @@ if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-let PAGE_DATA = { contracts: [], buyers: [], inventory_lots: [], shipments: [], contract_statuses: [], availability_types: [], weight_units: [] };
+let PAGE_DATA = { contracts: [], buyers: [], inventory_lots: [], shipments: [], product_skus: [], contract_statuses: [], availability_types: [], weight_units: [] };
 
 (async () => {
   const user = Auth.getUser(); const company = Auth.getCompany();
@@ -259,25 +336,73 @@ function renderContracts() {
     const total     = calcTotal(lines);
     const badgeKey  = con.status.toLowerCase().replace(/ /g, '-');
     const lineRows  = lines.map(l => {
-      const pct    = l.contracted_bags > 0 ? Math.min(100, Math.round(l.drawn_bags / l.contracted_bags * 100)) : 0;
-      const sub    = fmt(l.contracted_bags * l.bag_size * l.unit_price);
-      const fwdTag = l.availability_type === 'forward' ? '<span class="forward-tag">FWD</span>' : '';
-      return `<tr>
-        <td>${esc(l.sample_name)}${fwdTag}</td>
-        <td class="num">${l.contracted_bags}</td>
-        <td class="num">${l.drawn_bags}</td>
-        <td class="num">${l.contracted_bags - l.drawn_bags}</td>
-        <td class="num">${l.unit_price ? l.unit_price + '/' + esc(l.price_unit) : '—'}</td>
-        <td class="num">${sub}</td>
-        <td style="min-width:100px">
-          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-          <div style="font-size:0.65rem;color:var(--muted);text-align:right">${pct}%</div>
-        </td>
-        <td>
-          <button class="btn btn-ghost btn-sm" onclick="openLineModal(${con.contract_id},${l.contract_line_id})">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteLine(${con.contract_id},${l.contract_line_id})">Del</button>
-        </td>
-      </tr>`;
+      const pct     = l.contracted_bags > 0 ? Math.min(100, Math.round(l.drawn_bags / l.contracted_bags * 100)) : 0;
+      const subVal  = fmt(l.contracted_bags * l.bag_size * l.unit_price);
+      const fwdTag  = l.availability_type === 'forward' ? '<span class="forward-tag">FWD</span>' : '';
+      const subs    = l.substitutions || [];
+      const origLot = PAGE_DATA.inventory_lots.find(lot => String(lot.lot_id) === String(l.inventory_lot_id));
+
+      // Build substitution rows
+      const subRowsHtml = subs.map(s => {
+        const replLot  = PAGE_DATA.inventory_lots.find(lot => String(lot.lot_id) === String(s.replacement_lot_id));
+        const replLabel = replLot
+          ? esc(replLot.sample_name) + ' <span style="color:var(--muted)">(Lot ' + s.replacement_lot_id + ' · ' + replLot.available_bags + ' avail)</span>'
+          : 'Lot ' + s.replacement_lot_id;
+        // v2.4: show drawdown_id context; legacy subs have no drawdown_id
+        const ddTag = s.drawdown_id
+          ? '<span style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted)">DD-' + s.drawdown_id + '</span>'
+          : '<span style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted);font-style:italic">legacy</span>';
+        return '<div class="sub-row">' +
+          ddTag +
+          '<span class="sub-label">↳</span>' +
+          '<span>' + replLabel + '</span>' +
+          '<span class="sub-label">·</span>' +
+          '<strong>' + s.bags_count + ' bags</strong>' +
+          (s.reason ? '<span class="sub-label"> — ' + esc(s.reason) + '</span>' : '') +
+          '<button class="btn btn-ghost btn-sm" style="margin-left:auto;padding:0.15rem 0.5rem" ' +
+            'onclick="openSubModal(' + l.contract_line_id + ',' + (l.inventory_lot_id||0) + ',' + s.substitution_id + ',' + (s.drawdown_id||'null') + ')">Edit</button>' +
+          '<button class="btn btn-danger btn-sm" style="padding:0.15rem 0.5rem" ' +
+            'onclick="deleteSub(' + s.substitution_id + ')">Del</button>' +
+        '</div>';
+      }).join('');
+
+      const origLotLabel = origLot
+        ? esc(origLot.sample_name) + ' (Lot ' + l.inventory_lot_id + ' · ' + origLot.available_bags + ' avail)'
+        : l.inventory_lot_id ? 'Lot ' + l.inventory_lot_id : 'No lot linked';
+
+      // Substitution panel — only shown when a lot is linked
+      const subPanel = l.inventory_lot_id
+        ? '<tr><td colspan="8" style="padding:0">' +
+            '<div class="sub-panel">' +
+              '<div class="sub-panel-title">' +
+                '<span>Lot Substitutions' + (subs.length ? ' (' + subs.length + ')' : '') + '</span>' +
+                '<button class="btn btn-ghost btn-sm" ' +
+                  'onclick="openSubModal(' + l.contract_line_id + ',' + l.inventory_lot_id + ')">+ Substitute Lot</button>' +
+              '</div>' +
+              '<div style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted);margin-bottom:' + (subs.length ? '0.4rem' : '0') + '">' +
+                'Original: ' + origLotLabel +
+              '</div>' +
+              (subs.length ? subRowsHtml : '<span class="sub-empty">No substitutions recorded.</span>') +
+            '</div>' +
+          '</td></tr>'
+        : '';
+
+      return '<tr>' +
+        '<td>' + esc(l.sample_name) + fwdTag + '</td>' +
+        '<td class="num">' + l.contracted_bags + '</td>' +
+        '<td class="num">' + l.drawn_bags + '</td>' +
+        '<td class="num">' + (l.contracted_bags - l.drawn_bags) + '</td>' +
+        '<td class="num">' + (l.unit_price ? l.unit_price + '/' + esc(l.price_unit) : '—') + '</td>' +
+        '<td class="num">' + subVal + '</td>' +
+        '<td style="min-width:100px">' +
+          '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+          '<div style="font-size:0.65rem;color:var(--muted);text-align:right">' + pct + '%</div>' +
+        '</td>' +
+        '<td>' +
+          '<button class="btn btn-ghost btn-sm" onclick="openLineModal(' + con.contract_id + ',' + l.contract_line_id + ')">Edit</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="deleteLine(' + con.contract_id + ',' + l.contract_line_id + ')">Del</button>' +
+        '</td>' +
+      '</tr>' + subPanel;
     }).join('');
 
     return `<div class="card">
@@ -356,7 +481,13 @@ function openLineModal(contractId, lineId) {
   document.getElementById('modal-line-title').textContent = line ? 'Edit Line' : 'Add Contract Line';
   document.getElementById('l-contract-id').value = contractId;
   document.getElementById('l-id').value     = line ? line.contract_line_id : '';
-  document.getElementById('l-name').value   = line ? line.sample_name      : '';
+  document.getElementById('l-name').value      = line ? line.sample_name      : '';
+  document.getElementById('l-sku-id').value    = line ? (line.sku_id   || '') : '';
+  document.getElementById('l-sku-code').value  = line ? (line.sku_code || '') : '';
+  const clearBtn = document.getElementById('l-name-clear');
+  if (clearBtn) clearBtn.className = 'sku-ac-clear' + (line && line.sample_name ? ' show' : '');
+  const ddEl = document.getElementById('l-name-dropdown');
+  if (ddEl) ddEl.style.display = 'none';
   document.getElementById('l-bags').value   = line ? line.contracted_bags  : '';
   document.getElementById('l-bag-size').value = line ? line.bag_size       : '';
   document.getElementById('l-price').value  = line ? line.unit_price       : '';
@@ -412,6 +543,8 @@ document.getElementById('btn-l-save').onclick = async () => {
     contract_line_id:     document.getElementById('l-id').value || null,
     inventory_lot_id:     document.getElementById('l-lot').value || '',
     sample_name:          document.getElementById('l-name').value,
+    sku_id:               document.getElementById('l-sku-id').value   || '',
+    sku_code:             document.getElementById('l-sku-code').value || '',
     contracted_bags:      document.getElementById('l-bags').value,
     bag_size:             document.getElementById('l-bag-size').value,
     bag_size_unit:        document.getElementById('l-bag-unit').value,
@@ -439,6 +572,296 @@ async function deleteLine(contractId, lineId) {
     renderContracts(); showToast('Line deleted.', 'success');
   } catch (e) { console.error('Caught error:', e); showModalError('modal-line', e.message || 'Delete failed.'); }
 }
+
+
+// ── Lot Substitution Modal ────────────────────────────────────────────────────
+
+function openSubModal(contractLineId, originalLotId, substitutionId, drawdownId) {
+  const sub  = substitutionId
+    ? (PAGE_DATA.contracts.flatMap(c => c.lines||[])
+        .find(l => String(l.contract_line_id) === String(contractLineId))
+        ?.substitutions || [])
+      .find(s => String(s.substitution_id) === String(substitutionId))
+    : null;
+
+  const line    = PAGE_DATA.contracts.flatMap(c => c.lines||[])
+                    .find(l => String(l.contract_line_id) === String(contractLineId));
+  const origLot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(originalLotId));
+
+  // ── Compute max substitutable (mirrors server logic in handleSaveLotSubstitution) ──
+  // pending_approved = drawn_bags minus what has already been dispatched/delivered
+  // dispatched_delivered = lot.received_bags - lot.available_bags
+  // maxSubstitutable = max(0, pending_approved - lot.available_bags)
+  // i.e. how many in-flight bags cannot be covered by the primary lot
+  let maxSubstitutable = null;
+  if (line && origLot) {
+    const dispatchedDelivered = (origLot.received_bags || 0) - (origLot.available_bags || 0);
+    const pendingApproved     = Math.max(0, (line.drawn_bags || 0) - dispatchedDelivered);
+    maxSubstitutable          = Math.max(0, pendingApproved - (origLot.available_bags || 0));
+  }
+
+  // Existing substitution bags from OTHER records on this line (excluding this one if editing)
+  const existingSubs    = line ? (line.substitutions || []) : [];
+  const existingSubId   = sub ? String(sub.substitution_id) : null;
+  const otherSubBags    = existingSubs
+    .filter(s => String(s.substitution_id) !== existingSubId)
+    .reduce((sum, s) => sum + (s.bags_count || 0), 0);
+  // Remaining gap after existing substitutions
+  const remainingGap    = maxSubstitutable !== null ? Math.max(0, maxSubstitutable - otherSubBags) : null;
+
+  document.getElementById('modal-sub-title').textContent = sub ? 'Edit Substitution' : 'Add Lot Substitution';
+  document.getElementById('sub-id').value               = sub ? sub.substitution_id  : '';
+  document.getElementById('sub-drawdown-id').value     = drawdownId || (sub ? sub.drawdown_id : '') || '';
+  document.getElementById('sub-contract-line-id').value = contractLineId;
+  document.getElementById('sub-original-lot-id').value  = originalLotId || '';
+  document.getElementById('sub-bags').value             = sub ? sub.bags_count : '';
+  document.getElementById('sub-reason').value           = sub ? sub.reason     : '';
+  document.getElementById('sub-bags-hint').textContent  = '';
+
+  // Store maxSubstitutable on the input for save validation
+  document.getElementById('sub-bags').dataset.maxSub = remainingGap !== null ? remainingGap : '';
+
+  // Show original lot name + gap context
+  document.getElementById('sub-original-lot-label').textContent =
+    origLot ? origLot.sample_name + ' (Lot ' + originalLotId + ')' : 'Lot ' + originalLotId;
+
+  // Gap info block — show how many bags need substitution
+  const gapInfo = document.getElementById('sub-gap-info');
+  if (gapInfo) {
+    if (maxSubstitutable !== null && maxSubstitutable > 0) {
+      gapInfo.innerHTML = 'Gap to cover: <strong>' + maxSubstitutable + ' bags</strong>' +
+        (otherSubBags > 0 ? ' &nbsp;·&nbsp; Already assigned: <strong>' + otherSubBags + '</strong>' +
+          ' &nbsp;·&nbsp; Remaining: <strong>' + remainingGap + '</strong>' : '');
+      gapInfo.style.display = 'block';
+      gapInfo.style.color   = 'var(--accent)';
+    } else if (maxSubstitutable === 0) {
+      gapInfo.textContent   = 'Primary lot covers all active drawdowns — no substitution needed.';
+      gapInfo.style.display = 'block';
+      gapInfo.style.color   = 'var(--success)';
+    } else {
+      gapInfo.style.display = 'none';
+    }
+  }
+
+  // Replacement lot dropdown — show all active lots except original
+  // Cap each option's effective max at min(lot.available_bags, remainingGap)
+  const replSel = document.getElementById('sub-replacement-lot');
+  replSel.innerHTML = '<option value="">— Select replacement lot —</option>' +
+    PAGE_DATA.inventory_lots
+      .filter(l => String(l.lot_id) !== String(originalLotId) && l.is_active !== false)
+      .map(l => {
+        const lotAvail    = l.available_bags || 0;
+        const effectiveMax = remainingGap !== null ? Math.min(lotAvail, remainingGap) : lotAvail;
+        return `<option value="${l.lot_id}"
+          data-available="${lotAvail}"
+          data-effective-max="${effectiveMax}"
+          ${sub && String(sub.replacement_lot_id) === String(l.lot_id) ? 'selected' : ''}>
+          ${esc(l.sample_name)} · ${lotAvail} avail
+        </option>`;
+      }).join('');
+
+  // Update bags hint when lot changes — use effectiveMax, not raw available
+  replSel.onchange = function() {
+    const opt          = replSel.options[replSel.selectedIndex];
+    const effectiveMax = opt && opt.dataset.effectiveMax ? parseInt(opt.dataset.effectiveMax) : null;
+    const lotAvail     = opt && opt.dataset.available    ? parseInt(opt.dataset.available)    : null;
+    document.getElementById('sub-bags').max = effectiveMax || '';
+
+    let hint = '';
+    if (effectiveMax !== null && lotAvail !== null) {
+      hint = '(max ' + effectiveMax + ' bags';
+      if (effectiveMax < lotAvail) hint += ' — limited by gap';
+      hint += ')';
+    }
+    document.getElementById('sub-bags-hint').textContent = hint;
+  };
+  if (sub) replSel.onchange();
+
+  clearModalError('modal-sub');
+  document.getElementById('modal-sub').classList.add('open');
+}
+
+document.getElementById('btn-sub-cancel').onclick = () =>
+  document.getElementById('modal-sub').classList.remove('open');
+
+document.getElementById('btn-sub-save').onclick = async function() {
+  const btn           = this;
+  const lineId        = document.getElementById('sub-contract-line-id').value;
+  const origLotId     = document.getElementById('sub-original-lot-id').value;
+  const replLotId     = document.getElementById('sub-replacement-lot').value;
+  const bags          = parseInt(document.getElementById('sub-bags').value) || 0;
+  const maxBags       = parseInt(document.getElementById('sub-bags').max) || null;
+  clearModalError('modal-sub');
+
+  const maxSub  = document.getElementById('sub-bags').dataset.maxSub !== ''
+    ? parseInt(document.getElementById('sub-bags').dataset.maxSub) : null;
+  if (!replLotId) { showModalError('modal-sub', 'Please select a replacement lot.'); return; }
+  if (bags <= 0)  { showModalError('modal-sub', 'Bags must be greater than zero.'); return; }
+  if (maxBags !== null && bags > maxBags) {
+    showModalError('modal-sub', 'Bags (' + bags + ') exceed available on replacement lot (' + maxBags + ').');
+    return;
+  }
+  if (maxSub !== null && bags > maxSub) {
+    showModalError('modal-sub', 'Bags (' + bags + ') exceed the substitution gap (' + maxSub + ' bags needed).');
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const data = await API.post({
+      action:             'saveLotSubstitution',
+      substitution_id:    document.getElementById('sub-id').value || null,
+      contract_line_id:   lineId,
+      original_lot_id:    origLotId,
+      replacement_lot_id: replLotId,
+      bags_count:         bags,
+      reason:             document.getElementById('sub-reason').value,
+      drawdown_id:        document.getElementById('sub-drawdown-id').value || null
+    });
+    // Merge substitutions + updated line into PAGE_DATA
+    mergeSubs(data);
+    if (data.contract_line) mergeLine(data.contract_line);
+    // Refresh lot available_bags in PAGE_DATA
+    if (data.original_lot)    mergeLot(data.original_lot);
+    if (data.replacement_lot) mergeLot(data.replacement_lot);
+    document.getElementById('modal-sub').classList.remove('open');
+    renderContracts();
+    showToast('Substitution saved.', 'success');
+  } catch (e) { showModalError('modal-sub', e.message || 'Save failed.'); }
+  finally { btn.disabled = false; }
+};
+
+async function deleteSub(substitutionId) {
+  if (!confirm('Remove this substitution?')) return;
+  try {
+    const data = await API.post({
+      action:          'deleteLotSubstitution',
+      substitution_id: substitutionId
+    });
+    mergeSubs(data);
+    if (data.contract_line) mergeLine(data.contract_line);
+    if (data.original_lot)    mergeLot(data.original_lot);
+    if (data.replacement_lot) mergeLot(data.replacement_lot);
+    renderContracts();
+    showToast('Substitution removed.', 'success');
+  } catch (e) { showModalError('modal-sub', e.message || 'Delete failed.'); }
+}
+
+function mergeSubs(data) {
+  if (!data.contract_line_id || !data.substitutions) return;
+  PAGE_DATA.contracts.forEach(c => {
+    (c.lines || []).forEach(l => {
+      if (String(l.contract_line_id) === String(data.contract_line_id)) {
+        l.substitutions = data.substitutions;
+      }
+    });
+  });
+}
+
+function mergeLot(updatedLot) {
+  if (!updatedLot) return;
+  const idx = PAGE_DATA.inventory_lots.findIndex(l => String(l.lot_id) === String(updatedLot.lot_id));
+  if (idx >= 0) PAGE_DATA.inventory_lots[idx] = updatedLot;
+}
+
+function mergeLine(updatedLine) {
+  // Merges drawn_bags and other scalar fields from the server response back into PAGE_DATA.
+  // Preserves substitutions[] already merged by mergeSubs (server returns them separately).
+  if (!updatedLine) return;
+  PAGE_DATA.contracts.forEach(c => {
+    (c.lines || []).forEach((l, i) => {
+      if (String(l.contract_line_id) === String(updatedLine.contract_line_id)) {
+        // Merge scalar fields — keep substitutions[] from mergeSubs, not server's line copy
+        c.lines[i] = Object.assign({}, updatedLine, { substitutions: l.substitutions });
+      }
+    });
+  });
+}
+
+// ── Product Name SKU Autocomplete ────────────────────────────────────────────
+let skuAcIndex = -1;
+
+function skuAcInput(input) {
+  const q      = input.value.trim().toLowerCase();
+  const ddEl   = document.getElementById('l-name-dropdown');
+  const clrBtn = document.getElementById('l-name-clear');
+
+  // Clear hidden fields when user types (de-select previous SKU)
+  document.getElementById('l-sku-id').value   = '';
+  document.getElementById('l-sku-code').value = '';
+  clrBtn.className = q ? 'sku-ac-clear show' : 'sku-ac-clear';
+  skuAcIndex = -1;
+
+  if (!q) { ddEl.style.display = 'none'; return; }
+
+  const skus = (PAGE_DATA.product_skus || []).filter(s =>
+    (s.sku_name || '').toLowerCase().includes(q) ||
+    (s.sku_code || '').toLowerCase().includes(q)
+  ).slice(0, 10);
+
+  if (!skus.length) { ddEl.style.display = 'none'; return; }
+
+  ddEl.innerHTML = skus.map((s, i) =>
+    `<div class="sku-ac-item" data-idx="${i}" data-sku-id="${s.sku_id}" data-sku-code="${esc(s.sku_code)}" data-sku-name="${esc(s.sku_name)}"
+      onmousedown="skuAcSelect(event)">${'<span class="sku-ac-name">' + esc(s.sku_name) + '</span>'} &nbsp;<span class="sku-ac-code">(${esc(s.sku_code)})</span></div>`
+  ).join('');
+  ddEl.style.display = 'block';
+}
+
+function skuAcSelect(e) {
+  e.preventDefault();
+  const item  = e.currentTarget;
+  const name  = item.dataset.skuName;
+  const code  = item.dataset.skuCode;
+  const id    = item.dataset.skuId;
+  document.getElementById('l-name').value      = name;
+  document.getElementById('l-sku-id').value    = id;
+  document.getElementById('l-sku-code').value  = code;
+  document.getElementById('l-name-clear').className = 'sku-ac-clear show';
+  document.getElementById('l-name-dropdown').style.display = 'none';
+  skuAcIndex = -1;
+}
+
+function skuAcKeydown(e) {
+  const ddEl  = document.getElementById('l-name-dropdown');
+  const items = ddEl.querySelectorAll('.sku-ac-item');
+  if (!items.length || ddEl.style.display === 'none') return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    skuAcIndex = Math.min(skuAcIndex + 1, items.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    skuAcIndex = Math.max(skuAcIndex - 1, 0);
+  } else if (e.key === 'Enter' && skuAcIndex >= 0) {
+    e.preventDefault();
+    items[skuAcIndex].dispatchEvent(new MouseEvent('mousedown'));
+    return;
+  } else if (e.key === 'Escape') {
+    ddEl.style.display = 'none'; skuAcIndex = -1; return;
+  } else { return; }
+
+  items.forEach((el, i) => el.classList.toggle('ac-active', i === skuAcIndex));
+  if (skuAcIndex >= 0) items[skuAcIndex].scrollIntoView({ block: 'nearest' });
+}
+
+function clearSkuAc() {
+  document.getElementById('l-name').value     = '';
+  document.getElementById('l-sku-id').value   = '';
+  document.getElementById('l-sku-code').value = '';
+  document.getElementById('l-name-clear').className = 'sku-ac-clear';
+  document.getElementById('l-name-dropdown').style.display = 'none';
+  document.getElementById('l-name').focus();
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', function(e) {
+  const wrap = document.querySelector('.sku-ac-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const ddEl = document.getElementById('l-name-dropdown');
+    if (ddEl) ddEl.style.display = 'none';
+  }
+});
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmt(n) { return parseFloat(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }

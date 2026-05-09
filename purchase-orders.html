@@ -1,4 +1,4 @@
-<!-- Version 2.2.4 | purchase-orders.html -->
+<!-- Version 2.2.6 | purchase-orders.html -->
 <!-- Version 2.1.8 | purchase-orders.html -->
 <html lang="en">
 <head>
@@ -739,10 +739,10 @@ function renderLinesTable(lines, currency, poId) {
       <td class="num subtotal-row">${subtotal}</td>
       <td class="num"><span class="recv-badge ${badgeClass}">${badgeLabel}</span></td>
       <td>
-        <button class="btn btn-ghost btn-sm" onclick="openReceiveModal(${l.po_line_id}, ${poId})">📦 Receive</button>
+        <button class="btn btn-ghost btn-sm" ${received >= qty && qty > 0 ? 'disabled title="Fully received"' : 'onclick="openReceiveModal(' + l.po_line_id + ', ' + poId + ')"'}>📦 Receive</button>
         <button class="btn btn-ghost btn-sm" onclick="openIssueSampleModal(${l.po_line_id}, ${poId})">🔬 Sample</button>
-        <button class="btn btn-ghost btn-sm" onclick="openLineModal(${l.po_id}, ${l.po_line_id})">Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteLine(${l.po_id}, ${l.po_line_id})">Del</button>
+        <button class="btn btn-ghost btn-sm" ${received >= qty && qty > 0 ? 'disabled title="Cannot edit — inventory already committed"' : 'onclick="openLineModal(' + l.po_id + ', ' + l.po_line_id + ')"'}>Edit</button>
+        <button class="btn btn-danger btn-sm" ${received >= qty && qty > 0 ? 'disabled title="Cannot delete — inventory already committed"' : 'onclick="deleteLine(' + l.po_id + ', ' + l.po_line_id + ')"'}>Del</button>
       </td>
     </tr>`;
   }).join('');
@@ -1355,15 +1355,18 @@ function showToast(msg, type) {
 // Opens from 📦 Receive button on each PO line.
 // Pre-fills from PO line data. User enters bin locations then commits.
 
-let recvBins = [];   // [{ bin_label, qty_bags, location_id, notes }]
-let recvPoLineQty = 0;
+let recvBins     = [];  // [{ bin_label, qty_bags, location_id, notes }]
+let recvLineQty  = 0;  // total PO qty (display only)
+let recvRemaining = 0;  // qty - already received (ceiling for new/edited bins)
 
-function openReceiveModal(poLineId, poId) {
+async function openReceiveModal(poLineId, poId) {
   const po   = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
   const line = po ? (po.lines || []).find(l => String(l.po_line_id) === String(poLineId)) : null;
   if (!line) { showToast('PO line not found.', 'error'); return; }
 
-  recvPoLineQty = line.qty_bags || 0;
+  recvLineQty   = line.qty_bags     || 0;
+  const alreadyReceived = line.received_bags || 0;
+  recvRemaining = Math.max(0, recvLineQty - alreadyReceived);
 
   document.getElementById('recv-po-line-id').value  = poLineId;
   document.getElementById('recv-po-id').value        = poId;
@@ -1374,7 +1377,16 @@ function openReceiveModal(poLineId, poId) {
   document.getElementById('recv-date').value           = new Date().toISOString().slice(0, 10);
   document.getElementById('recv-bag-size').value       = line.bag_size     || '';
   document.getElementById('recv-cost').value           = line.cost_price   || '';
-  document.getElementById('recv-po-qty-label').textContent = 'PO qty: ' + recvPoLineQty + ' bags';
+
+  // Show PO qty + already received context
+  const qtyLabel = document.getElementById('recv-po-qty-label');
+  if (alreadyReceived > 0) {
+    qtyLabel.textContent = 'PO qty: ' + recvLineQty + ' bags · Already received: ' + alreadyReceived + ' · Remaining: ' + recvRemaining;
+    qtyLabel.style.color = recvRemaining === 0 ? 'var(--success)' : 'var(--warn)';
+  } else {
+    qtyLabel.textContent = 'PO qty: ' + recvLineQty + ' bags';
+    qtyLabel.style.color = '';
+  }
 
   // Coffee type dropdown
   const ct = document.getElementById('recv-coffee-type');
@@ -1396,11 +1408,36 @@ function openReceiveModal(poLineId, poId) {
   ).join('');
   updateReceiveLocations();
 
-  // Start with one empty bin row
-  recvBins = [{ bin_label: '', qty_bags: '', location_id: '', notes: '' }];
-  renderRecvBins();
-
+  // v2.2.5: Load existing bins from server — pre-populate for Option B (full replace)
   clearModalError('modal-receive');
+  const saveBtnEl = document.getElementById('btn-recv-save');
+  saveBtnEl.disabled = true;
+  saveBtnEl.textContent = 'Loading…';
+
+  try {
+    const binData = await API.post({ action: 'getBinsForPoLine', po_line_id: poLineId });
+    const existingBins = binData.bins || [];
+    if (existingBins.length > 0) {
+      // Pre-populate with all existing bins — staff can edit + add new ones
+      recvBins = existingBins.map(b => ({
+        bin_label:   b.bin_label   || '',
+        qty_bags:    b.qty_bags    || '',
+        location_id: b.location_id || '',
+        notes:       b.notes       || ''
+      }));
+    } else {
+      // No bins yet — start with one empty row
+      recvBins = [{ bin_label: '', qty_bags: '', location_id: '', notes: '' }];
+    }
+  } catch (e) {
+    // If fetch fails, start fresh — don't block the modal
+    recvBins = [{ bin_label: '', qty_bags: '', location_id: '', notes: '' }];
+  }
+
+  renderRecvBins();
+  saveBtnEl.disabled = false;
+  saveBtnEl.textContent = 'Save & Commit';
+
   document.getElementById('modal-receive').classList.add('open');
 }
 
@@ -1461,8 +1498,15 @@ function removeRecvBin(i) {
 function updateRecvTotal() {
   const total = recvBins.reduce((s, b) => s + (parseInt(b.qty_bags) || 0), 0);
   const el    = document.getElementById('recv-total');
-  el.textContent = 'Total: ' + total + ' / ' + recvPoLineQty + ' bags';
-  el.className   = 'receive-total ' + (total === recvPoLineQty ? 'exact' : total > recvPoLineQty ? 'over' : 'under');
+  // Show total against remaining (not full PO qty) so staff sees the correct ceiling
+  el.textContent = 'Total: ' + total + ' / ' + recvRemaining + ' bags remaining';
+  if (total > recvRemaining) {
+    el.className = 'receive-total over';
+  } else if (total > 0 && total === recvRemaining) {
+    el.className = 'receive-total exact';
+  } else {
+    el.className = 'receive-total under';
+  }
 }
 
 document.getElementById('btn-add-bin').onclick    = addRecvBin;
@@ -1488,8 +1532,8 @@ document.getElementById('btn-recv-save').onclick = async () => {
   }
 
   const total = recvBins.reduce((s, b) => s + (parseInt(b.qty_bags) || 0), 0);
-  if (total > recvPoLineQty) {
-    showModalError('modal-receive', 'Total bins (' + total + ') exceeds PO line qty (' + recvPoLineQty + '). Cannot over-receive.');
+  if (total > recvRemaining) {
+    showModalError('modal-receive', 'Total bins (' + total + ') exceeds remaining (' + recvRemaining + ' bags). Cannot over-receive.');
     btn.disabled = false; return;
   }
 

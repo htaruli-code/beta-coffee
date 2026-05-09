@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.0.4 | inventory.html -->
+<!-- Version 2.1.1 | inventory.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -57,6 +57,24 @@
     .toast.show{opacity:1}.toast.error{background:var(--error)}.toast.success{background:var(--success)}
     .empty{text-align:center;padding:3rem 1rem;color:var(--muted);font-family:var(--font-mono);font-size:.8rem}
     .loading{text-align:center;padding:3rem;font-family:var(--font-mono);font-size:.8rem;color:var(--muted)}
+
+    /* ── Drawdown panel (v2.1) ──────────────────────────────────────────────── */
+    .inv-table tr.dd-section-row td { background: #f0f7f4; padding: 0; border-bottom: none; }
+    .dd-panel { padding: 0.5rem 0.6rem 0.6rem 2.8rem; border-bottom: 1px solid var(--border); }
+    .dd-panel-title { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: space-between; }
+    .dd-line { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.7rem; padding: 0.22rem 0; border-bottom: 1px dashed var(--border); color: var(--muted); }
+    .dd-line:last-child { border-bottom: none; }
+    .dd-line .dd-bags { color: var(--text); font-weight: 600; }
+    .dd-line .dd-buyer { color: var(--text); }
+    .dd-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.15rem 0.4rem; border-radius: 2px; }
+    .dd-badge-pending    { background: #f0f0f0; color: #666; }
+    .dd-badge-approved   { background: #fef9ec; color: #854f0b; }
+    .dd-badge-dispatched { background: #eef4fd; color: #1a5ca8; }
+    .dd-badge-delivered  { background: #edf7f0; color: #1e6640; }
+    .dd-badge-cancelled  { background: #fdecea; color: #b00020; }
+    .dd-sub-tag { font-size: 0.62rem; color: var(--accent); background: #fff3e0; padding: 0.1rem 0.35rem; border-radius: 2px; font-weight: 600; }
+    .dd-toggle { font-family: var(--font-mono); font-size: 0.65rem; cursor: pointer; color: var(--success); background: none; border: none; padding: 0; text-decoration: underline; }
+    .dd-empty { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); font-style: italic; }
   </style>
 </head>
 <body>
@@ -184,8 +202,9 @@ if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API  === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-let PAGE_DATA   = { inventory_lots: [], warehouses: [], locations: [], countries: [], coffee_types: [], weight_units: ['kg','lb'] };
-let expandedLots = new Set();
+let PAGE_DATA   = { inventory_lots: [], warehouses: [], locations: [], countries: [], coffee_types: [], weight_units: ['kg','lb'], drawdowns: [], contracts: [], buyers: [], lot_substitutions: [] };
+let expandedLots     = new Set();
+let expandedDrawdowns = new Set();
 
 (async () => {
   const user    = Auth.getUser();
@@ -262,6 +281,14 @@ function renderTable() {
         '</button>'
       : '<span class="legacy-badge">no bins</span>';
 
+    // Drawdown usage for this lot — primary lines + substitution lines
+    const lotDrawdowns   = getLotDrawdowns(l.lot_id);
+    const ddExpanded     = expandedDrawdowns.has(String(l.lot_id));
+    const ddCount        = lotDrawdowns.length;
+    const ddToggle       = '<button class="dd-toggle" onclick="toggleDrawdownPanel(' + l.lot_id + ')">' +
+      (ddExpanded ? '▲ ' : '▼ ') + ddCount + ' drawdown' + (ddCount !== 1 ? 's' : '') +
+      '</button>';
+
     rows.push('<tr class="lot-row">' +
       '<td>' + skuHtml + '</td>' +
       '<td>' + esc(l.sample_name) + '</td>' +
@@ -274,6 +301,7 @@ function renderTable() {
       '<td class="num">' + (l.cost_price ? l.cost_price + ' / ' + esc(l.cost_price_unit || 'kg') : '—') + '</td>' +
       '<td>' + esc(l.received_date || '—') + '</td>' +
       '<td>' + binToggle + '</td>' +
+      '<td>' + (ddCount > 0 ? ddToggle : '<span class="dd-empty">no drawdowns</span>') + '</td>' +
       '<td><button class="btn btn-ghost btn-sm" onclick="openLotModal(' + l.lot_id + ')">Edit</button></td>' +
     '</tr>');
 
@@ -281,13 +309,19 @@ function renderTable() {
       bins.forEach(b => {
         rows.push('<tr class="bin-row">' +
           '<td></td>' +
-          '<td colspan="2">📦 ' + esc(b.bin_label || '—') + '</td>' +
+          '<td colspan="3">📦 ' + esc(b.bin_label || '—') + '</td>' +
           '<td colspan="3">' + esc(b.notes || '') + '</td>' +
           '<td></td><td></td>' +
           '<td class="num">' + b.qty_bags + ' bags</td>' +
-          '<td colspan="2"></td>' +
+          '<td colspan="3"></td>' +
         '</tr>');
       });
+    }
+
+    if (ddExpanded && ddCount > 0) {
+      rows.push('<tr class="dd-section-row"><td colspan="13"><div class="dd-panel">' +
+        buildLotDrawdownPanel(l.lot_id, lotDrawdowns) +
+      '</div></td></tr>');
     }
   });
 
@@ -295,7 +329,7 @@ function renderTable() {
     '<th>SKU</th><th>Sample</th><th>Lot #</th><th>Warehouse</th><th>Type</th>' +
     '<th class="num">Received</th><th class="num">Available</th>' +
     '<th class="num">Bag Size</th><th class="num">Cost</th>' +
-    '<th>Date</th><th>Bins</th><th></th>' +
+    '<th>Date</th><th>Bins</th><th>Drawdowns</th><th></th>' +
     '</tr></thead><tbody>' + rows.join('') + '</tbody></table>';
 }
 
@@ -304,6 +338,91 @@ function toggleBins(lotId) {
   if (expandedLots.has(k)) expandedLots.delete(k);
   else expandedLots.add(k);
   renderTable();
+}
+
+function toggleDrawdownPanel(lotId) {
+  const k = String(lotId);
+  if (expandedDrawdowns.has(k)) expandedDrawdowns.delete(k);
+  else expandedDrawdowns.add(k);
+  renderTable();
+}
+
+// Returns all drawdowns that touch this lot — either as primary lot or as substitution replacement.
+// v2.1.1: Uses drawdown_id on substitution records for exact matching.
+// Legacy subs (drawdown_id='') fall back to contract_line_id matching.
+function getLotDrawdowns(lotId) {
+  const lid = String(lotId);
+
+  // Primary: contract lines where inventory_lot_id === lotId
+  const primaryLineIds = new Set(
+    (PAGE_DATA.contracts || [])
+      .flatMap(c => (c.lines || []))
+      .filter(l => String(l.inventory_lot_id) === lid)
+      .map(l => String(l.contract_line_id))
+  );
+
+  // Substitution records pointing to this lot as replacement
+  const subs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.replacement_lot_id) === lid);
+
+  // For each drawdown: is this lot involved either as primary or substitution?
+  const result = [];
+
+  (PAGE_DATA.drawdowns || []).forEach(d => {
+    const clid       = String(d.contract_line_id);
+    const ddIdStr    = String(d.drawdown_id);
+    const isPrimary  = primaryLineIds.has(clid);
+
+    // Substitution match: prefer drawdown_id match, fall back to line-level for legacy records
+    const subMatch = subs.find(s =>
+      (s.drawdown_id && String(s.drawdown_id) === ddIdStr) ||
+      (!s.drawdown_id && String(s.contract_line_id) === clid)
+    );
+
+    if (!isPrimary && !subMatch) return; // this lot not involved in this drawdown
+
+    result.push(Object.assign({}, d, {
+      is_substitution: !isPrimary && !!subMatch,
+      sub_bags_count:  subMatch ? subMatch.bags_count : null
+    }));
+  });
+
+  return result.sort((a, b) => {
+    const order = { 'Pending': 0, 'Approved': 1, 'Dispatched': 2, 'Delivered': 3, 'Cancelled': 4 };
+    const ao = order[a.status] !== undefined ? order[a.status] : 5;
+    const bo = order[b.status] !== undefined ? order[b.status] : 5;
+    return ao !== bo ? ao - bo : (b.drawdown_id - a.drawdown_id);
+  });
+}
+
+function buildLotDrawdownPanel(lotId, lotDrawdowns) {
+  const pending    = lotDrawdowns.filter(d => d.status === 'Pending' || d.status === 'Approved').length;
+  const dispatched = lotDrawdowns.filter(d => d.status === 'Dispatched' || d.status === 'Delivered').length;
+
+  let title = '<div class="dd-panel-title"><span>Drawdown Activity';
+  if (pending)    title += ' &nbsp;·&nbsp; <span style="color:var(--accent)">' + pending + ' in-flight</span>';
+  if (dispatched) title += ' &nbsp;·&nbsp; <span style="color:var(--success)">' + dispatched + ' fulfilled</span>';
+  title += '</span></div>';
+
+  const lines = lotDrawdowns.map(d => {
+    const badgeKey  = (d.status || 'pending').toLowerCase();
+    const subTag    = d.is_substitution
+      ? '<span class="dd-sub-tag">SUB ' + (d.sub_bags_count ? d.sub_bags_count + ' bags' : '') + '</span>'
+      : '';
+    return '<div class="dd-line">' +
+      '<span class="dd-badge dd-badge-' + badgeKey + '">' + esc(d.status) + '</span>' +
+      subTag +
+      '<span class="dd-buyer">' + esc(d.buyer_name || '—') + '</span>' +
+      '<span style="color:var(--muted)">·</span>' +
+      '<span>' + esc(d.contract_number || '—') + '</span>' +
+      '<span style="color:var(--muted)">·</span>' +
+      '<span>' + esc((d.contract_line && d.contract_line.sample_name) || '—') + '</span>' +
+      '<span style="color:var(--muted)">·</span>' +
+      '<span class="dd-bags">' + (d.requested_bags || 0) + ' bags</span>' +
+      (d.shipping_date ? '<span style="color:var(--muted)">ship ' + esc(d.shipping_date) + '</span>' : '') +
+    '</div>';
+  }).join('');
+
+  return title + lines;
 }
 
 function updateLocations() {
