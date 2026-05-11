@@ -283,11 +283,13 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11.2 | supplier-submit.html script
-    let PAGE_DATA = { countries: [] };  // v1.11: holds countries for origin country dropdown
+    // Version 1.11.3 | supplier-submit.html script
+    // v1.11.3: BUG FIX — initial sampleRows missing cost_price_unit and origin_country_id.
+    //   First row sent undefined for both unless supplier touched those dropdowns. Now matches + Add Row defaults.
+    let PAGE_DATA = { countries: [] };
 
     const token = new URLSearchParams(window.location.search).get('t');
-    let sampleRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '' }];  // v1.3
+    let sampleRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', origin_country_id: '' }];
 
     function showState(id) {
       // v1.3.1: explicit 'block' — clearing to '' lets CSS display:none win
