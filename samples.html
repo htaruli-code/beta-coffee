@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.15.1 | samples.html -->
+<!-- Version 1.15.2 | samples.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -791,7 +791,7 @@
     // ── Modal: New Sample ─────────────────────────────────────────────────────
     document.getElementById('btn-new-sample').addEventListener('click', () => {
       editingInboundId = null;
-      detailRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', coffee_type: '' }];  // v1.3/v1.8
+      detailRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', coffee_type: '' }];  // v1.3/v1.8/v1.15.2: cost_price_unit added
       document.getElementById('modal-sample-title').textContent = 'New Sample Request';
       document.getElementById('s-po').value = '';
       document.getElementById('s-ref').value = '';
@@ -815,7 +815,7 @@
       detailRows.forEach((d, i) => {
         const row = document.createElement('div');
         row.className = 'detail-row';
-        // v1.1: coffee_sales_name | v1.3: available_bags, bag_size, cost_price
+        // v1.1: coffee_sales_name | v1.3: available_bags, bag_size, cost_price | v1.15.2: cost_price_unit
         row.innerHTML = `
           <input type="text" placeholder="Sample name" value="${UI.esc(d.sample_name)}" onchange="detailRows[${i}].sample_name=this.value" />
           <input type="text" placeholder="Origin code" value="${UI.esc(d.origin_sample_code)}" onchange="detailRows[${i}].origin_sample_code=this.value" />
@@ -823,7 +823,18 @@
           <input type="text" placeholder="Sales name" value="${UI.esc(d.coffee_sales_name || '')}" onchange="detailRows[${i}].coffee_sales_name=this.value" />
           <input type="number" placeholder="0" min="0" value="${UI.esc(d.available_bags || '')}" onchange="detailRows[${i}].available_bags=this.value" title="Available bags" />
           <input type="number" placeholder="0" min="0" step="0.1" value="${UI.esc(d.bag_size || '')}" onchange="detailRows[${i}].bag_size=this.value" title="Bag size (kg)" />
-          <input type="number" placeholder="0.00" min="0" step="0.01" value="${UI.esc(d.cost_price || '')}" onchange="detailRows[${i}].cost_price=this.value" title="Cost price per kg" />
+          <div style="display:flex;align-items:center;gap:4px">
+            <input type="number" placeholder="0.00" min="0" step="0.01" value="${UI.esc(d.cost_price || '')}" onchange="detailRows[${i}].cost_price=this.value" title="Cost price" style="flex:1" />
+            <div style="display:flex;gap:0;flex-shrink:0">
+              ${['kg','lb'].map(u => `<button type="button"
+                onclick="detailRows[${i}].cost_price_unit='${u}';this.parentElement.querySelectorAll('button').forEach(b=>b.dataset.u===this.dataset.u?(b.style.background='var(--accent)',b.style.color='#fff'):(b.style.background='transparent',b.style.color='var(--muted)'))"
+                data-u="${u}"
+                style="font-family:var(--font-mono);font-size:0.65rem;padding:2px 6px;border:1px solid var(--border);
+                  background:${(d.cost_price_unit||'kg')===u?'var(--accent)':'transparent'};
+                  color:${(d.cost_price_unit||'kg')===u?'#fff':'var(--muted)'};
+                  cursor:pointer;border-radius:${u==='kg'?'3px 0 0 3px':'0 3px 3px 0'}">${u}</button>`).join('')}
+            </div>
+          </div>
           <select onchange="detailRows[${i}].coffee_type=this.value" title="Coffee type (internal — not shown to supplier)">
             <option value="">—</option>
             ${(PAGE_DATA.coffeeTypes || ['Microlot','Blend']).map(t => '<option value="' + t + '"' + (d.coffee_type === t ? ' selected' : '') + '>' + t + '</option>').join('')}
@@ -839,7 +850,7 @@
     }
 
     document.getElementById('btn-add-detail').addEventListener('click', () => {
-      detailRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', coffee_type: '' });  // v1.3/v1.8
+      detailRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', coffee_type: '' });  // v1.3/v1.8/v1.15.2: cost_price_unit added
       renderDetailRows();
     });
 
@@ -1093,6 +1104,10 @@
       if (btn) { btn.disabled = true; btn.textContent = 'SAVING…'; }
       try {
         await API.saveSamplePricesAll(detailId, pricePayload);
+        // v1.15.2: also persist cost_price_unit back to inbound_detail so the
+        // Prices modal reopens with the correct unit toggle selected next time.
+        const unit = pricePayload[0].sale_unit;
+        try { await API.saveDetailField(detailId, 'cost_price_unit', unit); } catch (_) { /* non-fatal */ }
         // Update local PAGE_DATA state
         pricePayload.forEach(p => {
           const existing = (PAGE_DATA.prices || []).find(x =>
@@ -1106,7 +1121,9 @@
             PAGE_DATA.prices.push({ detail_id: detailId, level: p.level, sale_price: p.sale_price, is_manual: true, sale_price_unit: p.sale_unit });
           }
         });
-        const unit = pricePayload[0].sale_unit;
+        // Update local PAGE_DATA.details so cost_price_unit reflects the saved unit
+        const det = (PAGE_DATA.details || []).find(x => String(x.detail_id) === String(detailId));
+        if (det) det.cost_price_unit = unit;
         UI.toastSuccess('Prices saved (' + unit + ').');
       } catch (err) {
         UI.toastError(err.message);

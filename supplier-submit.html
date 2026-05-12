@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.11.3 | supplier-submit.html -->
+<!-- Version 1.11.4 | supplier-submit.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -283,12 +283,13 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.11.3 | supplier-submit.html script
-    // v1.11.3: BUG FIX — initial sampleRows missing cost_price_unit and origin_country_id.
-    //   First row sent undefined for both unless supplier touched those dropdowns. Now matches + Add Row defaults.
-    let PAGE_DATA = { countries: [] };
+    // Version 1.11.4 | supplier-submit.html script
+    let PAGE_DATA = { countries: [] };  // v1.11: holds countries for origin country dropdown
 
     const token = new URLSearchParams(window.location.search).get('t');
+    // v1.11.4 FIX: initial row was missing cost_price_unit + origin_country_id — first row
+    // rendered with no unit selected and submitted undefined instead of 'kg'.
+    // Now matches the add-row object exactly.
     let sampleRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', origin_country_id: '' }];
 
     function showState(id) {

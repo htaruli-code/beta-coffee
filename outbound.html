@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.21 | outbound.html -->
+<!-- Version 1.23 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -333,6 +333,12 @@
         <input type="checkbox" id="filter-has-reserve" style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer" />
         Reserved &gt; 0
       </label>
+    </div>
+
+    <!-- v1.23: ⚡ note — shown only when unstamped prices exist in the current view -->
+    <div id="lightning-note" style="display:none;margin-bottom:0.75rem;padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);font-size:0.8rem;color:var(--muted)">
+      <strong style="color:var(--text)">⚡ = live price from sample records, not yet saved to this outbound.</strong>
+      To fix it, update the price in Samples → Prices, then click <strong>Stamp Prices</strong> on the outbound row.
     </div>
 
     <div class="table-wrap">
@@ -783,6 +789,41 @@
           detLabel.textContent = 'Sample Details';
           detTd.appendChild(detLabel);
 
+          // v1.23: build buyer-level price map once — used by both Stamp check and row display
+          const oBuyer      = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(o.buyer_id));
+          const oBuyerLevel = oBuyer ? (oBuyer.buyer_level || 'Small') : 'Small';
+          const livePriceMap = {};
+          (PAGE_DATA.samplePrices || [])
+            .filter(p => p.level === oBuyerLevel)
+            .forEach(p => { livePriceMap[String(p.detail_id)] = p; });
+
+          // Show Stamp Prices button only when at least one ⚡ row exists on this outbound
+          const hasLightning = dets.some(d =>
+            !d.sale_price_sent && d.inbound_detail_id &&
+            livePriceMap[String(d.inbound_detail_id)] &&
+            livePriceMap[String(d.inbound_detail_id)].sale_price
+          );
+          if (hasLightning) {
+            const stampBtn = document.createElement('button');
+            stampBtn.className = 'btn btn-ghost btn-sm';
+            stampBtn.style.cssText = 'font-size:0.7rem;padding:2px 10px;margin-bottom:0.5rem';
+            stampBtn.textContent = '⚡ Stamp Prices';
+            stampBtn.addEventListener('click', async function(e) {
+              e.stopPropagation();
+              UI.setLoading(stampBtn, true);
+              try {
+                const res = await API.stampOutboundPrices(o.outbound_id);
+                UI.toastSuccess('Stamped ' + res.stamped + ' price' + (res.stamped !== 1 ? 's' : '') + '.');
+                await loadPageData();
+              } catch (err) {
+                UI.toastError(err.message);
+              } finally {
+                UI.setLoading(stampBtn, false);
+              }
+            });
+            detTd.appendChild(stampBtn);
+          }
+
           const detTable = document.createElement('table');
           detTable.style.cssText = 'width:100%;border-collapse:collapse;font-size:0.78rem';
           const detThead = document.createElement('thead');
@@ -797,10 +838,22 @@
           detThead.appendChild(detHeadTr);
           detTable.appendChild(detThead);
           const detTbody = document.createElement('tbody');
+
           dets.forEach(d => {
-            const priceSent = d.sale_price_sent
-              ? '$' + parseFloat(d.sale_price_sent).toFixed(2) + '/' + (d.sale_price_unit_sent || 'kg')
-              : '\u2014';
+            // v1.22 FIX: sale_price_sent is only written when price existed at "Sent" time.
+            // If price was added/updated afterwards, fall back to live sample_prices so the
+            // UI shows the correct value and Reserve email sends the right price.
+            let priceSent;
+            if (d.sale_price_sent) {
+              priceSent = '$' + parseFloat(d.sale_price_sent).toFixed(2) + '/' + (d.sale_price_unit_sent || 'kg');
+            } else if (d.inbound_detail_id && livePriceMap[String(d.inbound_detail_id)]) {
+              const lp = livePriceMap[String(d.inbound_detail_id)];
+              priceSent = lp.sale_price
+                ? '$' + parseFloat(lp.sale_price).toFixed(2) + '/' + (lp.sale_unit || lp.sale_price_unit || 'kg') + '\u00a0\u26a1'
+                : '\u2014';
+            } else {
+              priceSent = '\u2014';
+            }
             const reserved = d.bags_reserved ? d.bags_reserved + ' bag' + (d.bags_reserved > 1 ? 's' : '') : '\u2014';
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border)';
@@ -850,6 +903,21 @@
       if (!outbounds.length) {
         tbody.innerHTML = '<tr><td colspan="11" class="st-empty">No outbound samples found.</td></tr>';
       }
+
+      // v1.23: show/hide the ⚡ note banner based on whether any unstamped prices exist
+      const anyLightning = (PAGE_DATA.details || []).some(d => {
+        if (d.sale_price_sent) return false;
+        if (!d.inbound_detail_id) return false;
+        const outbound = (PAGE_DATA.outbounds || []).find(o => String(o.outbound_id) === String(d.outbound_id));
+        if (!outbound) return false;
+        const buyer      = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(outbound.buyer_id));
+        const level      = buyer ? (buyer.buyer_level || 'Small') : 'Small';
+        return (PAGE_DATA.samplePrices || []).some(p =>
+          String(p.detail_id) === String(d.inbound_detail_id) && p.level === level && p.sale_price
+        );
+      });
+      const noteEl = document.getElementById('lightning-note');
+      if (noteEl) noteEl.style.display = anyLightning ? 'block' : 'none';
     }
 
     function beansBadge(beans) {

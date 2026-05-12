@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.5 | shipments.html -->
+<!-- Version 2.2.0 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -12,6 +12,7 @@
     :root {
       --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
       --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --warning: #b8860b;
       --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
       --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
     }
@@ -43,15 +44,21 @@
     .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.75rem; gap: 1rem; }
     .card-title { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; }
     .card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
-    .card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
     .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 2px; }
-    .badge-pending  { background: #f0f0f0; color: #666; }
-    .badge-sailing  { background: #eef4fd; color: #1a5ca8; }
-    .badge-arrived  { background: #edf7f0; color: #1e6640; }
-    .badge-delayed  { background: #fdecea; color: #b00020; }
-    .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; font-size: 0.78rem; }
-    .info-item label { font-size: 0.68rem; margin-bottom: 0.15rem; }
-    .info-item span { font-family: var(--font-mono); }
+    .badge-pending   { background: #f0f0f0; color: #666; }
+    .badge-sailing   { background: #eef4fd; color: #1a5ca8; }
+    .badge-arrived   { background: #edf7f0; color: #1e6640; }
+    .badge-delayed   { background: #fdecea; color: #b00020; }
+    .badge-shipsgo   { background: #fff8e6; color: #8b5e00; border: 1px solid #f5d47a; }
+    .badge-syncing   { background: #e6f0ff; color: #1a4a9e; }
+    .badge-syncerror { background: #fdecea; color: #b00020; border: 1px solid #f5c6c6; }
+    .badge-untracked { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+    .tracking-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.72rem; color: var(--muted); margin-top: 0.4rem; }
+    .eta-conflict { color: var(--warning); font-family: var(--font-mono); font-size: 0.7rem; }
+    .toggle-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
+    .toggle-row label { margin: 0; font-size: 0.78rem; color: var(--text); cursor: pointer; }
+    .toggle-lock { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); }
     .po-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
     .po-tag { font-family: var(--font-mono); font-size: 0.65rem; background: var(--border); padding: 0.15rem 0.4rem; border-radius: 2px; }
     .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
@@ -59,15 +66,16 @@
     .modal-overlay.open { display: flex; }
     .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 640px; margin: auto; }
     .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap; }
     .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
-    .modal-error { display: none; background: rgba(192, 57, 43, 0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
+    .modal-error { display: none; background: rgba(192,57,43,0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
     .modal-error.show { display: block; }
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast.show { opacity: 1; }
     .toast.error { background: var(--error); }
     .toast.success { background: var(--success); }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    input:disabled, select:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -83,6 +91,7 @@
     <a href="suppliers.html" id="nav-suppliers">Suppliers</a>
     <a href="contracts.html" id="nav-contracts">Contracts</a>
     <a href="drawdowns.html" id="nav-drawdowns">Drawdowns</a>
+    <a href="catalogue-library.html" id="nav-catalogues">Catalogues</a>
   </div>
   <span class="nav-user" id="nav-user"></span>
 </nav>
@@ -91,18 +100,28 @@
   <div class="page-header">
     <div>
       <div class="page-title">Shipments</div>
-      <div class="page-sub">Track containers, ETD/ETA and sailing status</div>
+      <div class="page-sub">Track containers, ETD/ETA and ShipsGo live status</div>
     </div>
-    <button class="btn" id="btn-new-shipment">+ New Shipment</button>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" id="btn-refresh-carriers" title="Refresh ShipsGo carrier list">Refresh Carriers</button>
+      <button class="btn" id="btn-new-shipment">+ New Shipment</button>
+    </div>
   </div>
 
   <div class="toolbar">
     <select id="filter-sailing" style="width:auto">
       <option value="">All Statuses</option>
     </select>
+    <select id="filter-tracking" style="width:auto">
+      <option value="">All Tracking</option>
+      <option value="registered">ShipsGo Registered</option>
+      <option value="unregistered">Not Registered</option>
+      <option value="buyer_enabled">Buyer Visible</option>
+      <option value="sync_error">Sync Error</option>
+    </select>
   </div>
 
-  <div id="shipment-list"><div class="loading">Loading shipments…</div></div>
+  <div id="shipment-list"><div class="loading">Loading shipments...</div></div>
 </div>
 
 <!-- Shipment Modal -->
@@ -118,8 +137,16 @@
         <input type="text" id="s-container" placeholder="TCKU1234567" />
       </div>
       <div class="field">
-        <label>Bill of Lading <span style="color:var(--error)">*</span></label>
+        <label>Bill of Lading</label>
         <input type="text" id="s-bl" placeholder="BL-2026-001" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Carrier (for ShipsGo tracking)</label>
+        <select id="s-carrier">
+          <option value="">— Select Carrier —</option>
+        </select>
       </div>
     </div>
     <div class="field-row">
@@ -128,11 +155,11 @@
         <input type="date" id="s-planned" />
       </div>
       <div class="field">
-        <label>ETD <span style="color:var(--error)">*</span></label>
+        <label>ETD</label>
         <input type="date" id="s-etd" />
       </div>
       <div class="field">
-        <label>ETA <span style="color:var(--error)">*</span></label>
+        <label>ETA</label>
         <input type="date" id="s-eta" />
       </div>
     </div>
@@ -146,13 +173,26 @@
         <input type="date" id="s-arrival" />
       </div>
     </div>
-    <div class="field">
-      <label>Tracking Reference <span style="color:var(--muted);font-size:0.65rem">(for future API sync)</span></label>
-      <input type="text" id="s-tracking" placeholder="Carrier tracking ID" />
-    </div>
     <div class="field" style="margin-top:0.75rem">
       <label>Notes</label>
       <textarea id="s-notes"></textarea>
+    </div>
+
+    <div id="s-shipsgo-section" style="display:none">
+      <div class="modal-section">ShipsGo Tracking</div>
+      <div id="s-shipsgo-status-area" style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem"></div>
+      <div id="s-shipsgo-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem"></div>
+
+      <div id="s-buyer-tracking-section" style="display:none">
+        <div class="modal-section">Buyer Visibility</div>
+        <div class="toggle-row">
+          <input type="checkbox" id="s-buyer-tracking" style="width:auto" />
+          <label for="s-buyer-tracking">Enable buyer tracking visibility</label>
+          <span class="toggle-lock" id="s-buyer-tracking-lock" style="display:none">locked</span>
+        </div>
+        <div id="s-buyer-tracking-audit" style="font-size:0.68rem;color:var(--muted);font-family:var(--font-mono);margin-top:0.25rem"></div>
+        <p style="font-size:0.72rem;color:var(--muted);margin-top:0.4rem">Once enabled, buyers linked via contract lines can see this shipment. This action is permanent.</p>
+      </div>
     </div>
 
     <div class="modal-section">Linked PO Lines</div>
@@ -169,7 +209,7 @@
         </div>
         <div class="field" style="max-width:110px">
           <label>Bags Loaded</label>
-          <input type="number" id="s-add-bags" min="1" placeholder="0" />
+          <input type="text" inputmode="numeric" id="s-add-bags" placeholder="0" />
         </div>
         <div class="field" style="max-width:90px;justify-content:flex-end">
           <button class="btn btn-sm" id="btn-s-add-line" type="button">Add</button>
@@ -184,7 +224,7 @@
   </div>
 </div>
 
-<!-- Sailing Status Quick-Update Modal -->
+<!-- Sailing Status Modal -->
 <div class="modal-overlay" id="modal-sailing">
   <div class="modal" style="max-width:400px">
     <div class="modal-title">Update Sailing Status</div>
@@ -212,95 +252,203 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.1.5 | shipments.html
-// v2.1.5: isNaN guard on bags link field. dates via UI.formatDate.
-const fmtDate = v => UI.formatDate(v);
-// v2.1: Linked PO Lines picker added — Add/Remove junction rows inline
+// Version 2.2.0 | shipments.html
+// v2.2.0: ShipsGo module — register, sync, re-register, enable buyer tracking,
+//         mark untrackable, carrier dropdown, ShipsGo status badges, ETA conflict display.
+//         Navbar link to catalogue-library added.
+// v2.1.5: isNaN guard on bags; dates via UI.formatDate.
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
-if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
-if (typeof API     === 'undefined') throw new Error('api.js not loaded');
+if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API  === 'undefined') throw new Error('api.js not loaded');
+if (typeof UI   === 'undefined') throw new Error('ui.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-let PAGE_DATA = { shipments: [], purchase_orders: [], suppliers: [], sailing_statuses: [] };
+const fmtDate = v => UI.formatDate(v);
+let PAGE_DATA = {
+  shipments: [], purchase_orders: [], suppliers: [], po_lines: [],
+  junctions: [], instructions: [], carriers: [],
+  sailing_statuses: [], si_statuses: [], _junctionMap: {}
+};
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
 
 (async () => {
   const user    = Auth.getUser();
   const company = Auth.getCompany();
   document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
   document.getElementById('nav-user').textContent  = user ? user.name : '';
-  document.getElementById('nav-user').onclick      = () => { Auth.logout(); window.location = 'login.html'; };
-
+  document.getElementById('nav-user').onclick      = () => Auth.logout();
   try {
     const data = await API.post({ action: 'getShipmentsPage' });
-    PAGE_DATA = data;
+    PAGE_DATA  = Object.assign(PAGE_DATA, data);
+    buildJunctionMap();
     populateFilters();
     renderShipments();
-  } catch (e) { showToast('Failed to load.', 'error'); }
+  } catch (e) { showToast('Failed to load: ' + (e.message || 'error'), 'error'); }
 })();
+
+function buildJunctionMap() {
+  PAGE_DATA._junctionMap = {};
+  (PAGE_DATA.junctions || []).forEach(j => {
+    const sid = String(j.shipment_id);
+    if (!PAGE_DATA._junctionMap[sid]) PAGE_DATA._junctionMap[sid] = [];
+    PAGE_DATA._junctionMap[sid].push(j);
+  });
+}
+
+// ─── Filters ──────────────────────────────────────────────────────────────────
 
 function populateFilters() {
   const fs = document.getElementById('filter-sailing');
-  PAGE_DATA.sailing_statuses.forEach(s => {
+  (PAGE_DATA.sailing_statuses || []).forEach(s => {
     const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
   });
   fs.onchange = renderShipments;
+  document.getElementById('filter-tracking').onchange = renderShipments;
 }
 
+// ─── Render ───────────────────────────────────────────────────────────────────
+
 function renderShipments() {
-  const filter = document.getElementById('filter-sailing').value;
-  let list     = PAGE_DATA.shipments;
-  if (filter) list = list.filter(s => s.sailing_status === filter);
+  const sailingFilter  = document.getElementById('filter-sailing').value;
+  const trackingFilter = document.getElementById('filter-tracking').value;
+  let list = PAGE_DATA.shipments || [];
+  if (sailingFilter)                    list = list.filter(s => s.sailing_status === sailingFilter);
+  if (trackingFilter === 'registered')  list = list.filter(s => s.shipsgo_id);
+  if (trackingFilter === 'unregistered')list = list.filter(s => !s.shipsgo_id);
+  if (trackingFilter === 'buyer_enabled') list = list.filter(s => s.buyer_tracking_enabled);
+  if (trackingFilter === 'sync_error')  list = list.filter(s => s.tracking && s.tracking.shipsgo_status === 'SYNC_ERROR');
 
   const el = document.getElementById('shipment-list');
   if (!list.length) { el.innerHTML = '<div class="empty">No shipments found.</div>'; return; }
 
   el.innerHTML = list.map(s => {
-    const linkedPos = (s.po_lines || []).map(j => {
-      const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(j.po_id));
-      return po ? `<span class="po-tag">${esc(po.po_number)} (${j.qty_bags} bags)</span>` : '';
+    const t       = s.tracking || {};
+    const links   = (PAGE_DATA._junctionMap[String(s.shipment_id)] || []);
+    const poTags  = links.map(j => {
+      const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === String(j.po_id));
+      return po ? '<span class="po-tag">' + esc(po.po_number) + ' (' + j.qty_bags + ' bags)</span>' : '';
     }).join('');
 
-    return `<div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">${esc(s.container_number)} <span class="badge badge-${s.sailing_status.toLowerCase()}">${esc(s.sailing_status)}</span></div>
-          <div class="card-sub">BL: ${esc(s.bill_of_lading)} · ETD: ${fmtDate(s.etd)} · ETA: <strong>${fmtDate(s.eta)}</strong>${s.actual_arrival_date ? ' · Arrived: ' + fmtDate(s.actual_arrival_date) : ''}</div>
-        </div>
-        <div class="card-actions">
-          <button class="btn btn-ghost btn-sm" onclick="openSailingModal(${s.shipment_id})">Status</button>
-          <button class="btn btn-ghost btn-sm" onclick="openShipmentModal(${s.shipment_id})">Edit</button>
-        </div>
-      </div>
-      ${linkedPos ? `<div class="po-tags">${linkedPos}</div>` : '<div style="font-size:0.75rem;color:var(--muted)">No PO lines linked.</div>'}
-      ${s.notes ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">${esc(s.notes)}</div>` : ''}
-      ${s.tracking_reference ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">Tracking ref: ${esc(s.tracking_reference)}</div>` : ''}
-    </div>`;
+    const sgBadge    = buildShipsGoBadge(s, t);
+    const etaHtml    = buildEtaDisplay(s, t);
+    const trackInfo  = buildTrackingInfo(s, t);
+    const actions    = buildCardActions(s, t);
+    const statusCls  = (s.sailing_status || 'pending').toLowerCase().replace(/\s+/g, '-');
+
+    return '<div class="card" id="card-' + s.shipment_id + '">' +
+      '<div class="card-header">' +
+        '<div>' +
+          '<div class="card-title">' + esc(s.container_number) +
+            ' <span class="badge badge-' + esc(statusCls) + '">' + esc(s.sailing_status || 'Pending') + '</span>' + sgBadge + '</div>' +
+          '<div class="card-sub">BL: ' + esc(s.bill_of_lading || '—') + ' &middot; ' + etaHtml +
+            (s.actual_arrival_date ? ' &middot; Arrived: ' + fmtDate(s.actual_arrival_date) : '') + '</div>' +
+          trackInfo +
+        '</div>' +
+        '<div class="card-actions">' + actions + '</div>' +
+      '</div>' +
+      (poTags ? '<div class="po-tags">' + poTags + '</div>' : '<div style="font-size:0.75rem;color:var(--muted)">No PO lines linked.</div>') +
+      (s.notes ? '<div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">' + esc(s.notes) + '</div>' : '') +
+    '</div>';
   }).join('');
 }
 
+function buildShipsGoBadge(s, t) {
+  if (!s.shipsgo_id) return '';
+  const status = t.shipsgo_status || '';
+  if (status === 'SYNC_ERROR') return ' <span class="badge badge-syncerror">Sync Error</span>';
+  if (status === 'UNTRACKED')  return ' <span class="badge badge-untracked">Untracked</span>';
+  if (status)                  return ' <span class="badge badge-shipsgo">' + esc(status) + '</span>';
+  return ' <span class="badge badge-syncing">ShipsGo</span>';
+}
+
+function buildEtaDisplay(s, t) {
+  const ourEta = s.eta;
+  const sgEta  = t.shipsgo_eta;
+  if (sgEta && ourEta && ourEta !== sgEta) {
+    const diffDays = Math.abs((new Date(sgEta) - new Date(ourEta)) / 86400000);
+    if (diffDays >= 1) {
+      return 'ETA: <span class="eta-conflict">Ours: ' + fmtDate(ourEta) + ' | ShipsGo: ' + fmtDate(sgEta) + '</span>';
+    }
+  }
+  const eta = sgEta || ourEta;
+  return eta ? 'ETA: <strong>' + fmtDate(eta) + '</strong>' : 'ETA: &mdash;';
+}
+
+function buildTrackingInfo(s, t) {
+  if (!s.shipsgo_id) return '';
+  const parts = [];
+  if (t.vessel_name) parts.push('Vessel: <strong>' + esc(t.vessel_name) + '</strong>');
+  if (t.pol_name && t.pod_name) parts.push(esc(t.pol_name) + ' &rarr; ' + esc(t.pod_name));
+  if (t.last_synced_at) {
+    const ageH = Math.round((Date.now() - new Date(t.last_synced_at)) / 3600000);
+    parts.push('Synced: ' + (ageH < 1 ? 'just now' : ageH + 'h ago'));
+  }
+  if (s.buyer_tracking_enabled) parts.push('Buyers can see');
+  return parts.length ? '<div class="tracking-row">' + parts.join(' &middot; ') + '</div>' : '';
+}
+
+function buildCardActions(s, t) {
+  const isActive  = s.sailing_status !== 'Arrived' && s.sailing_status !== 'Cancelled';
+  const status    = (t && t.shipsgo_status) || '';
+  const isUntrack = status === 'UNTRACKED' || status === 'SYNC_ERROR';
+  let html = '';
+  if (!s.shipsgo_id && isActive && !s.tracking_disabled) {
+    html += '<button class="btn btn-ghost btn-sm" onclick="registerShipsGo(' + s.shipment_id + ')">Track on ShipsGo</button>';
+  }
+  if (s.shipsgo_id && isActive) {
+    html += '<button class="btn btn-ghost btn-sm" onclick="syncNow(' + s.shipment_id + ')">Sync Now</button>';
+  }
+  if (isUntrack) {
+    html += '<button class="btn btn-ghost btn-sm" onclick="openShipmentModal(' + s.shipment_id + ')">Re-register</button>';
+    html += '<button class="btn btn-ghost btn-sm" style="color:var(--error)" onclick="markUntrackable(' + s.shipment_id + ')">Mark Untrackable</button>';
+  }
+  html += '<button class="btn btn-ghost btn-sm" onclick="openSailingModal(' + s.shipment_id + ')">Status</button>';
+  html += '<button class="btn btn-ghost btn-sm" onclick="openShipmentModal(' + s.shipment_id + ')">Edit</button>';
+  return html;
+}
+
+// ─── Shipment Modal ───────────────────────────────────────────────────────────
+
 function openShipmentModal(shipmentId) {
-  const s = shipmentId ? PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId)) : null;
+  const s = shipmentId ? (PAGE_DATA.shipments || []).find(x => String(x.shipment_id) === String(shipmentId)) : null;
+  const t = (s && s.tracking) || {};
   document.getElementById('modal-shipment-title').textContent = s ? 'Edit Shipment' : 'New Shipment';
   document.getElementById('s-id').value        = s ? s.shipment_id : '';
-  document.getElementById('s-container').value = s ? s.container_number      : '';
-  document.getElementById('s-bl').value        = s ? s.bill_of_lading        : '';
-  document.getElementById('s-planned').value   = s ? s.planned_shipping_date : '';
-  document.getElementById('s-etd').value       = s ? s.etd                   : '';
-  document.getElementById('s-eta').value       = s ? s.eta                   : '';
-  document.getElementById('s-arrival').value   = s ? s.actual_arrival_date   : '';
-  document.getElementById('s-tracking').value  = s ? s.tracking_reference    : '';
-  document.getElementById('s-notes').value     = s ? s.notes                 : '';
+  document.getElementById('s-container').value = s ? (s.container_number      || '') : '';
+  document.getElementById('s-bl').value        = s ? (s.bill_of_lading        || '') : '';
+  document.getElementById('s-planned').value   = s ? (s.planned_shipping_date || '') : '';
+  document.getElementById('s-etd').value       = s ? (s.etd                   || '') : '';
+  document.getElementById('s-eta').value       = s ? (s.eta                   || '') : '';
+  document.getElementById('s-arrival').value   = s ? (s.actual_arrival_date   || '') : '';
+  document.getElementById('s-notes').value     = s ? (s.notes                 || '') : '';
 
+  // Sailing status
   const stat = document.getElementById('s-sailing');
-  stat.innerHTML = PAGE_DATA.sailing_statuses.map(st =>
-    `<option value="${st}" ${s && s.sailing_status === st ? 'selected' : ''}>${st}</option>`
+  stat.innerHTML = (PAGE_DATA.sailing_statuses || []).map(st =>
+    '<option value="' + st + '"' + (s && s.sailing_status === st ? ' selected' : '') + '>' + st + '</option>'
   ).join('');
 
-  // Linked PO lines section — only available for existing shipments
-  // (junction rows need a shipment_id)
-  const linesArea  = document.getElementById('s-po-lines-area');
-  const addRow     = document.getElementById('s-po-add-row');
-  const linesList  = document.getElementById('s-po-lines-list');
+  // Carrier dropdown from cache
+  const curScac = s ? (s.carrier_scac || '') : '';
+  const carrierSel = document.getElementById('s-carrier');
+  carrierSel.innerHTML = '<option value="">— Select Carrier —</option>' +
+    (PAGE_DATA.carriers || []).map(c =>
+      '<option value="' + esc(c.scac) + '"' + (c.scac === curScac ? ' selected' : '') + '>' + esc(c.name) + ' (' + esc(c.scac) + ')</option>'
+    ).join('');
+
+  // ShipsGo section — existing shipments only
+  const sgSection = document.getElementById('s-shipsgo-section');
+  if (s) {
+    sgSection.style.display = '';
+    renderShipsGoModalStatus(s, t);
+  } else {
+    sgSection.style.display = 'none';
+  }
+
+  // PO lines
+  const addRow    = document.getElementById('s-po-add-row');
+  const linesList = document.getElementById('s-po-lines-list');
   if (s) {
     addRow.style.display = 'flex';
     renderLinkedPoLines(s);
@@ -310,42 +458,92 @@ function openShipmentModal(shipmentId) {
     linesList.innerHTML = '<div style="color:var(--muted);font-size:0.75rem">Save the shipment first, then link PO lines.</div>';
   }
 
-  clearModalError('modal-shipment'); document.getElementById('modal-shipment').classList.add('open');
+  clearModalError('modal-shipment');
+  document.getElementById('modal-shipment').classList.add('open');
 }
 
-// Render linked PO lines for the currently-open shipment
-function renderLinkedPoLines(shipment) {
+function renderShipsGoModalStatus(s, t) {
+  const status      = t.shipsgo_status || '';
+  const statusArea  = document.getElementById('s-shipsgo-status-area');
+  const actionsDiv  = document.getElementById('s-shipsgo-actions');
+  const buyerSect   = document.getElementById('s-buyer-tracking-section');
+  const buyerCb     = document.getElementById('s-buyer-tracking');
+  const buyerLock   = document.getElementById('s-buyer-tracking-lock');
+  const buyerAudit  = document.getElementById('s-buyer-tracking-audit');
+
+  if (!s.shipsgo_id) {
+    statusArea.textContent = 'Not registered on ShipsGo.';
+    const isRegisterable = !s.tracking_disabled &&
+      s.sailing_status !== 'Arrived' && s.sailing_status !== 'Cancelled';
+    actionsDiv.innerHTML = isRegisterable
+      ? '<button class="btn btn-sm" onclick="registerShipsGoFromModal(' + s.shipment_id + ')">Track on ShipsGo</button>'
+      : '';
+    buyerSect.style.display = 'none';
+  } else {
+    const etd    = t.shipsgo_etd    ? fmtDate(t.shipsgo_etd)  : '—';
+    const eta    = t.shipsgo_eta    ? fmtDate(t.shipsgo_eta)   : '—';
+    const synced = t.last_synced_at
+      ? Math.round((Date.now() - new Date(t.last_synced_at)) / 3600000) + 'h ago'
+      : '—';
+    statusArea.innerHTML =
+      '<div style="font-family:var(--font-mono);font-size:0.72rem;line-height:1.8">' +
+      'Status: <strong>' + esc(status || '—') + '</strong> &middot; ETD: ' + etd + ' &middot; ETA: ' + eta + '<br>' +
+      'Vessel: ' + esc(t.vessel_name || '—') + ' &middot; ' + esc(t.pol_name || '—') + ' &rarr; ' + esc(t.pod_name || '—') + '<br>' +
+      'ShipsGo ID: ' + esc(String(s.shipsgo_id)) + ' &middot; Last synced: ' + synced +
+      '</div>';
+
+    let btns = '';
+    if (s.sailing_status !== 'Arrived' && s.sailing_status !== 'Cancelled') {
+      btns += '<button class="btn btn-ghost btn-sm" onclick="syncNowFromModal(' + s.shipment_id + ')">Sync Now</button>';
+    }
+    if (status === 'UNTRACKED' || status === 'SYNC_ERROR') {
+      btns += '<button class="btn btn-ghost btn-sm" onclick="reRegisterShipsGo(' + s.shipment_id + ')">Re-register</button>';
+      btns += '<button class="btn btn-ghost btn-sm" style="color:var(--error)" onclick="markUntrackableFromModal(' + s.shipment_id + ')">Mark Untrackable</button>';
+    }
+    actionsDiv.innerHTML = btns;
+
+    // Buyer visibility toggle
+    buyerSect.style.display = '';
+    buyerCb.checked  = !!s.buyer_tracking_enabled;
+    buyerCb.disabled = !!s.buyer_tracking_enabled;
+    buyerLock.style.display = s.buyer_tracking_enabled ? '' : 'none';
+    buyerAudit.textContent  = s.buyer_tracking_enabled && s.buyer_tracking_enabled_at
+      ? 'Enabled ' + fmtDate(s.buyer_tracking_enabled_at) : '';
+  }
+}
+
+// ─── PO Line Link Rendering ───────────────────────────────────────────────────
+
+function renderLinkedPoLines(s) {
   const list  = document.getElementById('s-po-lines-list');
-  const links = shipment.po_lines || [];
+  const links = PAGE_DATA._junctionMap[String(s.shipment_id)] || [];
   if (!links.length) {
     list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem">No PO lines linked yet.</div>';
     return;
   }
   list.innerHTML = links.map(j => {
-    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(j.po_id));
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:4px;margin-bottom:0.4rem">
-      <span><strong>${po ? esc(po.po_number) : '—'}</strong> · Line #${j.po_line_id} · <span style="font-family:var(--font-mono)">${j.qty_bags} bags</span></span>
-      <button class="btn btn-ghost btn-sm" type="button" onclick="removePoLineLink(${shipment.shipment_id}, ${j.shipment_po_line_id})">Remove</button>
-    </div>`;
+    const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === String(j.po_id));
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:4px;margin-bottom:0.4rem">' +
+      '<span><strong>' + (po ? esc(po.po_number) : '—') + '</strong> &middot; Line #' + j.po_line_id +
+      ' &middot; <span style="font-family:var(--font-mono)">' + j.qty_bags + ' bags</span></span>' +
+      '<button class="btn btn-ghost btn-sm" type="button" onclick="removePoLineLink(' + s.shipment_id + ',' + j.po_line_id + ')">Remove</button>' +
+    '</div>';
   }).join('');
 }
 
-// Populate PO dropdown — when PO selected, populate line dropdown
 function populatePoPicker() {
   const poSel = document.getElementById('s-add-po');
   poSel.innerHTML = '<option value="">— Select PO —</option>' +
-    PAGE_DATA.purchase_orders.map(p => `<option value="${p.po_id}">${esc(p.po_number)}</option>`).join('');
+    (PAGE_DATA.purchase_orders || []).map(p =>
+      '<option value="' + p.po_id + '">' + esc(p.po_number) + '</option>'
+    ).join('');
   poSel.onchange = () => {
-    const poId = poSel.value;
-    const po   = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
+    const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === String(poSel.value));
     const lineSel = document.getElementById('s-add-poline');
     lineSel.innerHTML = '<option value="">— Select Line —</option>';
     if (po && po.lines) {
       po.lines.forEach(l => {
-        const o = document.createElement('option');
-        o.value = l.po_line_id;
-        o.textContent = l.sample_name + ' (' + l.qty_bags + ' bags)';
-        lineSel.appendChild(o);
+        lineSel.innerHTML += '<option value="' + l.po_line_id + '">' + esc(l.sample_name) + ' (' + l.qty_bags + ' bags)</option>';
       });
     }
   };
@@ -353,100 +551,105 @@ function populatePoPicker() {
   document.getElementById('s-add-bags').value = '';
 }
 
-document.getElementById('btn-s-add-line').onclick = async () => {
-  const shipmentId = document.getElementById('s-id').value;
-  const poId       = document.getElementById('s-add-po').value;
-  const poLineId   = document.getElementById('s-add-poline').value;
-  const bags       = document.getElementById('s-add-bags').value;
-  const parsedBags = parseInt(bags);
-
-  if (!poId || !poLineId) {
-    showToast('Pick PO and line.', 'error');
-    return;
-  }
-  // v2.1.5: isNaN guard — catches 'abc', '∞', '', '1e3'
-  if (isNaN(parsedBags) || parsedBags <= 0) {
-    showToast('Bags must be a whole number greater than zero.', 'error');
-    return;
-  }
-  const btn = document.getElementById('btn-s-add-line');
-  btn.disabled = true;
-  try {
-    const data = await API.post({
-      action:      'saveShipmentPoLine',
-      shipment_id: shipmentId,
-      po_id:       poId,
-      po_line_id:  poLineId,
-      qty_bags:    parsedBags   // v2.1.5: sanitised integer
-    });
-    // Update local shipment with returned junction rows
-    const ship = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));
-    if (ship) ship.po_lines = data.po_lines;
-    renderLinkedPoLines(ship);
-    document.getElementById('s-add-bags').value = '';
-    showToast('PO line linked.', 'success');
-    renderShipments();
-  } catch (e) { console.error('Caught error:', e); showModalError('modal-shipment', e.message || 'Link failed.'); }
-  finally { btn.disabled = false; }
-};
-
-async function removePoLineLink(shipmentId, junctionId) {
-  if (!confirm('Remove this PO line from the shipment?')) return;
-  try {
-    const data = await API.post({
-      action:               'deleteShipmentPoLine',
-      shipment_id:          shipmentId,
-      shipment_po_line_id:  junctionId
-    });
-    const ship = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));
-    if (ship) ship.po_lines = data.po_lines;
-    renderLinkedPoLines(ship);
-    showToast('PO line removed.', 'success');
-    renderShipments();
-  } catch (e) { console.error('Caught error:', e); showModalError('modal-shipment', e.message || 'Remove failed.'); }
-}
+// ─── Button Handlers ──────────────────────────────────────────────────────────
 
 document.getElementById('btn-new-shipment').onclick = () => openShipmentModal(null);
-document.getElementById('btn-s-cancel').onclick     = () => document.getElementById('modal-shipment').classList.remove('open');
+document.getElementById('btn-s-cancel').onclick = () => {
+  document.getElementById('modal-shipment').classList.remove('open');
+};
 
 document.getElementById('btn-s-save').onclick = async () => {
+  const container = document.getElementById('s-container').value.trim();
+  if (!container) { showModalError('modal-shipment', 'Container number is required.'); return; }
   const btn = document.getElementById('btn-s-save');
   btn.disabled = true;
+
   const payload = {
     action:                'saveShipment',
     shipment_id:           document.getElementById('s-id').value || null,
-    container_number:      document.getElementById('s-container').value,
-    bill_of_lading:        document.getElementById('s-bl').value,
+    container_number:      container,
+    bill_of_lading:        document.getElementById('s-bl').value.trim(),
+    carrier_scac:          document.getElementById('s-carrier').value,
     planned_shipping_date: document.getElementById('s-planned').value,
     etd:                   document.getElementById('s-etd').value,
     eta:                   document.getElementById('s-eta').value,
     sailing_status:        document.getElementById('s-sailing').value,
     actual_arrival_date:   document.getElementById('s-arrival').value,
-    tracking_reference:    document.getElementById('s-tracking').value,
     notes:                 document.getElementById('s-notes').value
   };
   try {
     const data = await API.post(payload);
-    const updated = data.shipment;
-    const idx     = PAGE_DATA.shipments.findIndex(x => String(x.shipment_id) === String(updated.shipment_id));
-    if (idx >= 0) PAGE_DATA.shipments[idx] = updated;
-    else          PAGE_DATA.shipments.unshift(updated);
+    if (data.shipments) PAGE_DATA.shipments = data.shipments;
+    const sid = data.shipment_id;
+
+    // Enable buyer tracking if checkbox was checked (and not already locked)
+    const buyerCb = document.getElementById('s-buyer-tracking');
+    if (buyerCb && buyerCb.checked && !buyerCb.disabled && sid) {
+      try { await API.post({ action: 'enableBuyerTracking', shipment_id: sid }); }
+      catch (bte) { showToast('Saved. Buyer tracking failed: ' + bte.message, 'error'); }
+    }
+
     document.getElementById('modal-shipment').classList.remove('open');
     renderShipments();
     showToast('Shipment saved.', 'success');
-  } catch (e) { console.error('Caught error:', e); showModalError('modal-shipment', e.message || 'Save failed.'); }
+  } catch (e) { showModalError('modal-shipment', e.message || 'Save failed.'); }
   finally { btn.disabled = false; }
 };
 
+document.getElementById('btn-s-add-line').onclick = async () => {
+  const shipmentId = document.getElementById('s-id').value;
+  const poId       = document.getElementById('s-add-po').value;
+  const poLineId   = document.getElementById('s-add-poline').value;
+  const parsedBags = parseInt(document.getElementById('s-add-bags').value);
+  if (!poId || !poLineId) { showToast('Select PO and line.', 'error'); return; }
+  if (isNaN(parsedBags) || parsedBags <= 0) { showToast('Bags must be > 0.', 'error'); return; }
+
+  const btn = document.getElementById('btn-s-add-line');
+  btn.disabled = true;
+  try {
+    await API.post({ action: 'saveShipmentPoLine', shipment_id: shipmentId, po_id: poId, po_line_id: poLineId, qty_bags: parsedBags });
+    const sid = String(shipmentId);
+    if (!PAGE_DATA._junctionMap[sid]) PAGE_DATA._junctionMap[sid] = [];
+    const existIdx = PAGE_DATA._junctionMap[sid].findIndex(j => String(j.po_line_id) === String(poLineId));
+    const junc = { shipment_id: parseInt(shipmentId), po_id: parseInt(poId), po_line_id: parseInt(poLineId), qty_bags: parsedBags };
+    if (existIdx >= 0) PAGE_DATA._junctionMap[sid][existIdx] = junc;
+    else PAGE_DATA._junctionMap[sid].push(junc);
+    const ship = (PAGE_DATA.shipments || []).find(x => String(x.shipment_id) === String(shipmentId));
+    if (ship) renderLinkedPoLines(ship);
+    document.getElementById('s-add-bags').value = '';
+    renderShipments();
+    showToast('PO line linked.', 'success');
+  } catch (e) { showModalError('modal-shipment', e.message || 'Link failed.'); }
+  finally { btn.disabled = false; }
+};
+
+async function removePoLineLink(shipmentId, poLineId) {
+  if (!confirm('Remove this PO line from the shipment?')) return;
+  try {
+    await API.post({ action: 'deleteShipmentPoLine', shipment_id: shipmentId, po_line_id: poLineId });
+    const sid = String(shipmentId);
+    if (PAGE_DATA._junctionMap[sid]) {
+      PAGE_DATA._junctionMap[sid] = PAGE_DATA._junctionMap[sid].filter(j => String(j.po_line_id) !== String(poLineId));
+    }
+    const ship = (PAGE_DATA.shipments || []).find(x => String(x.shipment_id) === String(shipmentId));
+    if (ship) renderLinkedPoLines(ship);
+    renderShipments();
+    showToast('PO line removed.', 'success');
+  } catch (e) { showModalError('modal-shipment', e.message || 'Remove failed.'); }
+}
+
+// ─── Sailing Status Modal ─────────────────────────────────────────────────────
+
 function openSailingModal(shipmentId) {
-  const s = PAGE_DATA.shipments.find(x => String(x.shipment_id) === String(shipmentId));
+  const s = (PAGE_DATA.shipments || []).find(x => String(x.shipment_id) === String(shipmentId));
   document.getElementById('sailing-shipment-id').value = shipmentId;
-  document.getElementById('sailing-arrival').value     = s ? s.actual_arrival_date : '';
+  document.getElementById('sailing-arrival').value     = s ? (s.actual_arrival_date || '') : '';
   const stat = document.getElementById('sailing-status');
-  stat.innerHTML = PAGE_DATA.sailing_statuses.map(st =>
-    `<option value="${st}" ${s && s.sailing_status === st ? 'selected' : ''}>${st}</option>`
+  stat.innerHTML = (PAGE_DATA.sailing_statuses || []).map(st =>
+    '<option value="' + st + '"' + (s && s.sailing_status === st ? ' selected' : '') + '>' + st + '</option>'
   ).join('');
-  clearModalError('modal-sailing'); document.getElementById('modal-sailing').classList.add('open');
+  clearModalError('modal-sailing');
+  document.getElementById('modal-sailing').classList.add('open');
 }
 
 document.getElementById('btn-sailing-cancel').onclick = () => document.getElementById('modal-sailing').classList.remove('open');
@@ -454,40 +657,130 @@ document.getElementById('btn-sailing-cancel').onclick = () => document.getElemen
 document.getElementById('btn-sailing-save').onclick = async () => {
   const btn = document.getElementById('btn-sailing-save');
   btn.disabled = true;
-  const payload = {
-    action:              'updateSailingStatus',
-    shipment_id:         document.getElementById('sailing-shipment-id').value,
-    sailing_status:      document.getElementById('sailing-status').value,
-    actual_arrival_date: document.getElementById('sailing-arrival').value
-  };
   try {
-    const data = await API.post(payload);
-    const updated = data.shipment;
-    const idx     = PAGE_DATA.shipments.findIndex(x => String(x.shipment_id) === String(updated.shipment_id));
-    if (idx >= 0) PAGE_DATA.shipments[idx] = updated;
+    const data = await API.post({
+      action:              'updateSailingStatus',
+      shipment_id:         document.getElementById('sailing-shipment-id').value,
+      sailing_status:      document.getElementById('sailing-status').value,
+      actual_arrival_date: document.getElementById('sailing-arrival').value
+    });
+    if (data.shipments) PAGE_DATA.shipments = data.shipments;
     document.getElementById('modal-sailing').classList.remove('open');
     renderShipments();
     showToast('Status updated.', 'success');
-  } catch (e) { console.error('Caught error:', e); showModalError('modal-sailing', e.message || 'Update failed.'); }
+  } catch (e) { showModalError('modal-sailing', e.message || 'Update failed.'); }
   finally { btn.disabled = false; }
 };
 
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function showModalError(modalId, message) {
-  const errEl = document.querySelector('#' + modalId + ' .modal-error');
-  if (!errEl) return;
-  errEl.textContent = String(message || 'An error occurred.');
-  errEl.classList.add('show');
-}
-function clearModalError(modalId) {
-  const errEl = document.querySelector('#' + modalId + ' .modal-error');
-  if (errEl) errEl.classList.remove('show');
+// ─── ShipsGo Card Actions ─────────────────────────────────────────────────────
+
+async function registerShipsGo(shipmentId) {
+  if (!confirm('Register this shipment on ShipsGo for container tracking?')) return;
+  showToast('Registering...', '');
+  try {
+    const data = await API.post({ action: 'registerShipsGoContainer', shipment_id: shipmentId });
+    _applyShipmentUpdate(shipmentId, data);
+    renderShipments();
+    showToast('Registered on ShipsGo.', 'success');
+  } catch (e) { showToast('Registration failed: ' + (e.message || 'error'), 'error'); }
 }
 
+async function registerShipsGoFromModal(shipmentId) {
+  document.getElementById('modal-shipment').classList.remove('open');
+  try { await registerShipsGo(shipmentId); }
+  catch (e) { showToast('Registration failed: ' + (e.message || 'error'), 'error'); }
+}
+
+async function syncNow(shipmentId) {
+  showToast('Syncing...', '');
+  try {
+    const data = await API.post({ action: 'syncShipsGoContainer', shipment_id: shipmentId });
+    _applyShipmentUpdate(shipmentId, data);
+    renderShipments();
+    showToast('Synced.', 'success');
+  } catch (e) { showToast('Sync failed: ' + (e.message || 'error'), 'error'); }
+}
+
+async function syncNowFromModal(shipmentId) {
+  document.getElementById('modal-shipment').classList.remove('open');
+  try { await syncNow(shipmentId); }
+  catch (e) { showToast('Sync failed: ' + (e.message || 'error'), 'error'); }
+}
+
+async function reRegisterShipsGo(shipmentId) {
+  document.getElementById('modal-shipment').classList.remove('open');
+  const container = prompt('Corrected container number (leave blank to keep existing):') || '';
+  const bl        = prompt('Corrected Bill of Lading (leave blank to keep existing):') || '';
+  if (!container && !bl) { showToast('Provide container number or BL.', 'error'); return; }
+  try {
+    const data = await API.post({
+      action: 'reRegisterShipsGoContainer', shipment_id: shipmentId,
+      container_number: container, bill_of_lading: bl
+    });
+    _applyShipmentUpdate(shipmentId, data);
+    renderShipments();
+    showToast('Re-registered on ShipsGo.', 'success');
+  } catch (e) { showToast('Re-register failed: ' + (e.message || 'error'), 'error'); }
+}
+
+async function markUntrackable(shipmentId) {
+  if (!confirm('Mark this shipment as untrackable? It will be removed from tracking and hidden from buyers.')) return;
+  try {
+    const data = await API.post({ action: 'markUntrackable', shipment_id: shipmentId });
+    _applyShipmentUpdate(shipmentId, data);
+    renderShipments();
+    showToast('Marked as untrackable.', 'success');
+  } catch (e) { showToast('Failed: ' + (e.message || 'error'), 'error'); }
+}
+
+async function markUntrackableFromModal(shipmentId) {
+  document.getElementById('modal-shipment').classList.remove('open');
+  await markUntrackable(shipmentId);
+}
+
+document.getElementById('btn-refresh-carriers').onclick = async () => {
+  const btn = document.getElementById('btn-refresh-carriers');
+  btn.disabled = true;
+  try {
+    const data = await API.post({ action: 'refreshCarriersCache' });
+    PAGE_DATA.carriers = data.carriers || [];
+    showToast('Carrier list refreshed (' + (data.count || 0) + ' carriers).', 'success');
+  } catch (e) { showToast('Refresh failed: ' + (e.message || 'error'), 'error'); }
+  finally { btn.disabled = false; }
+};
+
+function _applyShipmentUpdate(shipmentId, data) {
+  if (data.shipments) {
+    PAGE_DATA.shipments = data.shipments;
+  } else if (data.shipment) {
+    const idx = PAGE_DATA.shipments.findIndex(x => String(x.shipment_id) === String(shipmentId));
+    const updated = Object.assign({}, data.shipment, { tracking: data.tracking || null });
+    if (idx >= 0) PAGE_DATA.shipments[idx] = updated;
+    else PAGE_DATA.shipments.unshift(updated);
+  }
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function showModalError(modalId, message) {
+  const el = document.querySelector('#' + modalId + ' .modal-error');
+  if (!el) return;
+  el.textContent = String(message || 'An error occurred.');
+  el.classList.add('show');
+}
+function clearModalError(modalId) {
+  const el = document.querySelector('#' + modalId + ' .modal-error');
+  if (el) el.classList.remove('show');
+}
 function showToast(msg, type) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast ' + (type||'');
-  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+  t.textContent = msg;
+  t.className   = 'toast' + (type ? ' ' + type : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
 }
 </script>
 </body>

@@ -1,5 +1,5 @@
-<!-- Version 2.2.7 | purchase-orders.html -->
-<!-- Version 2.1.8 | purchase-orders.html -->
+<!-- Version 2.3.2 | purchase-orders.html -->
+<!-- Version 2.2.8 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -294,6 +294,102 @@
     .sku-ac-item:hover, .sku-ac-item.active { background: var(--surface); }
     .sku-ac-code { font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
     .sku-ac-name { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+
+    /* ── PDF Builder (v2.3.0) ── */
+    .pdf-overlay { position:fixed; inset:0; z-index:2000; background:#151310; display:none; flex-direction:column; font-family:var(--font-mono); }
+    .pdf-overlay.open { display:flex; }
+    .pdf-topbar { display:flex; align-items:center; justify-content:space-between; padding:0 20px; height:48px; background:#1c1a17; border-bottom:1px solid #2e2a24; flex-shrink:0; }
+    .pdf-topbar-brand { display:flex; align-items:center; gap:8px; font-size:0.65rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:#c47a2b; }
+    .pdf-topbar-brand::before { content:''; width:7px; height:7px; background:#c47a2b; border-radius:50%; }
+    .pdf-topbar-id { font-size:0.65rem; color:#4a3a2a; letter-spacing:0.06em; }
+    .pdf-topbar-actions { display:flex; gap:8px; }
+    .pdf-btn { font-family:var(--font-mono); font-size:0.6rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; padding:6px 14px; border-radius:3px; border:none; cursor:pointer; transition:all .15s; }
+    .pdf-btn-ghost { background:transparent; border:1px solid #2e2a24; color:#7a6a5a; }
+    .pdf-btn-ghost:hover { border-color:#c47a2b; color:#c47a2b; }
+    .pdf-btn-primary { background:#c47a2b; color:#fff; }
+    .pdf-btn-primary:hover { background:#f0a030; }
+    .pdf-layout { display:flex; flex:1; min-height:0; overflow:hidden; }
+    .pdf-ctrl { width:250px; flex-shrink:0; background:#1c1a17; border-right:1px solid #2e2a24; overflow-y:auto; }
+    .pdf-ctrl::-webkit-scrollbar { width:3px; } .pdf-ctrl::-webkit-scrollbar-thumb { background:#2e2a24; }
+    .pdf-ctrl-sec { border-bottom:1px solid #2e2a24; }
+    .pdf-ctrl-head { padding:9px 14px 8px; font-size:0.52rem; letter-spacing:0.16em; text-transform:uppercase; color:#c47a2b; font-weight:600; display:flex; align-items:center; gap:7px; }
+    .pdf-ctrl-head::after { content:''; flex:1; height:1px; background:#2e2a24; }
+    .pdf-ctrl-row { display:flex; align-items:center; justify-content:space-between; padding:6px 14px; cursor:pointer; gap:7px; transition:background .1s; }
+    .pdf-ctrl-row:hover { background:#252018; }
+    .pdf-ctrl-row label { font-size:0.65rem; color:#5a4a3a; cursor:pointer; flex:1; letter-spacing:.02em; transition:color .15s; }
+    .pdf-ctrl-row.on label { color:#c8b89a; }
+    .pdf-sw { position:relative; width:28px; height:15px; flex-shrink:0; }
+    .pdf-sw input { opacity:0; width:0; height:0; position:absolute; }
+    .pdf-sw-track { position:absolute; inset:0; background:#2e2824; border-radius:8px; transition:background .2s; border:1px solid #3a3028; }
+    .pdf-sw input:checked ~ .pdf-sw-track { background:#c47a2b; border-color:#c47a2b; }
+    .pdf-sw-thumb { position:absolute; top:2px; left:2px; width:9px; height:9px; background:#5a4a3a; border-radius:50%; transition:transform .2s, background .2s; }
+    .pdf-sw input:checked ~ .pdf-sw-thumb { transform:translateX(13px); background:#fff; }
+    .pdf-input-row { padding:3px 14px 9px; }
+    .pdf-input-lbl { font-size:0.52rem; letter-spacing:.1em; text-transform:uppercase; color:#5a4a3a; margin-bottom:4px; display:block; }
+    .pdf-input { width:100%; background:#201e1a; border:1px solid #2e2a24; color:#c8b89a; font-family:var(--font-mono); font-size:0.65rem; padding:5px 8px; border-radius:3px; outline:none; transition:border-color .15s; }
+    .pdf-input:focus { border-color:#c47a2b; }
+    .pdf-input::placeholder { color:#3a2a1a; }
+    .pdf-textarea { resize:vertical; min-height:48px; line-height:1.5; }
+    .pdf-presets { display:flex; gap:5px; padding:9px 14px; }
+    .pdf-preset-btn { font-family:var(--font-mono); font-size:0.55rem; letter-spacing:.08em; padding:4px 9px; border-radius:3px; cursor:pointer; text-transform:uppercase; border:1px solid #2e2a24; background:transparent; color:#6a5a4a; transition:all .15s; }
+    .pdf-preset-btn:hover { border-color:#c47a2b; color:#c47a2b; }
+    .pdf-preview-area { flex:1; background:#252018; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:28px 28px 48px; }
+    .pdf-preview-area::-webkit-scrollbar { width:5px; } .pdf-preview-area::-webkit-scrollbar-thumb { background:#3a3028; border-radius:3px; }
+    .pdf-scale-lbl { font-size:0.52rem; letter-spacing:.12em; text-transform:uppercase; color:#3a2e22; margin-bottom:18px; display:flex; align-items:center; gap:9px; }
+    .pdf-scale-lbl::before,.pdf-scale-lbl::after { content:''; flex:1; max-width:48px; height:1px; background:#2e2a24; }
+    .pdf-paper { background:#fffef9; width:700px; min-height:990px; box-shadow:0 4px 8px rgba(0,0,0,.4),0 16px 48px rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.3); padding:44px 52px 52px; position:relative; border-top:4px solid #c47a2b; font-family:Georgia,serif; font-size:12px; color:#1a1a1a; }
+    .pdf-paper::before { content:''; position:absolute; inset:0; pointer-events:none; z-index:0; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E"); }
+    .pdf-paper > * { position:relative; z-index:1; }
+    .pdf-watermark { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); font-family:var(--font-mono); font-size:68px; font-weight:600; letter-spacing:.08em; color:rgba(196,122,43,0.055); text-transform:uppercase; pointer-events:none; white-space:nowrap; z-index:0; user-select:none; }
+    .pdf-doc-hdr { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
+    .pdf-doc-brand { font-family:var(--font-mono); font-size:.6rem; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:#c47a2b; margin-bottom:3px; }
+    .pdf-doc-brand-sub { font-size:.62rem; color:#8a7060; font-style:italic; }
+    .pdf-doc-title-block { text-align:right; }
+    .pdf-doc-h1 { font-family:var(--font-mono); font-size:1.25rem; font-weight:600; color:#1a1a1a; letter-spacing:-.02em; }
+    .pdf-doc-ponum { font-family:var(--font-mono); font-size:.68rem; color:#c47a2b; margin-top:3px; font-weight:500; }
+    .pdf-doc-stamp { display:inline-block; margin-top:4px; padding:2px 8px; border:2px solid; border-radius:3px; font-family:var(--font-mono); font-size:.56rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; }
+    .pdf-doc-stamp.draft { color:#888; border-color:#ccc; }
+    .pdf-doc-stamp.confirmed { color:#854f0b; border-color:#f0a030; }
+    .pdf-doc-stamp.shipped { color:#1a5ca8; border-color:#4080d0; }
+    .pdf-doc-stamp.arrived { color:#1e6640; border-color:#40a060; }
+    .pdf-doc-company { font-size:.6rem; color:#8a7060; font-style:italic; margin-top:2px; text-align:right; }
+    .pdf-divider { height:1px; background:linear-gradient(to right,#c47a2b 0%,#e0c89a 40%,#f0ead8 100%); }
+    .pdf-meta-strip { display:flex; background:#fdf8f2; border:1px solid #f0e8da; border-top:none; margin-bottom:18px; overflow:hidden; }
+    .pdf-mc { flex:1; padding:7px 10px; border-right:1px solid #f0e8da; min-width:0; }
+    .pdf-mc:last-child { border-right:none; }
+    .pdf-mc-lbl { font-family:var(--font-mono); font-size:.48rem; letter-spacing:.1em; text-transform:uppercase; color:#b09080; margin-bottom:2px; white-space:nowrap; }
+    .pdf-mc-val { font-size:.68rem; color:#1a1a1a; font-weight:600; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pdf-mc-val.mono { font-family:var(--font-mono); font-size:.62rem; }
+    .pdf-mc-val.reg { font-weight:400; }
+    .pdf-sec-head { font-family:var(--font-mono); font-size:.52rem; letter-spacing:.12em; text-transform:uppercase; color:#c47a2b; padding-bottom:5px; border-bottom:1px solid #f0e8da; margin-bottom:8px; margin-top:16px; display:flex; align-items:center; justify-content:space-between; }
+    .pdf-sec-head em { font-size:.62rem; font-style:italic; color:#b09080; text-transform:none; letter-spacing:0; }
+    .pdf-lines { width:100%; border-collapse:collapse; font-size:.72rem; }
+    .pdf-lines thead tr { background:#1a1a1a; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .pdf-lines th { font-family:var(--font-mono); font-size:.52rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#fff; padding:8px 8px; text-align:left; white-space:nowrap; }
+    .pdf-lines th.r { text-align:right; }
+    .pdf-lines tbody tr { border-bottom:1px solid #f0e8da; }
+    .pdf-lines tbody tr:nth-child(even) { background:#fdf8f2; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .pdf-lines tbody tr:last-child { border-bottom:none; }
+    .pdf-lines td { padding:7px 8px; vertical-align:top; color:#1a1a1a; }
+    .pdf-lines td.r { text-align:right; font-family:var(--font-mono); font-size:.65rem; }
+    .pdf-lines td.idx { color:#b09080; font-size:.62rem; font-family:var(--font-mono); width:20px; }
+    .pdf-sname { font-weight:600; font-size:.74rem; color:#1a1a1a; }
+    .pdf-sku { font-family:var(--font-mono); font-size:.6rem; color:#c47a2b; font-weight:500; }
+    .pdf-ref { font-family:var(--font-mono); font-size:.58rem; color:#3a2a1a; margin-top:2px; }
+    .pdf-total { display:flex; justify-content:flex-end; align-items:baseline; gap:1rem; margin-top:6px; padding:8px; background:#fdf8f2; border:1px solid #f0e8da; border-radius:2px; }
+    .pdf-total-lbl { font-family:var(--font-mono); font-size:.55rem; letter-spacing:.1em; text-transform:uppercase; color:#b09080; }
+    .pdf-total-amt { font-family:var(--font-mono); font-size:.88rem; font-weight:600; color:#c47a2b; }
+    .pdf-total-unit { font-family:var(--font-mono); font-size:.6rem; color:#b09080; }
+    .pdf-notes { background:#fdf8f2; border-left:3px solid #c47a2b; padding:8px 12px; font-size:.72rem; line-height:1.6; color:#3a2a1a; font-style:italic; }
+    .pdf-custom-note { background:#f8f4ef; border:1px dashed #f0e8da; padding:8px 12px; font-size:.72rem; line-height:1.6; color:#3a2a1a; font-family:var(--font-mono); margin-top:8px; border-radius:2px; white-space:pre-wrap; }
+    .pdf-sigs { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:26px; }
+    .pdf-sig { padding-top:11px; border-top:1px solid #e8e0d4; }
+    .pdf-sig-lbl { font-family:var(--font-mono); font-size:.5rem; letter-spacing:.1em; text-transform:uppercase; color:#b09080; margin-bottom:20px; }
+    .pdf-sig-line { border-top:1px solid #c0b0a0; width:80%; }
+    .pdf-sig-name { font-size:.65rem; color:#8a7060; margin-top:3px; }
+    .pdf-footer { margin-top:26px; padding-top:8px; border-top:1px solid #e8e0d4; display:flex; align-items:center; justify-content:space-between; font-family:var(--font-mono); font-size:.5rem; letter-spacing:.06em; color:#b09080; }
+    .pdf-hidden { display:none !important; }
 
     /* ── Collapsible lines ── */
     .lines-toggle { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); cursor: pointer; background: none; border: none; padding: 0; text-decoration: underline; }
@@ -608,6 +704,138 @@
   </div>
 </div>
 
+<!-- ── PDF Builder Modal (v2.3.0) ── -->
+<!-- Full-screen overlay. Toggle switches act directly on live DOM preview. No extra API call. -->
+<div class="pdf-overlay" id="modal-pdf">
+  <div class="pdf-topbar">
+    <div class="pdf-topbar-brand">Sample Tracker</div>
+    <div class="pdf-topbar-id" id="pdf-topbar-id">PDF Builder</div>
+    <div class="pdf-topbar-actions">
+      <button class="pdf-btn pdf-btn-ghost" onclick="pdfPreset('full')">Full</button>
+      <button class="pdf-btn pdf-btn-ghost" onclick="pdfPreset('external')">External</button>
+      <button class="pdf-btn pdf-btn-ghost" onclick="pdfPreset('summary')">Summary</button>
+      <button class="pdf-btn pdf-btn-ghost" onclick="closePdfModal()">✕ Close</button>
+      <button class="pdf-btn pdf-btn-primary" onclick="generatePdf()">🖨&nbsp;Print / Save PDF</button>
+    </div>
+  </div>
+  <div class="pdf-layout">
+
+    <!-- Controls -->
+    <div class="pdf-ctrl">
+      <div class="pdf-ctrl-sec">
+        <div class="pdf-ctrl-head">Header</div>
+        <div class="pdf-input-row">
+          <label class="pdf-input-lbl">Document Title</label>
+          <input class="pdf-input" id="pdf-in-title" value="Purchase Order" oninput="pdfSync()" />
+        </div>
+        <div class="pdf-input-row">
+          <label class="pdf-input-lbl">Buyer / Company (optional)</label>
+          <input class="pdf-input" id="pdf-in-company" placeholder="e.g. Acme Coffee Ltd" oninput="pdfSync()" />
+        </div>
+        <div class="pdf-ctrl-row on" id="pdfr-status" onclick="pdfTog('status',this)">
+          <label>Status stamp</label>
+          <label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-status" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label>
+        </div>
+        <div class="pdf-ctrl-row on" id="pdfr-watermark" onclick="pdfTog('watermark',this)">
+          <label>Watermark</label>
+          <label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-watermark" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label>
+        </div>
+      </div>
+      <div class="pdf-ctrl-sec">
+        <div class="pdf-ctrl-head">PO Details</div>
+        <div class="pdf-ctrl-row on" id="pdfr-supplier" onclick="pdfTog('supplier',this)"><label>Supplier</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-supplier" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-contact" onclick="pdfTog('contact',this)"><label>Contact</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-contact" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-country" onclick="pdfTog('country',this)"><label>Country of Origin</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-country" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-ponumber" onclick="pdfTog('ponumber',this)"><label>PO Number</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-ponumber" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-podate" onclick="pdfTog('podate',this)"><label>PO Date</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-podate" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-currency" onclick="pdfTog('currency',this)"><label>Currency</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-currency" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row" id="pdfr-createdby" onclick="pdfTog('createdby',this)"><label>Created By</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-createdby" onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+      </div>
+      <div class="pdf-ctrl-sec">
+        <div class="pdf-ctrl-head">Line Items</div>
+        <div class="pdf-ctrl-row on" id="pdfr-sku" onclick="pdfTog('sku',this)"><label>SKU Code</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-sku" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row" id="pdfr-origin" onclick="pdfTog('origin',this)"><label>Origin Code</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-origin" onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-cost" onclick="pdfTog('cost',this)"><label>Cost / kg</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-cost" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-subtotal" onclick="pdfTog('subtotal',this)"><label>Line Subtotal</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-subtotal" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-total" onclick="pdfTog('total',this)"><label>Grand Total row</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-total" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-supplierref" onclick="pdfTog('supplierref',this)"><label>Supplier Ref (inline)</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-supplierref" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+      </div>
+      <div class="pdf-ctrl-sec">
+        <div class="pdf-ctrl-head">Notes &amp; Footer</div>
+        <div class="pdf-ctrl-row on" id="pdfr-ponotes" onclick="pdfTog('ponotes',this)"><label>PO Notes</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-ponotes" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-signatures" onclick="pdfTog('signatures',this)"><label>Signature blocks</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-signatures" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-ctrl-row on" id="pdfr-footer" onclick="pdfTog('footer',this)"><label>Footer line</label><label class="pdf-sw" onclick="event.stopPropagation()"><input type="checkbox" id="pdfc-footer" checked onchange="pdfSync()" onclick="event.stopPropagation()" /><span class="pdf-sw-track"></span><span class="pdf-sw-thumb"></span></label></div>
+        <div class="pdf-input-row" style="margin-top:4px">
+          <label class="pdf-input-lbl">Custom note (bottom)</label>
+          <textarea class="pdf-input pdf-textarea" id="pdf-in-note" placeholder="e.g. Payment terms: 30 days net…" oninput="pdfSync()"></textarea>
+        </div>
+      </div>
+    </div><!-- /pdf-ctrl -->
+
+    <!-- Preview -->
+    <div class="pdf-preview-area">
+      <div class="pdf-scale-lbl">A4 Preview</div>
+      <div class="pdf-paper" id="pdf-paper">
+        <div class="pdf-watermark" id="pdf-watermark"></div>
+        <div class="pdf-doc-hdr">
+          <div>
+            <div class="pdf-doc-brand" id="pdf-brand-name">—</div>
+            <div class="pdf-doc-brand-sub" id="pdf-brand-address" style="white-space:pre-line;line-height:1.55;margin-top:2px"></div>
+          </div>
+          <div class="pdf-doc-title-block">
+            <div class="pdf-doc-h1" id="pdf-doc-h1">Purchase Order</div>
+            <div class="pdf-doc-ponum" id="pdf-doc-ponum">—</div>
+            <div id="pdf-stamp-wrap"></div>
+            <div class="pdf-doc-company pdf-hidden" id="pdf-doc-company"></div>
+          </div>
+        </div>
+        <div class="pdf-divider"></div>
+        <div class="pdf-meta-strip" id="pdf-meta-strip">
+          <div class="pdf-mc" id="pdf-mc-supplier"><div class="pdf-mc-lbl">Supplier</div><div class="pdf-mc-val" id="pdf-mcv-supplier">—</div></div>
+          <div class="pdf-mc" id="pdf-mc-contact"><div class="pdf-mc-lbl">Contact</div><div class="pdf-mc-val reg" id="pdf-mcv-contact">—</div></div>
+          <div class="pdf-mc" id="pdf-mc-country"><div class="pdf-mc-lbl">Country of Origin</div><div class="pdf-mc-val" id="pdf-mcv-country">—</div></div>
+          <div class="pdf-mc" id="pdf-mc-ponumber"><div class="pdf-mc-lbl">PO Number</div><div class="pdf-mc-val mono" id="pdf-mcv-ponumber">—</div></div>
+          <div class="pdf-mc" id="pdf-mc-podate"><div class="pdf-mc-lbl">PO Date</div><div class="pdf-mc-val" id="pdf-mcv-podate">—</div></div>
+          <div class="pdf-mc" id="pdf-mc-currency"><div class="pdf-mc-lbl">Currency</div><div class="pdf-mc-val mono" id="pdf-mcv-currency">—</div></div>
+          <div class="pdf-mc pdf-hidden" id="pdf-mc-createdby"><div class="pdf-mc-lbl">Created By</div><div class="pdf-mc-val reg" id="pdf-mcv-createdby">—</div></div>
+        </div>
+        <div class="pdf-sec-head">Order Items<em id="pdf-lines-count"></em></div>
+        <table class="pdf-lines" id="pdf-lines-table">
+          <thead><tr>
+            <th style="width:20px">#</th>
+            <th>Sample / Description</th>
+            <th id="pdf-th-sku">SKU</th>
+            <th class="r pdf-hidden" id="pdf-th-origin">Origin Code</th>
+            <th class="r">Qty Bags</th>
+            <th class="r">Bag Size</th>
+            <th class="r" id="pdf-th-cost">Cost / kg</th>
+            <th class="r" id="pdf-th-subtotal">Subtotal</th>
+          </tr></thead>
+          <tbody id="pdf-lines-body"></tbody>
+        </table>
+        <div class="pdf-total" id="pdf-total-row">
+          <div class="pdf-total-lbl">Grand Total</div>
+          <div><span class="pdf-total-amt" id="pdf-total-amt">0.00</span><span class="pdf-total-unit" id="pdf-total-unit">&nbsp;USD</span></div>
+        </div>
+        <div id="pdf-notes-wrap">
+          <div class="pdf-sec-head">Notes</div>
+          <div class="pdf-notes" id="pdf-notes-text"></div>
+        </div>
+        <div class="pdf-custom-note pdf-hidden" id="pdf-custom-note-box"></div>
+        <div class="pdf-sigs" id="pdf-sigs">
+          <div class="pdf-sig"><div class="pdf-sig-lbl">Authorised Signature — Buyer</div><div class="pdf-sig-line"></div><div class="pdf-sig-name" id="pdf-sig-buyer">—</div></div>
+          <div class="pdf-sig"><div class="pdf-sig-lbl">Supplier Acceptance</div><div class="pdf-sig-line"></div><div class="pdf-sig-name">Date: ____________________</div></div>
+        </div>
+        <div class="pdf-footer" id="pdf-footer-bar">
+          <div id="pdf-footer-left">—</div>
+          <div id="pdf-footer-mid">—</div>
+          <div>Page 1 of 1</div>
+        </div>
+      </div><!-- /pdf-paper -->
+    </div><!-- /pdf-preview-area -->
+  </div><!-- /pdf-layout -->
+</div><!-- /modal-pdf -->
+
 <!-- ── Toast ── -->
 <div class="toast" id="toast"></div>
 
@@ -688,6 +916,7 @@ function renderPoList() {
         </div>
         <div class="card-actions">
           <button class="btn btn-ghost btn-sm" onclick="openLineModal(${po.po_id})">+ Line</button>
+          <button class="btn btn-ghost btn-sm" onclick="openPdfModal(${po.po_id})">📄 PDF</button>
           <button class="btn btn-ghost btn-sm" onclick="emailPo(${po.po_id})">✉ Email PO</button>
           <button class="btn btn-ghost btn-sm" onclick="openSIModal(${po.po_id})">📧 Instructions</button>
           <button class="btn btn-ghost btn-sm" onclick="openPoModal(${po.po_id})">Edit</button>
@@ -1727,6 +1956,318 @@ document.getElementById('btn-issue-sample-save').onclick = async () => {
     btn.disabled = false;
   }
 };
+// ── PDF Builder (v2.3.0) ─────────────────────────────────────────────────────
+// Uses PAGE_DATA already in memory — zero additional API calls.
+// Toggle switches mutate the live DOM preview directly; generatePdf() serialises
+// that DOM into a hidden iframe and calls print().
+
+let PDF_PO_ID = null;
+
+function openPdfModal(poId) {
+  PDF_PO_ID = String(poId);
+  const po       = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(poId));
+  const supplier = po ? PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(po.supplier_id)) : null;
+  if (!po) { showToast('PO not found.', 'error'); return; }
+
+  // Reset text inputs
+  document.getElementById('pdf-in-title').value   = 'Purchase Order';
+  document.getElementById('pdf-in-company').value = '';
+  document.getElementById('pdf-in-note').value    = '';
+
+  // Fill static values from PO data
+  const supplierName   = supplier ? supplier.supplier_name  : '—';
+  const supplierContact= supplier ? (supplier.contact_name || supplier.email || '—') : '—';
+  const supplierCountry= supplier ? (supplier.country || '—') : '—';
+  const currency       = po.currency || 'USD';
+  const user           = window.Auth ? Auth.getUser() : null;
+
+  // ── Warehouse brand block (warehouse_name / address / email) ──
+  const warehouses = PAGE_DATA.warehouses || [];
+  const wh = warehouses[0] || {};  // first warehouse = buyer's own warehouse
+  const whName    = wh.warehouse_name || '';
+  const whLines   = [wh.address, wh.email].filter(Boolean).join('\n');
+  const brandEl   = document.getElementById('pdf-brand-name');
+  const addressEl = document.getElementById('pdf-brand-address');
+  const footerLeft= document.getElementById('pdf-footer-left');
+  if (brandEl)   brandEl.textContent  = whName;
+  if (addressEl) addressEl.textContent = whLines;
+  if (footerLeft) footerLeft.textContent = whName || 'Sample Tracker';
+
+  function pdfSet(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+  pdfSet('pdf-mcv-supplier',  supplierName);
+  pdfSet('pdf-mcv-contact',   supplierContact);
+  pdfSet('pdf-mcv-country',   supplierCountry);
+  pdfSet('pdf-mcv-ponumber',  po.po_number || '—');
+  pdfSet('pdf-mcv-podate',    fmtDate(po.po_date));
+  pdfSet('pdf-mcv-currency',  currency);
+  pdfSet('pdf-mcv-createdby', po.created_by || (user ? user.name : '—'));
+  pdfSet('pdf-doc-ponum',     po.po_number || '—');
+  pdfSet('pdf-sig-buyer',     po.created_by || (user ? user.name : 'Procurement'));
+  pdfSet('pdf-footer-mid',    'Generated ' + fmtDate(new Date().toISOString().slice(0,10)) + ' · ' + (po.po_number || '—'));
+  document.getElementById('pdf-topbar-id').textContent = (po.po_number || 'PO') + ' — ' + supplierName;
+
+  // Notes
+  const notesEl = document.getElementById('pdf-notes-text');
+  if (notesEl) notesEl.textContent = po.notes || '';
+  document.getElementById('pdf-notes-wrap').classList.toggle('pdf-hidden', !po.notes);
+
+  // Build line rows
+  const lines   = po.lines || [];
+  const tbody   = document.getElementById('pdf-lines-body');
+  const linesCnt= document.getElementById('pdf-lines-count');
+  let grandTotal = 0;
+  tbody.innerHTML = lines.map((l, i) => {
+    const subtot = (l.qty_bags || 0) * (l.bag_size || 0) * (l.cost_price || 0);
+    grandTotal += subtot;
+    const skuCol     = `<td id="pdf-td-sku-${i}"><span class="pdf-sku">${pdfEsc(l.sku_code || '—')}</span></td>`;
+    const originCol  = `<td class="r pdf-hidden" id="pdf-td-origin-${i}" style="font-family:var(--font-mono);font-size:.6rem;color:#5a4a3a">${pdfEsc(l.origin_sample_code || '—')}</td>`;
+    const costCol    = `<td class="r" id="pdf-td-cost-${i}">${formatMoney(l.cost_price || 0)}</td>`;
+    const subtotCol  = `<td class="r" id="pdf-td-sub-${i}">${formatMoney(subtot)}</td>`;
+    const refDiv     = `<div class="pdf-ref" id="pdf-ref-${i}">Supplier ref: ${pdfEsc(l.origin_sample_code || l.sample_name || '')}</div>`;
+    return `<tr>
+      <td class="idx">${i+1}</td>
+      <td><div class="pdf-sname">${pdfEsc(l.sample_name || '')}</div>${refDiv}</td>
+      ${skuCol}${originCol}
+      <td class="r">${l.qty_bags || 0}</td>
+      <td class="r">${(l.bag_size || 0)} ${pdfEsc(l.bag_size_unit || 'kg')}</td>
+      ${costCol}${subtotCol}
+    </tr>`;
+  }).join('');
+  if (linesCnt) linesCnt.textContent = lines.length + ' line' + (lines.length !== 1 ? 's' : '') + ' · all prices per kg';
+  const totalAmtEl = document.getElementById('pdf-total-amt');
+  const totalUnitEl= document.getElementById('pdf-total-unit');
+  if (totalAmtEl)  totalAmtEl.textContent  = formatMoney(grandTotal);
+  if (totalUnitEl) totalUnitEl.textContent = ' ' + currency;
+
+  // Presets full by default, then apply sync
+  pdfPreset('full');
+  document.getElementById('modal-pdf').classList.add('open');
+}
+
+function closePdfModal() {
+  document.getElementById('modal-pdf').classList.remove('open');
+}
+
+// Toggle row click — flips checkbox then syncs
+function pdfTog(key, row) {
+  const chk = document.getElementById('pdfc-' + key);
+  if (!chk) return;
+  chk.checked = !chk.checked;
+  row.classList.toggle('on', chk.checked);
+  pdfSync();
+}
+
+function pdfChk(key) { const el = document.getElementById('pdfc-' + key); return el ? el.checked : false; }
+function pdfHide(id, hide) { const el = document.getElementById(id); if (el) el.classList.toggle('pdf-hidden', hide); }
+
+function pdfSync() {
+  // Header text
+  document.getElementById('pdf-doc-h1').textContent =
+    document.getElementById('pdf-in-title').value.trim() || 'Purchase Order';
+  const company = document.getElementById('pdf-in-company').value.trim();
+  const compEl  = document.getElementById('pdf-doc-company');
+  if (compEl) { compEl.textContent = company ? 'To: ' + company : ''; compEl.classList.toggle('pdf-hidden', !company); }
+
+  // Status stamp
+  if (pdfChk('status')) {
+    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(PDF_PO_ID));
+    const st = po ? (po.status || '').toLowerCase() : '';
+    const cls = ['draft','confirmed','shipped','arrived'].includes(st) ? st : 'draft';
+    document.getElementById('pdf-stamp-wrap').innerHTML =
+      `<span class="pdf-doc-stamp ${cls}">${po ? pdfEsc(po.status) : ''}</span>`;
+  } else {
+    document.getElementById('pdf-stamp-wrap').innerHTML = '';
+  }
+
+  // Watermark
+  if (pdfChk('watermark')) {
+    const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(PDF_PO_ID));
+    document.getElementById('pdf-watermark').textContent = po ? (po.status || '') : '';
+  } else {
+    document.getElementById('pdf-watermark').textContent = '';
+  }
+
+  // Meta cells
+  const metaKeys = ['supplier','contact','country','ponumber','podate','currency','createdby'];
+  let anyMeta = false;
+  metaKeys.forEach(k => {
+    const on = pdfChk(k);
+    if (on) anyMeta = true;
+    pdfHide('pdf-mc-' + k, !on);
+    const row = document.getElementById('pdfr-' + k);
+    if (row) row.classList.toggle('on', on);
+  });
+  pdfHide('pdf-meta-strip', !anyMeta);
+
+  // Table columns — header + all body cells
+  pdfHide('pdf-th-sku', !pdfChk('sku'));
+  pdfHide('pdf-th-origin', !pdfChk('origin'));
+  pdfHide('pdf-th-cost', !pdfChk('cost'));
+  pdfHide('pdf-th-subtotal', !pdfChk('subtotal'));
+  document.querySelectorAll('[id^="pdf-td-sku-"]').forEach(el => el.classList.toggle('pdf-hidden', !pdfChk('sku')));
+  document.querySelectorAll('[id^="pdf-td-origin-"]').forEach(el => el.classList.toggle('pdf-hidden', !pdfChk('origin')));
+  document.querySelectorAll('[id^="pdf-td-cost-"]').forEach(el => el.classList.toggle('pdf-hidden', !pdfChk('cost')));
+  document.querySelectorAll('[id^="pdf-td-sub-"]').forEach(el => el.classList.toggle('pdf-hidden', !pdfChk('subtotal')));
+  document.querySelectorAll('[id^="pdf-ref-"]').forEach(el => el.classList.toggle('pdf-hidden', !pdfChk('supplierref')));
+
+  // Total row
+  pdfHide('pdf-total-row', !pdfChk('total'));
+
+  // Notes
+  const po = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(PDF_PO_ID));
+  pdfHide('pdf-notes-wrap', !pdfChk('ponotes') || !(po && po.notes));
+
+  // Custom note
+  const note = document.getElementById('pdf-in-note').value.trim();
+  const noteBox = document.getElementById('pdf-custom-note-box');
+  if (noteBox) { noteBox.textContent = note; noteBox.classList.toggle('pdf-hidden', !note); }
+
+  // Signatures
+  pdfHide('pdf-sigs', !pdfChk('signatures'));
+
+  // Footer
+  pdfHide('pdf-footer-bar', !pdfChk('footer'));
+}
+
+function pdfPreset(name) {
+  const P = {
+    full:     { status:1,watermark:1,supplier:1,contact:1,country:1,ponumber:1,podate:1,currency:1,createdby:0, sku:1,origin:0,cost:1,subtotal:1,total:1,supplierref:1, ponotes:1,signatures:1,footer:1 },
+    external: { status:1,watermark:1,supplier:1,contact:1,country:1,ponumber:1,podate:1,currency:1,createdby:0, sku:0,origin:0,cost:1,subtotal:1,total:1,supplierref:0, ponotes:1,signatures:1,footer:1 },
+    summary:  { status:1,watermark:0,supplier:1,contact:0,country:0,ponumber:1,podate:1,currency:1,createdby:0, sku:1,origin:0,cost:0,subtotal:0,total:1,supplierref:0, ponotes:0,signatures:0,footer:1 }
+  };
+  const p = P[name]; if (!p) return;
+  Object.entries(p).forEach(([k,v]) => {
+    const chk = document.getElementById('pdfc-'+k); if (chk) chk.checked = !!v;
+    const row = document.getElementById('pdfr-'+k); if (row) row.classList.toggle('on', !!v);
+  });
+  pdfSync();
+}
+
+function pdfEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function generatePdf() {
+  // v2.3.1: embed a complete self-contained stylesheet so the print preview
+  // matches the modal preview exactly — no runtime stylesheet harvesting.
+  const paper = document.getElementById('pdf-paper');
+  if (!paper) return;
+  const po    = PAGE_DATA.purchase_orders.find(p => String(p.po_id) === String(PDF_PO_ID));
+  const poNum = po ? po.po_number : 'PO';
+
+  // ── Self-contained print stylesheet ──────────────────────────────────────
+  // Mirror every visual rule used in .pdf-paper and its children.
+  // Uses only web-safe / print-safe fonts (Georgia, monospace) — no Google Fonts dependency.
+  const PRINT_CSS = `
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { margin: 0; padding: 32px 40px 48px; background: #fff; font-family: Georgia, 'Times New Roman', serif; font-size: 12px; color: #1a1a1a; }
+    @page { margin: 0; size: A4; }
+
+    /* Watermark */
+    .pdf-watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-35deg); font-family: 'Courier New', monospace; font-size: 68px; font-weight: 600; letter-spacing: .08em; color: rgba(196,122,43,0.06); text-transform: uppercase; pointer-events: none; white-space: nowrap; z-index: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* Header */
+    .pdf-doc-hdr { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+    .pdf-doc-brand { font-family: 'Courier New', monospace; font-size: .6rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: #c47a2b; margin-bottom: 3px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-doc-brand-sub { font-size: .62rem; color: #8a7060; font-style: italic; }
+    .pdf-doc-title-block { text-align: right; }
+    .pdf-doc-h1 { font-family: 'Courier New', monospace; font-size: 1.25rem; font-weight: 600; color: #1a1a1a; letter-spacing: -.02em; }
+    .pdf-doc-ponum { font-family: 'Courier New', monospace; font-size: .68rem; color: #c47a2b; margin-top: 3px; font-weight: 500; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-doc-company { font-size: .6rem; color: #8a7060; font-style: italic; margin-top: 2px; text-align: right; }
+
+    /* Status stamp */
+    .pdf-doc-stamp { display: inline-block; margin-top: 4px; padding: 2px 8px; border: 2px solid; border-radius: 3px; font-family: 'Courier New', monospace; font-size: .56rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-doc-stamp.draft     { color: #888; border-color: #ccc; }
+    .pdf-doc-stamp.confirmed { color: #854f0b; border-color: #f0a030; }
+    .pdf-doc-stamp.shipped   { color: #1a5ca8; border-color: #4080d0; }
+    .pdf-doc-stamp.arrived   { color: #1e6640; border-color: #40a060; }
+
+    /* Divider */
+    .pdf-divider { height: 1px; background: linear-gradient(to right, #c47a2b 0%, #e0c89a 40%, #f0ead8 100%); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* Meta strip */
+    .pdf-meta-strip { display: flex; background: #fdf8f2; border: 1px solid #f0e8da; border-top: none; margin-bottom: 18px; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-mc { flex: 1; padding: 7px 10px; border-right: 1px solid #f0e8da; min-width: 0; }
+    .pdf-mc:last-child { border-right: none; }
+    .pdf-mc-lbl { font-family: 'Courier New', monospace; font-size: .48rem; letter-spacing: .1em; text-transform: uppercase; color: #b09080; margin-bottom: 2px; white-space: nowrap; }
+    .pdf-mc-val { font-size: .68rem; color: #1a1a1a; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pdf-mc-val.mono { font-family: 'Courier New', monospace; font-size: .62rem; }
+    .pdf-mc-val.reg  { font-weight: 400; }
+
+    /* Section heading */
+    .pdf-sec-head { font-family: 'Courier New', monospace; font-size: .52rem; letter-spacing: .12em; text-transform: uppercase; color: #c47a2b; padding-bottom: 5px; border-bottom: 1px solid #f0e8da; margin-bottom: 8px; margin-top: 16px; display: flex; align-items: center; justify-content: space-between; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-sec-head em { font-size: .62rem; font-style: italic; color: #b09080; text-transform: none; letter-spacing: 0; }
+
+    /* Lines table */
+    .pdf-lines { width: 100%; border-collapse: collapse; font-size: .72rem; }
+    .pdf-lines thead tr { background: #1a1a1a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-lines th { font-family: 'Courier New', monospace; font-size: .52rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #fff; padding: 8px 8px; text-align: left; white-space: nowrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-lines th.r { text-align: right; }
+    .pdf-lines tbody tr { border-bottom: 1px solid #f0e8da; }
+    .pdf-lines tbody tr:nth-child(even) { background: #fdf8f2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-lines tbody tr:last-child { border-bottom: none; }
+    .pdf-lines td { padding: 7px 8px; vertical-align: top; color: #1a1a1a; }
+    .pdf-lines td.r { text-align: right; font-family: 'Courier New', monospace; font-size: .65rem; }
+    .pdf-lines td.idx { color: #b09080; font-size: .62rem; font-family: 'Courier New', monospace; width: 20px; }
+    .pdf-sname { font-weight: 600; font-size: .74rem; color: #1a1a1a; }
+    .pdf-sku { font-family: 'Courier New', monospace; font-size: .6rem; color: #c47a2b; font-weight: 500; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-ref { font-family: 'Courier New', monospace; font-size: .58rem; color: #3a2a1a; margin-top: 2px; }
+
+    /* Total */
+    .pdf-total { display: flex; justify-content: flex-end; align-items: baseline; gap: 1rem; margin-top: 6px; padding: 8px; background: #fdf8f2; border: 1px solid #f0e8da; border-radius: 2px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-total-lbl { font-family: 'Courier New', monospace; font-size: .55rem; letter-spacing: .1em; text-transform: uppercase; color: #b09080; }
+    .pdf-total-amt { font-family: 'Courier New', monospace; font-size: .88rem; font-weight: 600; color: #c47a2b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-total-unit { font-family: 'Courier New', monospace; font-size: .6rem; color: #b09080; }
+
+    /* Notes */
+    .pdf-notes { background: #fdf8f2; border-left: 3px solid #c47a2b; padding: 8px 12px; font-size: .72rem; line-height: 1.6; color: #3a2a1a; font-style: italic; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-custom-note { background: #f8f4ef; border: 1px dashed #f0e8da; padding: 8px 12px; font-size: .72rem; line-height: 1.6; color: #3a2a1a; font-family: 'Courier New', monospace; margin-top: 8px; border-radius: 2px; white-space: pre-wrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* Signatures */
+    .pdf-sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; }
+    .pdf-sig { padding-top: 11px; border-top: 1px solid #e8e0d4; }
+    .pdf-sig-lbl { font-family: 'Courier New', monospace; font-size: .5rem; letter-spacing: .1em; text-transform: uppercase; color: #b09080; margin-bottom: 20px; }
+    .pdf-sig-line { border-top: 1px solid #c0b0a0; width: 80%; }
+    .pdf-sig-name { font-size: .65rem; color: #8a7060; margin-top: 3px; }
+
+    /* Footer */
+    .pdf-footer { margin-top: 26px; padding-top: 8px; border-top: 1px solid #e8e0d4; display: flex; align-items: center; justify-content: space-between; font-family: 'Courier New', monospace; font-size: .5rem; letter-spacing: .06em; color: #b09080; }
+
+    /* Hidden elements — preserve .pdf-hidden suppression */
+    .pdf-hidden { display: none !important; }
+
+    /* Paper border-top accent */
+    body::before { content: ''; display: block; height: 4px; background: #c47a2b; margin: -32px -40px 28px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  `;
+
+  let oldFrame = document.getElementById('pdf-print-frame');
+  if (oldFrame) oldFrame.remove();
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'pdf-print-frame';
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;';
+  document.body.appendChild(iframe);
+
+  const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+  iDoc.open();
+  iDoc.write('<!DOCTYPE html><html lang="en"><head>');
+  iDoc.write('<meta charset="UTF-8"/>');
+  iDoc.write('<title>' + pdfEsc('PO \u2014 ' + poNum) + '</title>');
+  iDoc.write('<style>' + PRINT_CSS + '</style>');
+  iDoc.write('</head><body>');
+  iDoc.write(paper.innerHTML);   // innerHTML only — body IS the paper
+  iDoc.write('</body></html>');
+  iDoc.close();
+
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => iframe.remove(), 2000);
+  }, 400);
+}
+// ── END PDF Builder (v2.3.1) ─────────────────────────────────────────────────
+
 </script>
 </body>
 </html>
