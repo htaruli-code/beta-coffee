@@ -1,4 +1,6 @@
-// Version 1.27
+// Version 1.28
+// v1.28: stampOutboundPrices — writes current buyer-tier price to sale_price_sent for all
+//        details on an outbound. Clears ⚡ indicator in outbound.html.
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
@@ -273,6 +275,11 @@ const API = (() => {
     return post({ action: 'updateCatalogueSendNotes', send_id: sendId, notes: notes || '', session_token: Auth.getToken() });
   }
 
+  // v1.28: stamp current buyer-tier prices to all outbound_details on an outbound
+  async function stampOutboundPrices(outboundId) {
+    return post({ action: 'stampOutboundPrices', outbound_id: outboundId, session_token: Auth.getToken() });
+  }
+
   return {
     post,                                             // exposed for v2 procurement pages
     sendAuthCode, verifyAuthCode,
@@ -294,6 +301,8 @@ const API = (() => {
     sendCatalogueLink, getCataloguePage, submitCatalogueSelection,
     // v1.27 — catalogue library
     getCataloguesPage, saveCatalogue, archiveCatalogue,
-    sendCatalogueFromLibrary, revokeCatalogueSend, updateCatalogueSendNotes
+    sendCatalogueFromLibrary, revokeCatalogueSend, updateCatalogueSendNotes,
+    // v1.28 — stamp prices
+    stampOutboundPrices
   };
 })();
