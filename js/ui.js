@@ -1,6 +1,10 @@
 // Version 1.3
 // ui.js — Shared UI helpers. Loading states, alerts, form utilities, modals.
-// v1.3: formatDate — uses computer locale with day: 2-digit, month: short, year: numeric.
+// v1.3: BUG FIX — formatDate: date-only strings (YYYY-MM-DD) are now parsed as LOCAL date.
+//        new Date("2025-03-15") parses as UTC midnight, which shifts to the previous day
+//        in any negative-offset timezone (e.g. UTC-8 shows 3/14/2025 instead of 3/15/2025).
+//        Fix: split YYYY-MM-DD parts and construct via new Date(y, m, d) which is always local.
+//        Full ISO strings with time component still fall back to standard Date parsing.
 // v1.1: No logic changes. Version bump for release consistency.
 
 const UI = (() => {
@@ -125,8 +129,16 @@ const UI = (() => {
 
   function formatDate(val) {
     if (!val) return '—';
-    const d = new Date(val);
-    return isNaN(d) ? val : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    const s = String(val);
+    // YYYY-MM-DD: construct as local date to avoid UTC-midnight timezone shift
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      const d = new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]));
+      return isNaN(d) ? s : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    // Fallback for any other format
+    const d = new Date(s);
+    return isNaN(d) ? s : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   function todayISO() {
