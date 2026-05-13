@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.1.4 | inventory.html -->
+<!-- Version 2.1.5 | inventory.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -198,9 +198,13 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.1.4 | inventory.html
+// Version 2.1.5 | inventory.html
+// v2.1.5: BUG FIX — openLotModal normalises received_date to YYYY-MM-DD before assigning
+//          to input[type=date].value. Defensive against any date format the server sends:
+//          full ISO string, Date object serialised to string, or already-correct YYYY-MM-DD.
+//          Also carries read-only system fields (po_line_id, sku_id, sku_code etc.) through
+//          the save payload so server never blanks them on edit.
 // v2.1.4: isNaN guards + sanitised numeric fields on lot save. Client-side required validation.
-//         Location filter (cascades from warehouse). dates via UI.formatDate.
 const fmtDate = v => UI.formatDate(v);
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
@@ -459,6 +463,22 @@ function updateLocations() {
     locs.map(l => '<option value="' + l.location_id + '">' + esc(l.facility_name) + '</option>').join('');
 }
 
+function toInputDate(v) {
+  // Normalise any date value to YYYY-MM-DD for input[type=date].
+  // Handles: YYYY-MM-DD (pass-through), full ISO string, locale string.
+  if (!v) return '';
+  const s = String(v);
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // ISO or any parseable string — extract date part via UTC to avoid timezone shift
+  const d = new Date(s);
+  if (isNaN(d)) return '';
+  const y = d.getUTCFullYear();
+  const m = ('0' + (d.getUTCMonth() + 1)).slice(-2);
+  const day = ('0' + d.getUTCDate()).slice(-2);
+  return y + '-' + m + '-' + day;
+}
+
 function openLotModal(lotId) {
   const lot = lotId ? (PAGE_DATA.inventory_lots || []).find(l => String(l.lot_id) === String(lotId)) : null;
   document.getElementById('modal-lot-title').textContent    = lot ? 'Edit Lot' : 'Add Lot';
@@ -469,7 +489,8 @@ function openLotModal(lotId) {
   document.getElementById('lot-bags').value                 = lot ? lot.received_bags       : '';
   document.getElementById('lot-bag-size').value             = lot ? lot.bag_size            : '';
   document.getElementById('lot-cost').value                 = lot ? lot.cost_price          : '';
-  document.getElementById('lot-received-date').value        = lot ? lot.received_date       : '';
+  // v2.1.5: toInputDate() normalises to YYYY-MM-DD — the only format input[type=date] accepts
+  document.getElementById('lot-received-date').value        = lot ? toInputDate(lot.received_date) : '';
 
   document.getElementById('lot-coffee-type').innerHTML =
     '<option value="">— None —</option>' +
@@ -542,26 +563,36 @@ document.getElementById('btn-lot-save').onclick = async () => {
   }
 
   try {
+    const lotIdVal    = document.getElementById('lot-id').value || null;
+    // v2.1.5: carry read-only system fields from PAGE_DATA — never editable in this modal
+    const existingLot = lotIdVal
+      ? (PAGE_DATA.inventory_lots || []).find(l => String(l.lot_id) === String(lotIdVal))
+      : null;
+
     const data = await API.post({
       action:             'saveInventoryLot',
-      lot_id:             document.getElementById('lot-id').value          || null,
+      lot_id:             lotIdVal,
+      po_line_id:         existingLot ? existingLot.po_line_id        : '',
+      shipment_id:        existingLot ? existingLot.shipment_id       : '',
+      inbound_detail_id:  existingLot ? existingLot.inbound_detail_id : '',
+      sku_id:             existingLot ? existingLot.sku_id            : '',
+      sku_code:           existingLot ? existingLot.sku_code          : '',
       warehouse_id:       warehouseId,
       location_id:        document.getElementById('lot-location').value    || '',
       sample_name:        sampleName,
       lot_number:         document.getElementById('lot-number').value,
       origin_sample_code: document.getElementById('lot-origin-code').value,
       coffee_type:        document.getElementById('lot-coffee-type').value,
-      received_bags:      parsedBags,                                        // v2.1.4: sanitised
-      bag_size:           rawBagSize !== '' ? parsedSize : 0,               // v2.1.4: sanitised
-      cost_price:         rawCost    !== '' ? parsedCost : 0,               // v2.1.4: sanitised
+      received_bags:      parsedBags,
+      bag_size:           rawBagSize !== '' ? parsedSize : 0,
+      cost_price:         rawCost    !== '' ? parsedCost : 0,
       cost_price_unit:    document.getElementById('lot-cost-unit').value,
       received_date:      document.getElementById('lot-received-date').value,
       origin_country_id:  document.getElementById('lot-country').value    || ''
     });
-    const whId = data.warehouse_id;
-    PAGE_DATA.inventory_lots = (PAGE_DATA.inventory_lots || [])
-      .filter(l => String(l.warehouse_id) !== String(whId))
-      .concat(data.lots);
+    // v2.1.5: replace full PAGE_DATA so bins/warehouse_name/drawdowns stay enriched.
+    // Old code merged only a thin lots[] which stripped bins, causing rows to vanish.
+    PAGE_DATA = data;
     document.getElementById('modal-lot').classList.remove('open');
     renderTable();
     showToast('Lot saved.', 'success');
