@@ -1,4 +1,4 @@
-<!-- Version 2.3.2 | purchase-orders.html -->
+<!-- Version 2.2.1 | purchase-orders.html -->
 <!-- Version 2.2.8 | purchase-orders.html -->
 <html lang="en">
 <head>
@@ -29,7 +29,7 @@
     .nav-user:hover { color: var(--error); }
 
     /* ── Layout ── */
-    .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .page { max-width: 100%; margin: 0; padding: 0 20px; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
     .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
@@ -507,8 +507,31 @@
     <button class="btn-add-row" id="btn-add-line-row" type="button">+ Add Line Row</button>
 
     <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-import-contract" type="button" style="margin-right:auto">📋 Import from Contract</button>
       <button class="btn btn-ghost" id="btn-line-cancel">Cancel</button>
       <button class="btn" id="btn-line-save">Save PO Lines</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import from Contract Modal -->
+<div class="modal-overlay" id="modal-import-contract">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-title">Import from Contract</div>
+    <div class="modal-error" id="modal-import-contract-error"></div>
+    <div class="field" style="margin-bottom:0.75rem">
+      <label>Search contract number, buyer, or product name</label>
+      <div style="display:flex;gap:0.5rem">
+        <input type="text" id="import-contract-query" placeholder="e.g. CTR-2026-001 or Ethiopia…" autocomplete="off" />
+        <button class="btn" id="btn-import-contract-search" type="button" style="white-space:nowrap">Search</button>
+      </div>
+    </div>
+    <div id="import-contract-results" style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">
+      <div style="padding:1.5rem;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:0.75rem">Enter a search term above</div>
+    </div>
+    <div class="modal-footer" style="margin-top:0.75rem">
+      <button class="btn btn-ghost" id="btn-import-contract-cancel">Cancel</button>
+      <button class="btn" id="btn-import-contract-apply" disabled>Import Selected</button>
     </div>
   </div>
 </div>
@@ -844,7 +867,8 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.2.7 | purchase-orders.html
+// Version 2.2.1 | purchase-orders.html
+// v2.2.1: "Import from Contract" — search contract lines, select row, auto-populate SKU + bags into PO line row.
 // v2.2.7: dates formatted via UI.formatDate (computer locale, dd MMM yyyy)
 const fmtDate = v => UI.formatDate(v);
 // v2.1: Shipping Instructions modal added — Save Draft + Save & Send Email
@@ -2267,6 +2291,108 @@ function generatePdf() {
   }, 400);
 }
 // ── END PDF Builder (v2.3.1) ─────────────────────────────────────────────────
+
+
+// ── Import from Contract (v2.2.1) ─────────────────────────────────────────────
+// Opens from the PO line modal. Searches contracts by number/buyer/sample/sku.
+// Selected line fills one new row in the PO line table (sku + qty_bags + bag_size).
+// One API call per search. No side effects.
+
+var importContractSelected = [];
+
+document.getElementById('btn-import-contract').onclick = () => {
+  importContractSelected = [];
+  document.getElementById('btn-import-contract-apply').disabled = true;
+  document.getElementById('import-contract-query').value = '';
+  document.getElementById('import-contract-results').innerHTML =
+    '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:0.75rem">Enter a search term above</div>';
+  document.getElementById('modal-import-contract').classList.add('open');
+};
+
+document.getElementById('btn-import-contract-cancel').onclick = () => {
+  document.getElementById('modal-import-contract').classList.remove('open');
+};
+
+document.getElementById('import-contract-query').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-import-contract-search').click();
+});
+
+document.getElementById('btn-import-contract-search').onclick = async () => {
+  const btn   = document.getElementById('btn-import-contract-search');
+  const query = document.getElementById('import-contract-query').value.trim();
+  const wrap  = document.getElementById('import-contract-results');
+  btn.disabled = true;
+  wrap.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:0.75rem">Searching…</div>';
+  importContractSelected = [];
+  document.getElementById('btn-import-contract-apply').disabled = true;
+  try {
+    const data = await API.post({ action: 'searchContractForPo', query: query });
+    renderImportContractResults(data.contracts || []);
+  } catch (e) {
+    wrap.innerHTML = '<div style="padding:1rem;color:var(--error);font-family:var(--font-mono);font-size:0.75rem">' + esc(e.message || 'Search failed') + '</div>';
+  } finally { btn.disabled = false; }
+};
+
+function renderImportContractResults(contracts) {
+  var wrap = document.getElementById('import-contract-results');
+  if (!contracts.length) {
+    wrap.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:0.75rem">No matching contracts found</div>';
+    return;
+  }
+  var html = '';
+  contracts.forEach(function(c) {
+    if (!c.lines || !c.lines.length) return;
+    html += '<div style="border-bottom:1px solid var(--border);padding:0.6rem 0.75rem;background:var(--bg)">';
+    html += '<span style="font-family:var(--font-mono);font-size:0.78rem;font-weight:600">' + esc(c.contract_number) + '</span>';
+    html += '<span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted);margin-left:0.75rem">' + esc(c.buyer_name) + ' · ' + (c.contract_date || '') + '</span>';
+    html += '</div>';
+    c.lines.forEach(function(l) {
+      var rowId = 'imp-ctr-' + l.contract_line_id;
+      var lineJson = JSON.stringify(l).replace(/"/g, '&quot;');
+      html += '<label for="' + rowId + '" style="display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem 0.55rem 1.25rem;cursor:pointer;border-bottom:1px solid var(--border)">';
+      html += '<input type="checkbox" id="' + rowId + '" data-line="' + lineJson + '" style="width:auto;flex-shrink:0" />';
+      html += '<span style="flex:1;font-size:0.8rem">' + esc(l.sample_name) + '</span>';
+      html += '<span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted);white-space:nowrap">';
+      html += (l.sku_code ? esc(l.sku_code) + ' · ' : '');
+      html += l.contracted_bags + ' bags' + (l.bag_size ? ' · ' + l.bag_size + ' ' + l.bag_size_unit : '');
+      html += '</span></label>';
+    });
+  });
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var checked = wrap.querySelectorAll('input[type="checkbox"]:checked');
+      importContractSelected = Array.from(checked).map(function(el) {
+        try { return JSON.parse(el.getAttribute('data-line').replace(/&quot;/g, '"')); } catch(_) { return null; }
+      }).filter(Boolean);
+      document.getElementById('btn-import-contract-apply').disabled = importContractSelected.length === 0;
+    });
+  });
+}
+
+document.getElementById('btn-import-contract-apply').onclick = () => {
+  if (!importContractSelected.length) return;
+  if (lineMode === 'add') {
+    importContractSelected.forEach(function(l) {
+      // Fill into first empty row, or add a new row
+      var targetIdx = lineRows.findIndex(function(r) { return !r.sample_name && !r.sku_id; });
+      if (targetIdx === -1) {
+        lineRows.push(emptyLineRow());
+        targetIdx = lineRows.length - 1;
+      }
+      lineRows[targetIdx].sample_name   = l.sample_name    || '';
+      lineRows[targetIdx].sku_id        = l.sku_id         || '';
+      lineRows[targetIdx].sku_code      = l.sku_code       || '';
+      lineRows[targetIdx].qty_bags      = l.contracted_bags || '';
+      lineRows[targetIdx].bag_size      = l.bag_size        || '';
+      lineRows[targetIdx].bag_size_unit = l.bag_size_unit   || 'kg';
+    });
+    renderLineRows();
+  }
+  document.getElementById('modal-import-contract').classList.remove('open');
+  importContractSelected = [];
+};
 
 </script>
 </body>

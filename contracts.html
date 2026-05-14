@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.5.2 | contracts.html -->
+<!-- Version 2.7.5 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -23,7 +23,7 @@
     .nav-links a:hover, .nav-links a.active { color: var(--accent); }
     .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
     .nav-user:hover { color: var(--error); }
-    .page { max-width: 1300px; margin: 0 auto; padding: 2rem; }
+    .page { max-width: 100%; margin: 0; padding: 0 20px; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
     .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
@@ -102,6 +102,59 @@
       background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem;
       padding: 0; line-height: 1; display: none; }
     .sku-ac-clear.show { display: block; }
+
+    /* ── Contract line table (v2.6.0) ──────────────────────────────────────── */
+    .line-table-header { display:grid; grid-template-columns:120px 2fr 80px 80px 90px 80px 90px 32px; gap:0.4rem; padding:0.3rem 0.5rem; font-family:var(--font-mono); font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--border); }
+    .line-row { display:grid; grid-template-columns:120px 2fr 80px 80px 90px 80px 90px 32px; gap:0.4rem; padding:0.35rem 0.5rem; border-bottom:1px solid var(--border); align-items:center; }
+    .line-row:last-child { border-bottom:none; }
+    .line-row input, .line-row select { padding:0.3rem 0.4rem; font-size:0.75rem; }
+    .btn-add-row { background:none; border:1px dashed var(--border); color:var(--muted); font-family:var(--font-mono); font-size:0.72rem; padding:0.4rem 0.75rem; cursor:pointer; border-radius:var(--radius); width:100%; margin-top:0.5rem; transition:border-color var(--transition),color var(--transition); }
+    .btn-add-row:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-del-row { background:none; border:none; color:var(--muted); font-size:0.85rem; cursor:pointer; padding:0; line-height:1; }
+    .btn-del-row:hover { color:var(--error); }
+
+    /* ── Lot picker (v2.7.0) ────────────────────────────────────────────────── */
+    .lot-link-wrap { display:flex; align-items:center; gap:0.5rem; font-family:var(--font-mono); font-size:0.72rem; }
+    .lot-linked-badge { background:#edf7f0; color:#1e6640; padding:0.15rem 0.5rem; border-radius:2px; font-size:0.68rem; font-weight:600; white-space:nowrap; cursor:default; }
+    /* Tooltip for lot badge */
+    .lot-tip { position:relative; display:inline-flex; align-items:center; }
+    .lot-tip-box { display:none; position:absolute; bottom:calc(100% + 6px); left:0; z-index:500;
+      background:var(--text); color:#fff; font-family:var(--font-mono); font-size:0.68rem;
+      padding:0.45rem 0.65rem; border-radius:var(--radius); white-space:normal;
+      width:220px; line-height:1.5;
+      box-shadow:0 4px 12px rgba(0,0,0,0.18); pointer-events:none; }
+    .lot-tip-row1 { display:block; font-weight:600; color:#fff; word-break:break-word; }
+    .lot-tip-row2 { display:block; color:rgba(255,255,255,0.65); margin-top:0.15rem; }
+    .lot-tip-box::after { content:""; position:absolute; top:100%; left:12px;
+      border:5px solid transparent; border-top-color:var(--text); }
+    .lot-tip:hover .lot-tip-box { display:block; }
+    .lot-picker-input-wrap { position:relative; flex:1; }
+    .lot-picker-dropdown { position:absolute; z-index:400; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); box-shadow:0 6px 18px rgba(0,0,0,0.10); max-height:260px; overflow-y:auto; min-width:360px; top:calc(100% + 2px); left:0; }
+    .lot-picker-item { padding:0.5rem 0.75rem; cursor:pointer; border-bottom:1px solid var(--border); font-size:0.78rem; }
+    .lot-picker-item:last-child { border-bottom:none; }
+    .lot-picker-item:hover { background:var(--surface); }
+    .lot-picker-item .lp-name { font-weight:600; color:var(--text); }
+    .lot-picker-item .lp-meta { font-family:var(--font-mono); font-size:0.68rem; color:var(--muted); margin-top:0.1rem; }
+    .lot-picker-item .lp-sku  { color:var(--accent); font-weight:600; }
+    .lot-picker-item .lp-avail { color:var(--success); }
+    .lot-picker-searching { padding:0.75rem; text-align:center; color:var(--muted); font-family:var(--font-mono); font-size:0.72rem; }
+
+    /* ── SKU autocomplete in Add Contract Lines rows (v2.7.4) ── */
+    .line-sku-wrap { position:relative; }
+    .line-sku-wrap input { width:100%; font-size:0.72rem; }
+    .line-sku-drop { position:absolute; z-index:300; top:calc(100% + 2px); left:0;
+      background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
+      box-shadow:0 4px 12px rgba(0,0,0,0.10); min-width:220px; max-height:180px;
+      overflow-y:auto; display:none; }
+    .line-sku-item { padding:0.35rem 0.6rem; cursor:pointer; border-bottom:1px solid var(--border); font-size:0.72rem; }
+    .line-sku-item:last-child { border-bottom:none; }
+    .line-sku-item:hover { background:var(--surface); }
+    .line-sku-item .lsi-code { font-family:var(--font-mono); font-weight:600; color:var(--accent); font-size:0.68rem; }
+    .line-sku-item .lsi-name { color:var(--text); font-size:0.71rem; margin-top:0.05rem; }
+
+    /* ── Edit line SKU badge (v2.7.5) ── */
+    .edit-sku-badge { display:inline-flex; align-items:center; gap:0.35rem; font-family:var(--font-mono); font-size:0.68rem; background:var(--surface); border:1px solid var(--border); border-radius:2px; padding:0.15rem 0.5rem; color:var(--accent); font-weight:600; margin-top:0.25rem; min-height:1.2rem; }
+    .edit-sku-badge.empty { color:var(--muted); font-weight:400; }
   </style>
 </head>
 <body>
@@ -173,68 +226,142 @@
   </div>
 </div>
 
-<!-- Contract Line Modal -->
+<!-- Contract Line Modal (v2.6.0 — multi-row Add, single-row Edit) -->
 <div class="modal-overlay" id="modal-line">
-  <div class="modal">
-    <div class="modal-title" id="modal-line-title">Add Contract Line</div>
+  <div class="modal" style="max-width:1000px">
+    <div class="modal-title" id="modal-line-title">Add Contract Lines</div>
     <div class="modal-error" id="modal-line-error"></div>
     <input type="hidden" id="l-contract-id" />
-    <input type="hidden" id="l-id" />
-    <div class="field-row">
-      <div class="field sku-ac-wrap" style="flex:2">
-        <label>Product Name <span style="color:var(--error)">*</span></label>
-        <input type="hidden" id="l-sku-id" />
-        <input type="hidden" id="l-sku-code" />
-        <div class="sku-ac-input-wrap">
-          <input type="text" id="l-name" placeholder="Search by product name or SKU code…"
-                 autocomplete="off" oninput="skuAcInput(this)" onkeydown="skuAcKeydown(event)" />
-          <button type="button" class="sku-ac-clear" id="l-name-clear" onclick="clearSkuAc()" title="Clear">✕</button>
+    <input type="hidden" id="l-edit-id" />
+
+    <!-- ADD mode: multi-row table -->
+    <div id="l-add-mode">
+      <div class="line-table-header">
+        <span>SKU</span>
+        <span>Product Name *</span>
+        <span>Bags *</span>
+        <span>Bag Size</span>
+        <span>Unit</span>
+        <span>Unit Price</span>
+        <span>Per</span>
+        <span></span>
+      </div>
+      <div id="l-rows-wrap"></div>
+      <button class="btn-add-row" id="btn-add-line-row" type="button">+ Add Line Row</button>
+    </div>
+
+    <!-- EDIT mode: single-row fields (same as before) -->
+    <div id="l-edit-mode" style="display:none">
+      <div class="field-row">
+        <div class="field sku-ac-wrap" style="flex:2">
+          <label>Product Name <span style="color:var(--error)">*</span></label>
+          <input type="hidden" id="l-sku-id" />
+          <input type="hidden" id="l-sku-code" />
+          <div class="sku-ac-input-wrap">
+            <input type="text" id="l-name" placeholder="Search by product name or SKU code…"
+                   autocomplete="off" oninput="skuAcInput(this)" onkeydown="skuAcKeydown(event)" />
+            <button type="button" class="sku-ac-clear" id="l-name-clear" onclick="clearSkuAc()" title="Clear">✕</button>
+          </div>
+          <div class="sku-ac-dropdown" id="l-name-dropdown" style="display:none"></div>
+          <span class="edit-sku-badge empty" id="l-sku-badge">No SKU linked</span>
         </div>
-        <div class="sku-ac-dropdown" id="l-name-dropdown" style="display:none"></div>
+        <div class="field">
+          <label>Inventory Lot</label>
+          <select id="l-lot"><option value="">— Not yet linked —</option></select>
+        </div>
       </div>
-      <div class="field">
-        <label>Inventory Lot</label>
-        <select id="l-lot"><option value="">— Not yet linked —</option></select>
+      <div class="field-row">
+        <div class="field">
+          <label>Contracted Bags <span style="color:var(--error)">*</span></label>
+          <input type="number" id="l-bags" min="1" placeholder="0" />
+        </div>
+        <div class="field">
+          <label>Bag Size</label>
+          <input type="number" id="l-bag-size" min="0" step="0.1" placeholder="60" />
+        </div>
+        <div class="field" style="max-width:90px">
+          <label>Unit</label>
+          <select id="l-bag-unit"></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Unit Price</label>
+          <input type="number" id="l-price" min="0" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="field" style="max-width:90px">
+          <label>Per</label>
+          <select id="l-price-unit"></select>
+        </div>
+      </div>
+      <div id="l-subtotal" style="font-family:var(--font-mono);font-size:0.8rem;color:var(--muted);text-align:right;margin-bottom:0.5rem"></div>
+      <div class="field-row">
+        <div class="field">
+          <label>Availability</label>
+          <select id="l-avail-type"></select>
+        </div>
+        <div class="field" id="l-shipment-field" style="display:none">
+          <label>Expected Shipment</label>
+          <select id="l-shipment"><option value="">— Select —</option></select>
+        </div>
       </div>
     </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Contracted Bags <span style="color:var(--error)">*</span></label>
-        <input type="number" id="l-bags" min="1" placeholder="0" />
-      </div>
-      <div class="field">
-        <label>Bag Size</label>
-        <input type="number" id="l-bag-size" min="0" step="0.1" placeholder="60" />
-      </div>
-      <div class="field" style="max-width:90px">
-        <label>Unit</label>
-        <select id="l-bag-unit"></select>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-l-import-po" type="button" style="margin-right:auto">📋 Import from PO</button>
+      <button class="btn btn-ghost" id="btn-l-cancel">Cancel</button>
+      <button class="btn" id="btn-l-save">Save Lines</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import from PO Modal -->
+<div class="modal-overlay" id="modal-import-po">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-title">Import from Purchase Order</div>
+    <div class="modal-error" id="modal-import-po-error"></div>
+    <div class="field" style="margin-bottom:0.75rem">
+      <label>Search PO number, supplier, or product name</label>
+      <div style="display:flex;gap:0.5rem">
+        <input type="text" id="import-po-query" placeholder="e.g. PO-2026-001 or Ethiopia…" autocomplete="off" />
+        <button class="btn" id="btn-import-po-search" type="button" style="white-space:nowrap">Search</button>
       </div>
     </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Unit Price</label>
-        <input type="number" id="l-price" min="0" step="0.01" placeholder="0.00" />
+    <div id="import-po-results" style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">
+      <div style="padding:1.5rem;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:0.75rem">Enter a search term above</div>
+    </div>
+    <div class="modal-footer" style="margin-top:0.75rem">
+      <button class="btn btn-ghost" id="btn-import-po-cancel">Cancel</button>
+      <button class="btn" id="btn-import-po-apply" disabled>Import Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lot Picker Modal (v2.7.0) -->
+<div class="modal-overlay" id="modal-lot-picker">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-title">Link Inventory Lot</div>
+    <div class="modal-error" id="modal-lot-picker-error"></div>
+    <input type="hidden" id="lp-contract-line-id" />
+    <input type="hidden" id="lp-sku-id" />
+    <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted);margin-bottom:0.75rem" id="lp-line-label"></div>
+    <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+      <div class="field" style="min-width:160px;max-width:200px;flex-shrink:0">
+        <label>Warehouse</label>
+        <select id="lp-warehouse">
+          <option value="">All Warehouses</option>
+        </select>
       </div>
-      <div class="field" style="max-width:90px">
-        <label>Per</label>
-        <select id="l-price-unit"></select>
+      <div class="field" style="flex:1;min-width:180px">
+        <label>Search by sample name, lot number or SKU code</label>
+        <input type="text" id="lp-query" placeholder="e.g. Ethiopia or ICO-2026…" autocomplete="off" />
       </div>
     </div>
-    <div id="l-subtotal" style="font-family:var(--font-mono);font-size:0.8rem;color:var(--muted);text-align:right;margin-bottom:0.5rem"></div>
-    <div class="field-row">
-      <div class="field">
-        <label>Availability</label>
-        <select id="l-avail-type"></select>
-      </div>
-      <div class="field" id="l-shipment-field" style="display:none">
-        <label>Expected Shipment</label>
-        <select id="l-shipment"><option value="">— Select —</option></select>
-      </div>
+    <div id="lp-results" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">
+      <div class="lot-picker-searching">Type to search lots…</div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="btn-l-cancel">Cancel</button>
-      <button class="btn" id="btn-l-save">Save Line</button>
+      <button class="btn btn-ghost" id="btn-lp-cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -283,7 +410,16 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.5.2 | contracts.html
+// Version 2.7.5 | contracts.html
+// v2.7.5: Edit Line modal shows current SKU badge; updates live when SKU is changed
+// v2.7.4: SKU autocomplete in Add Contract Lines modal (per row, matches PO pattern)
+// v2.7.3: Lot tooltip 2-row layout (name + lot/avail)
+// v2.7.2: Lot badge truncated to 20 chars with tooltip (full name + lot number + avail bags)
+// v2.7.1: Lot picker — warehouse filter dropdown
+// v2.7.0: Lot picker — searchable typeahead post-creation link/unlink per line. Remove lot from Add modal.
+// v2.6.0: Multi-row contract line modal (Add mode). Import from PO → multi-select → multi-row.
+//          Edit mode stays single-row. saveContractLineBatch for Add, saveContractLine for Edit.
+// v2.5.3: "Import from PO" — search PO lines, select rows, auto-populate SKU + bags into contract line modal.
 // v2.5.2: isNaN guards + sanitised numeric fields on contract line and substitution save.
 //         dates via UI.formatDate. page-width 1300px.
 const fmtDate = v => UI.formatDate(v);
@@ -296,7 +432,7 @@ if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-let PAGE_DATA = { contracts: [], buyers: [], inventory_lots: [], shipments: [], product_skus: [], contract_statuses: [], availability_types: [], weight_units: [] };
+let PAGE_DATA = { contracts: [], buyers: [], inventory_lots: [], shipments: [], warehouses: [], product_skus: [], contract_statuses: [], availability_types: [], weight_units: [] };
 
 (async () => {
   const user = Auth.getUser(); const company = Auth.getCompany();
@@ -375,7 +511,7 @@ function renderContracts() {
 
       // Substitution panel — only shown when a lot is linked
       const subPanel = l.inventory_lot_id
-        ? '<tr><td colspan="8" style="padding:0">' +
+        ? '<tr><td colspan="9" style="padding:0">' +
             '<div class="sub-panel">' +
               '<div class="sub-panel-title">' +
                 '<span>Lot Substitutions' + (subs.length ? ' (' + subs.length + ')' : '') + '</span>' +
@@ -390,6 +526,34 @@ function renderContracts() {
           '</td></tr>'
         : '';
 
+      // Lot link badge or link button
+      var lotBtn = '';
+      if (origLot) {
+        var lotShort = esc(origLot.sample_name).length > 20
+          ? esc(origLot.sample_name).substring(0, 20) + '…'
+          : esc(origLot.sample_name);
+        var lotTipRow2 = [
+          origLot.lot_number ? 'Lot ' + origLot.lot_number : '',
+          origLot.available_bags + ' bags avail'
+        ].filter(Boolean).join(' · ');
+        lotBtn =
+          '<span class="lot-tip">' +
+            '<span class="lot-linked-badge">📦 ' + lotShort + '</span>' +
+            '<span class="lot-tip-box">' +
+              '<span class="lot-tip-row1">' + esc(origLot.sample_name) + '</span>' +
+              '<span class="lot-tip-row2">' + esc(lotTipRow2) + '</span>' +
+            '</span>' +
+          '</span>' +
+          '<button class="btn btn-ghost btn-sm" style="padding:0.15rem 0.4rem;font-size:0.65rem" ' +
+            'onclick="openLotPicker(' + l.contract_line_id + ',\'' + esc(l.sku_id||'') + '\',\'' + esc(l.sample_name) + '\')" title="Change lot">⇕</button>' +
+          '<button class="btn btn-ghost btn-sm" style="padding:0.15rem 0.4rem;font-size:0.65rem;color:var(--muted)" ' +
+            'onclick="unlinkLot(' + l.contract_line_id + ')" title="Unlink lot">✕</button>';
+      } else {
+        lotBtn = '<button class="btn btn-ghost btn-sm" style="font-size:0.68rem" ' +
+          'onclick="openLotPicker(' + l.contract_line_id + ',\'' + esc(l.sku_id||'') + '\',\'' + esc(l.sample_name) + '\')">' +
+          '+ Link Lot</button>';
+      }
+
       return '<tr>' +
         '<td>' + esc(l.sample_name) + fwdTag + '</td>' +
         '<td class="num">' + l.contracted_bags + '</td>' +
@@ -401,6 +565,7 @@ function renderContracts() {
           '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
           '<div style="font-size:0.65rem;color:var(--muted);text-align:right">' + pct + '%</div>' +
         '</td>' +
+        '<td><div class="lot-link-wrap">' + lotBtn + '</div></td>' +
         '<td>' +
           '<button class="btn btn-ghost btn-sm" onclick="openLineModal(' + con.contract_id + ',' + l.contract_line_id + ')">Edit</button>' +
           '<button class="btn btn-danger btn-sm" onclick="deleteLine(' + con.contract_id + ',' + l.contract_line_id + ')">Del</button>' +
@@ -420,7 +585,7 @@ function renderContracts() {
         </div>
       </div>
       ${lines.length ? `<table class="lines-table">
-        <thead><tr><th>Sample</th><th class="num">Contracted</th><th class="num">Drawn</th><th class="num">Remaining</th><th class="num">Price</th><th class="num">Value</th><th>Progress</th><th></th></tr></thead>
+        <thead><tr><th>Sample</th><th class="num">Contracted</th><th class="num">Drawn</th><th class="num">Remaining</th><th class="num">Price</th><th class="num">Value</th><th>Progress</th><th>Lot</th><th></th></tr></thead>
         <tbody>${lineRows}</tbody>
       </table>` : '<div style="font-size:0.75rem;color:var(--muted)">No lines yet.</div>'}
     </div>`;
@@ -478,113 +643,265 @@ document.getElementById('btn-c-save').onclick = async () => {
   finally { btn.disabled = false; }
 };
 
-function openLineModal(contractId, lineId) {
-  const con  = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
-  const line = lineId ? (con.lines||[]).find(l => String(l.contract_line_id) === String(lineId)) : null;
-  document.getElementById('modal-line-title').textContent = line ? 'Edit Line' : 'Add Contract Line';
-  document.getElementById('l-contract-id').value = contractId;
-  document.getElementById('l-id').value     = line ? line.contract_line_id : '';
-  document.getElementById('l-name').value      = line ? line.sample_name      : '';
-  document.getElementById('l-sku-id').value    = line ? (line.sku_id   || '') : '';
-  document.getElementById('l-sku-code').value  = line ? (line.sku_code || '') : '';
-  const clearBtn = document.getElementById('l-name-clear');
-  if (clearBtn) clearBtn.className = 'sku-ac-clear' + (line && line.sample_name ? ' show' : '');
-  const ddEl = document.getElementById('l-name-dropdown');
-  if (ddEl) ddEl.style.display = 'none';
-  document.getElementById('l-bags').value   = line ? line.contracted_bags  : '';
-  document.getElementById('l-bag-size').value = line ? line.bag_size       : '';
-  document.getElementById('l-price').value  = line ? line.unit_price       : '';
+// ── Contract Line Modal (v2.6.0) ─────────────────────────────────────────────
+// ADD mode: multi-row table — lineRows[] state, renderLineRows(), saveContractLineBatch
+// EDIT mode: single-row fields — saveContractLine (unchanged)
 
-  document.getElementById('l-lot').innerHTML = `<option value="">— Not yet linked —</option>` +
-    PAGE_DATA.inventory_lots.map(lot =>
-      `<option value="${lot.lot_id}" ${line && String(line.inventory_lot_id)===String(lot.lot_id)?'selected':''}>${esc(lot.sample_name)} (${lot.available_bags} avail)</option>`
-    ).join('');
+var lineMode = 'add';
+var lineRows = [];
 
-  const bu = (id, val) => { document.getElementById(id).innerHTML = PAGE_DATA.weight_units.map(u => `<option value="${u}" ${u===val?'selected':''}>${u}</option>`).join(''); };
-  bu('l-bag-unit',   line ? line.bag_size_unit : 'kg');
-  bu('l-price-unit', line ? line.price_unit    : 'kg');
-
-  document.getElementById('l-avail-type').innerHTML = PAGE_DATA.availability_types.map(a =>
-    `<option value="${a}" ${line && line.availability_type===a?'selected':''}>${a}</option>`
-  ).join('');
-
-  document.getElementById('l-shipment').innerHTML = `<option value="">— Select shipment —</option>` +
-    PAGE_DATA.shipments.filter(s => s.sailing_status !== 'Arrived' || (line && String(s.shipment_id) === String(line.expected_shipment_id))).map(s =>
-      `<option value="${s.shipment_id}" ${line && String(line.expected_shipment_id)===String(s.shipment_id)?'selected':''}>${esc(s.container_number)} · ETA ${fmtDate(s.eta)}</option>`
-    ).join('');
-
-  const toggleFwd = () => {
-    document.getElementById('l-shipment-field').style.display =
-      document.getElementById('l-avail-type').value === 'forward' ? 'flex' : 'none';
-  };
-  document.getElementById('l-avail-type').onchange = toggleFwd;
-  toggleFwd();
-
-  const calcSub = () => {
-    const b = parseFloat(document.getElementById('l-bags').value)||0;
-    const s = parseFloat(document.getElementById('l-bag-size').value)||0;
-    const p = parseFloat(document.getElementById('l-price').value)||0;
-    const u = document.getElementById('l-price-unit').value;
-    const v = b * s * p;
-    document.getElementById('l-subtotal').textContent = v > 0 ? 'Contract value: ' + fmt(v) + ' / ' + u : '';
-  };
-  ['l-bags','l-bag-size','l-price','l-price-unit'].forEach(id => {
-    const el = document.getElementById(id); if (el) { el.oninput = calcSub; el.onchange = calcSub; }
-  });
-  calcSub();
-  clearModalError('modal-line'); document.getElementById('modal-line').classList.add('open');
+function emptyLineRow() {
+  return { sample_name:'', sku_id:'', sku_code:'', contracted_bags:'', bag_size:'', bag_size_unit:'kg', unit_price:'', price_unit:'kg' };
 }
 
-document.getElementById('btn-l-cancel').onclick = () => document.getElementById('modal-line').classList.remove('open');
+function openLineModal(contractId, lineId) {
+  const con  = PAGE_DATA.contracts.find(function(c) { return String(c.contract_id) === String(contractId); });
+  const line = lineId ? (con.lines||[]).find(function(l) { return String(l.contract_line_id) === String(lineId); }) : null;
 
-document.getElementById('btn-l-save').onclick = async () => {
-  const btn = document.getElementById('btn-l-save'); btn.disabled = true;
-  const isFwd = document.getElementById('l-avail-type').value === 'forward';
+  document.getElementById('l-contract-id').value = contractId;
+  document.getElementById('l-edit-id').value     = line ? line.contract_line_id : '';
 
-  // v2.5.2: validate numeric fields — catch 'abc', '$4.50', '1e3', '∞'
-  const rawBags    = document.getElementById('l-bags').value;
-  const rawBagSize = document.getElementById('l-bag-size').value;
-  const rawPrice   = document.getElementById('l-price').value;
-  const parsedBags = parseInt(rawBags);
-  const parsedSize = parseFloat(rawBagSize);
-  const parsedPrice = parseFloat(rawPrice);
-  if (isNaN(parsedBags) || parsedBags <= 0) {
-    showModalError('modal-line', 'Contracted Bags must be a whole number greater than zero.');
-    btn.disabled = false; return;
-  }
-  if (rawBagSize !== '' && isNaN(parsedSize)) {
-    showModalError('modal-line', 'Bag Size must be a number (e.g. 60).');
-    btn.disabled = false; return;
-  }
-  if (rawPrice !== '' && isNaN(parsedPrice)) {
-    showModalError('modal-line', 'Unit Price must be a number (e.g. 4.50, not $4.50).');
-    btn.disabled = false; return;
+  if (line) {
+    // EDIT mode — show single-row fields
+    lineMode = 'edit';
+    document.getElementById('modal-line-title').textContent = 'Edit Contract Line';
+    document.getElementById('l-add-mode').style.display    = 'none';
+    document.getElementById('l-edit-mode').style.display   = '';
+    document.getElementById('btn-l-import-po').style.display = 'none';
+    document.getElementById('btn-l-save').textContent      = 'Save Line';
+
+    document.getElementById('l-name').value      = line.sample_name  || '';
+    document.getElementById('l-sku-id').value    = line.sku_id       || '';
+    document.getElementById('l-sku-code').value  = line.sku_code     || '';
+    updateEditSkuBadge(line.sku_code || '');
+    const clearBtn = document.getElementById('l-name-clear');
+    if (clearBtn) clearBtn.className = 'sku-ac-clear' + (line.sample_name ? ' show' : '');
+    const ddEl = document.getElementById('l-name-dropdown');
+    if (ddEl) ddEl.style.display = 'none';
+    document.getElementById('l-bags').value     = line.contracted_bags || '';
+    document.getElementById('l-bag-size').value = line.bag_size        || '';
+    document.getElementById('l-price').value    = line.unit_price      || '';
+
+    const lotOpts = '<option value="">— Not yet linked —</option>' +
+      PAGE_DATA.inventory_lots.map(function(lot) {
+        return '<option value="' + lot.lot_id + '"' + (String(line.inventory_lot_id) === String(lot.lot_id) ? ' selected' : '') + '>' +
+          esc(lot.sample_name) + ' (' + lot.available_bags + ' avail)</option>';
+      }).join('');
+    document.getElementById('l-lot').innerHTML = lotOpts;
+
+    const buOpts = function(id, val) {
+      document.getElementById(id).innerHTML = PAGE_DATA.weight_units.map(function(u) {
+        return '<option value="' + u + '"' + (u === val ? ' selected' : '') + '>' + u + '</option>';
+      }).join('');
+    };
+    buOpts('l-bag-unit',   line.bag_size_unit || 'kg');
+    buOpts('l-price-unit', line.price_unit    || 'kg');
+
+    document.getElementById('l-avail-type').innerHTML = PAGE_DATA.availability_types.map(function(a) {
+      return '<option value="' + a + '"' + (line.availability_type === a ? ' selected' : '') + '>' + a + '</option>';
+    }).join('');
+
+    document.getElementById('l-shipment').innerHTML = '<option value="">— Select shipment —</option>' +
+      PAGE_DATA.shipments.filter(function(s) {
+        return s.sailing_status !== 'Arrived' || String(s.shipment_id) === String(line.expected_shipment_id);
+      }).map(function(s) {
+        return '<option value="' + s.shipment_id + '"' + (String(line.expected_shipment_id) === String(s.shipment_id) ? ' selected' : '') + '>' +
+          esc(s.container_number) + ' · ETA ' + fmtDate(s.eta) + '</option>';
+      }).join('');
+
+    const toggleFwd = function() {
+      document.getElementById('l-shipment-field').style.display =
+        document.getElementById('l-avail-type').value === 'forward' ? 'flex' : 'none';
+    };
+    document.getElementById('l-avail-type').onchange = toggleFwd;
+    toggleFwd();
+
+    const calcSub = function() {
+      const b = parseFloat(document.getElementById('l-bags').value)||0;
+      const s = parseFloat(document.getElementById('l-bag-size').value)||0;
+      const p = parseFloat(document.getElementById('l-price').value)||0;
+      const u = document.getElementById('l-price-unit').value;
+      const v = b * s * p;
+      document.getElementById('l-subtotal').textContent = v > 0 ? 'Contract value: ' + fmt(v) + ' / ' + u : '';
+    };
+    ['l-bags','l-bag-size','l-price','l-price-unit'].forEach(function(id) {
+      const el = document.getElementById(id); if (el) { el.oninput = calcSub; el.onchange = calcSub; }
+    });
+    calcSub();
+
+  } else {
+    // ADD mode — multi-row table
+    lineMode = 'add';
+    document.getElementById('modal-line-title').textContent  = 'Add Contract Lines';
+    document.getElementById('l-add-mode').style.display      = '';
+    document.getElementById('l-edit-mode').style.display     = 'none';
+    document.getElementById('btn-l-import-po').style.display = '';
+    document.getElementById('btn-l-save').textContent        = 'Save Lines';
+    lineRows = [emptyLineRow()];
+    renderLineRows();
   }
 
-  const payload = {
-    action:               'saveContractLine',
-    contract_id:          document.getElementById('l-contract-id').value,
-    contract_line_id:     document.getElementById('l-id').value || null,
-    inventory_lot_id:     document.getElementById('l-lot').value || '',
-    sample_name:          document.getElementById('l-name').value,
-    sku_id:               document.getElementById('l-sku-id').value   || '',
-    sku_code:             document.getElementById('l-sku-code').value || '',
-    contracted_bags:      parsedBags,                             // v2.5.2: sanitised
-    bag_size:             rawBagSize !== '' ? parsedSize : 0,     // v2.5.2: sanitised
-    bag_size_unit:        document.getElementById('l-bag-unit').value,
-    unit_price:           rawPrice   !== '' ? parsedPrice : 0,    // v2.5.2: sanitised
-    price_unit:           document.getElementById('l-price-unit').value,
-    availability_type:    document.getElementById('l-avail-type').value,
-    expected_shipment_id: isFwd ? document.getElementById('l-shipment').value : ''
-  };
-  try {
-    const data = await API.post(payload);
-    const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(data.contract_id));
-    if (con) con.lines = data.lines;
-    document.getElementById('modal-line').classList.remove('open');
-    renderContracts(); showToast('Line saved.', 'success');
-  } catch (e) { console.error('Caught error:', e); showModalError('modal-line', e.message || 'Save failed.'); }
-  finally { btn.disabled = false; }
+  clearModalError('modal-line');
+  document.getElementById('modal-line').classList.add('open');
+}
+
+function renderLineRows() {
+  var wrap = document.getElementById('l-rows-wrap');
+
+  wrap.innerHTML = lineRows.map(function(r, i) {
+    var selUnit = function(val) {
+      return PAGE_DATA.weight_units.map(function(u) {
+        return '<option value="' + u + '"' + (u === (val || 'kg') ? ' selected' : '') + '>' + u + '</option>';
+      }).join('');
+    };
+    return '<div class="line-row" data-row="' + i + '">' +
+      '<div class="line-sku-wrap">' +
+        '<input type="text" id="csku-' + i + '" placeholder="SKU…" autocomplete="off" ' +
+          'value="' + esc(r.sku_code) + '" style="font-size:0.72rem" ' +
+          'oninput="cSkuInput(' + i + ',this.value)" ' +
+          'onfocus="cSkuInput(' + i + ',this.value)" ' +
+          'onblur="setTimeout(function(){cSkuClose(' + i + ')},150)" ' +
+          'onkeydown="cSkuKey(event,' + i + ')" />' +
+        '<div class="line-sku-drop" id="csku-drop-' + i + '"></div>' +
+      '</div>' +
+      '<input type="text" placeholder="Product name *" value="' + esc(r.sample_name) + '" ' +
+        'oninput="lineRows[' + i + '].sample_name=this.value" style="font-size:0.75rem" />' +
+      '<input type="number" placeholder="Bags *" value="' + (r.contracted_bags||'') + '" min="1" ' +
+        'oninput="lineRows[' + i + '].contracted_bags=this.value" style="font-size:0.75rem" />' +
+      '<input type="number" placeholder="60" value="' + (r.bag_size||'') + '" min="0" step="0.1" ' +
+        'oninput="lineRows[' + i + '].bag_size=this.value" style="font-size:0.75rem" />' +
+      '<select onchange="lineRows[' + i + '].bag_size_unit=this.value">' + selUnit(r.bag_size_unit) + '</select>' +
+      '<input type="number" placeholder="0.00" value="' + (r.unit_price||'') + '" min="0" step="0.01" ' +
+        'oninput="lineRows[' + i + '].unit_price=this.value" style="font-size:0.75rem" />' +
+      '<select onchange="lineRows[' + i + '].price_unit=this.value">' + selUnit(r.price_unit) + '</select>' +
+      '<button type="button" class="btn-del-row" onclick="removeLineRow(' + i + ')" title="Remove">✕</button>' +
+      '</div>';
+  }).join('');
+}
+
+function removeLineRow(idx) {
+  if (lineRows.length === 1) return; // keep at least one row
+  lineRows.splice(idx, 1);
+  renderLineRows();
+}
+
+document.getElementById('btn-add-line-row').onclick = function() {
+  lineRows.push(emptyLineRow());
+  renderLineRows();
+};
+
+document.getElementById('btn-l-cancel').onclick = function() {
+  document.getElementById('modal-line').classList.remove('open');
+};
+
+document.getElementById('btn-l-save').onclick = async function() {
+  const btn = document.getElementById('btn-l-save');
+  btn.disabled = true;
+  clearModalError('modal-line');
+
+  if (lineMode === 'edit') {
+    // Single-row edit path — unchanged
+    const isFwd = document.getElementById('l-avail-type').value === 'forward';
+    const rawBags    = document.getElementById('l-bags').value;
+    const rawBagSize = document.getElementById('l-bag-size').value;
+    const rawPrice   = document.getElementById('l-price').value;
+    const parsedBags  = parseInt(rawBags);
+    const parsedSize  = parseFloat(rawBagSize);
+    const parsedPrice = parseFloat(rawPrice);
+    if (isNaN(parsedBags) || parsedBags <= 0) {
+      showModalError('modal-line', 'Contracted Bags must be a whole number greater than zero.');
+      btn.disabled = false; return;
+    }
+    if (rawBagSize !== '' && isNaN(parsedSize)) {
+      showModalError('modal-line', 'Bag Size must be a number (e.g. 60).');
+      btn.disabled = false; return;
+    }
+    if (rawPrice !== '' && isNaN(parsedPrice)) {
+      showModalError('modal-line', 'Unit Price must be a number (e.g. 4.50, not $4.50).');
+      btn.disabled = false; return;
+    }
+    try {
+      const data = await API.post({
+        action:               'saveContractLine',
+        contract_id:          document.getElementById('l-contract-id').value,
+        contract_line_id:     document.getElementById('l-edit-id').value || null,
+        inventory_lot_id:     document.getElementById('l-lot').value || '',
+        sample_name:          document.getElementById('l-name').value,
+        sku_id:               document.getElementById('l-sku-id').value   || '',
+        sku_code:             document.getElementById('l-sku-code').value || '',
+        contracted_bags:      parsedBags,
+        bag_size:             rawBagSize !== '' ? parsedSize  : 0,
+        bag_size_unit:        document.getElementById('l-bag-unit').value,
+        unit_price:           rawPrice   !== '' ? parsedPrice : 0,
+        price_unit:           document.getElementById('l-price-unit').value,
+        availability_type:    document.getElementById('l-avail-type').value,
+        expected_shipment_id: isFwd ? document.getElementById('l-shipment').value : ''
+      });
+      const con = PAGE_DATA.contracts.find(function(c) { return String(c.contract_id) === String(data.contract_id); });
+      if (con) con.lines = data.lines;
+      document.getElementById('modal-line').classList.remove('open');
+      renderContracts(); showToast('Line saved.', 'success');
+    } catch (e) { showModalError('modal-line', e.message || 'Save failed.'); }
+    finally { btn.disabled = false; }
+
+  } else {
+    // ADD mode — batch save
+    // Sync any direct DOM edits back into lineRows before reading
+    document.querySelectorAll('#l-rows-wrap .line-row').forEach(function(rowEl) {
+      const i = parseInt(rowEl.dataset.row);
+      if (!lineRows[i]) return;
+      const inputs  = rowEl.querySelectorAll('input');
+      const selects = rowEl.querySelectorAll('select');
+      // inputs: 0=sku_code, 1=sample_name, 2=contracted_bags, 3=bag_size, 4=unit_price
+      lineRows[i].sku_code        = inputs[0].value;
+      lineRows[i].sample_name     = inputs[1].value;
+      lineRows[i].contracted_bags = inputs[2].value;
+      lineRows[i].bag_size        = inputs[3].value;
+      lineRows[i].unit_price      = inputs[4].value;
+      lineRows[i].bag_size_unit   = selects[0].value;
+      lineRows[i].price_unit      = selects[1].value;
+    });
+
+    for (var i = 0; i < lineRows.length; i++) {
+      const r = lineRows[i];
+      if (!r.sample_name || !r.sample_name.trim()) {
+        showModalError('modal-line', 'Row ' + (i+1) + ': Product Name is required.');
+        btn.disabled = false; return;
+      }
+      const bags = parseInt(r.contracted_bags);
+      if (isNaN(bags) || bags <= 0) {
+        showModalError('modal-line', 'Row ' + (i+1) + ': Contracted Bags must be greater than zero.');
+        btn.disabled = false; return;
+      }
+    }
+
+    const lines = lineRows.map(function(r) {
+      return {
+        sample_name:      r.sample_name.trim(),
+        sku_id:           r.sku_id   || '',
+        sku_code:         r.sku_code || '',
+        contracted_bags:  parseInt(r.contracted_bags) || 0,
+        bag_size:         parseFloat(r.bag_size)      || 0,
+        bag_size_unit:    r.bag_size_unit || 'kg',
+        unit_price:       parseFloat(r.unit_price)    || 0,
+        price_unit:       r.price_unit    || 'kg',
+        availability_type: 'current'
+      };
+    });
+
+    try {
+      const data = await API.post({
+        action:      'saveContractLineBatch',
+        contract_id: document.getElementById('l-contract-id').value,
+        lines:       lines
+      });
+      const con = PAGE_DATA.contracts.find(function(c) { return String(c.contract_id) === String(data.contract_id); });
+      if (con) con.lines = data.lines;
+      document.getElementById('modal-line').classList.remove('open');
+      renderContracts(); showToast(lines.length + ' line' + (lines.length > 1 ? 's' : '') + ' saved.', 'success');
+    } catch (e) { showModalError('modal-line', e.message || 'Save failed.'); }
+    finally { btn.disabled = false; }
+  }
 };
 
 async function deleteLine(contractId, lineId) {
@@ -813,6 +1130,7 @@ function skuAcInput(input) {
   // Clear hidden fields when user types (de-select previous SKU)
   document.getElementById('l-sku-id').value   = '';
   document.getElementById('l-sku-code').value = '';
+  updateEditSkuBadge('');
   clrBtn.className = q ? 'sku-ac-clear show' : 'sku-ac-clear';
   skuAcIndex = -1;
 
@@ -841,6 +1159,7 @@ function skuAcSelect(e) {
   document.getElementById('l-name').value      = name;
   document.getElementById('l-sku-id').value    = id;
   document.getElementById('l-sku-code').value  = code;
+  updateEditSkuBadge(code);
   document.getElementById('l-name-clear').className = 'sku-ac-clear show';
   document.getElementById('l-name-dropdown').style.display = 'none';
   skuAcIndex = -1;
@@ -867,6 +1186,18 @@ function skuAcKeydown(e) {
 
   items.forEach((el, i) => el.classList.toggle('ac-active', i === skuAcIndex));
   if (skuAcIndex >= 0) items[skuAcIndex].scrollIntoView({ block: 'nearest' });
+}
+
+function updateEditSkuBadge(skuCode) {
+  var badge = document.getElementById('l-sku-badge');
+  if (!badge) return;
+  if (skuCode) {
+    badge.textContent = 'SKU: ' + skuCode;
+    badge.className = 'edit-sku-badge';
+  } else {
+    badge.textContent = 'No SKU linked';
+    badge.className = 'edit-sku-badge empty';
+  }
 }
 
 function clearSkuAc() {
@@ -905,6 +1236,280 @@ function showToast(msg, type) {
   t.textContent = msg; t.className = 'toast '+(type||'');
   t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+// ── Import from PO (v2.5.3) ───────────────────────────────────────────────────
+// Only valid in Add mode (new line). On import: fills Product Name, SKU id/code, Contracted Bags, Bag Size.
+// One API call per search. Selected row applies to one contract line.
+
+var importPoSelected = []; // { po_line_id, sample_name, sku_id, sku_code, qty_bags, bag_size, bag_size_unit }
+
+document.getElementById('btn-l-import-po').onclick = () => {
+  importPoSelected = [];
+  document.getElementById('btn-import-po-apply').disabled = true;
+  document.getElementById('import-po-query').value = '';
+  document.getElementById('import-po-results').innerHTML =
+    '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:0.75rem">Enter a search term above</div>';
+  clearModalError('modal-import-po-error');
+  document.getElementById('modal-import-po').classList.add('open');
+};
+
+document.getElementById('btn-import-po-cancel').onclick = () => {
+  document.getElementById('modal-import-po').classList.remove('open');
+};
+
+document.getElementById('import-po-query').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-import-po-search').click();
+});
+
+document.getElementById('btn-import-po-search').onclick = async () => {
+  const btn   = document.getElementById('btn-import-po-search');
+  const query = document.getElementById('import-po-query').value.trim();
+  const wrap  = document.getElementById('import-po-results');
+  btn.disabled = true;
+  wrap.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:0.75rem">Searching…</div>';
+  importPoSelected = [];
+  document.getElementById('btn-import-po-apply').disabled = true;
+  try {
+    const data = await API.post({ action: 'searchPoForContract', query: query });
+    renderImportPoResults(data.pos || []);
+  } catch (e) {
+    wrap.innerHTML = '<div style="padding:1rem;color:var(--error);font-family:var(--font-mono);font-size:0.75rem">' + esc(e.message || 'Search failed') + '</div>';
+  } finally { btn.disabled = false; }
+};
+
+function renderImportPoResults(pos) {
+  var wrap = document.getElementById('import-po-results');
+  if (!pos.length) {
+    wrap.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:0.75rem">No matching POs found</div>';
+    return;
+  }
+  var html = '';
+  pos.forEach(function(po) {
+    if (!po.lines || !po.lines.length) return;
+    html += '<div style="border-bottom:1px solid var(--border);padding:0.6rem 0.75rem;background:var(--bg)">';
+    html += '<span style="font-family:var(--font-mono);font-size:0.78rem;font-weight:600">' + esc(po.po_number) + '</span>';
+    html += '<span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted);margin-left:0.75rem">' + esc(po.supplier_name) + ' · ' + (po.po_date || '') + '</span>';
+    html += '</div>';
+    po.lines.forEach(function(l) {
+      var rowId = 'imp-po-' + l.po_line_id;
+      var lineJson = JSON.stringify(l).replace(/"/g, '&quot;');
+      html += '<label for="' + rowId + '" style="display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem 0.55rem 1.25rem;cursor:pointer;border-bottom:1px solid var(--border)">';
+      html += '<input type="checkbox" id="' + rowId + '" data-line="' + lineJson + '" style="width:auto;flex-shrink:0" />';
+      html += '<span style="flex:1;font-size:0.8rem">' + esc(l.sample_name) + '</span>';
+      html += '<span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted);white-space:nowrap">';
+      html += (l.sku_code ? esc(l.sku_code) + ' · ' : '');
+      html += l.qty_bags + ' bags' + (l.bag_size ? ' · ' + l.bag_size + ' ' + l.bag_size_unit : '');
+      html += '</span></label>';
+    });
+  });
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var checked = wrap.querySelectorAll('input[type="checkbox"]:checked');
+      importPoSelected = Array.from(checked).map(function(el) {
+        try { return JSON.parse(el.getAttribute('data-line').replace(/&quot;/g, '"')); } catch(_) { return null; }
+      }).filter(Boolean);
+      document.getElementById('btn-import-po-apply').disabled = importPoSelected.length === 0;
+    });
+  });
+}
+
+document.getElementById('btn-import-po-apply').onclick = function() {
+  if (!importPoSelected.length) return;
+  // Populate lineRows — one row per selected PO line (Add mode only)
+  importPoSelected.forEach(function(l) {
+    var targetIdx = lineRows.findIndex(function(r) { return !r.sample_name && !r.sku_id; });
+    if (targetIdx === -1) {
+      lineRows.push(emptyLineRow());
+      targetIdx = lineRows.length - 1;
+    }
+    lineRows[targetIdx].sample_name    = l.sample_name    || '';
+    lineRows[targetIdx].sku_id         = l.sku_id         || '';
+    lineRows[targetIdx].sku_code       = l.sku_code       || '';
+    lineRows[targetIdx].contracted_bags = l.qty_bags       || '';
+    lineRows[targetIdx].bag_size        = l.bag_size       || '';
+    lineRows[targetIdx].bag_size_unit   = l.bag_size_unit  || 'kg';
+  });
+  renderLineRows();
+  document.getElementById('modal-import-po').classList.remove('open');
+  importPoSelected = [];
+};
+
+
+// ── Lot Picker (v2.7.0) ───────────────────────────────────────────────────────
+// openLotPicker(contractLineId, skuId, lineName) — opens modal, searches by SKU first
+// Typeahead: debounced 300ms. On select: calls linkLotToContractLine API.
+// unlinkLot(contractLineId) — calls unlinkLotFromContractLine API.
+
+var lpDebounce = null;
+
+function openLotPicker(contractLineId, skuId, lineName) {
+  document.getElementById('lp-contract-line-id').value = contractLineId;
+  document.getElementById('lp-sku-id').value           = skuId || '';
+  document.getElementById('lp-line-label').textContent = lineName ? 'Line: ' + lineName : '';
+  document.getElementById('lp-query').value            = '';
+  document.getElementById('lp-results').innerHTML      =
+    '<div class="lot-picker-searching">Type to search lots…</div>';
+
+  // Populate warehouse dropdown from PAGE_DATA
+  var whSel = document.getElementById('lp-warehouse');
+  whSel.innerHTML = '<option value="">All Warehouses</option>' +
+    (PAGE_DATA.warehouses || []).map(function(w) {
+      return '<option value="' + w.warehouse_id + '">' + esc(w.warehouse_name) + '</option>';
+    }).join('');
+  whSel.value = '';
+
+  clearModalError('modal-lot-picker');
+  document.getElementById('modal-lot-picker').classList.add('open');
+  // Auto-search with SKU pre-filter on open
+  lpSearch('');
+}
+
+document.getElementById('btn-lp-cancel').onclick = function() {
+  document.getElementById('modal-lot-picker').classList.remove('open');
+};
+
+document.getElementById('lp-query').addEventListener('input', function() {
+  clearTimeout(lpDebounce);
+  lpDebounce = setTimeout(function() { lpSearch(document.getElementById('lp-query').value); }, 300);
+});
+
+document.getElementById('lp-warehouse').addEventListener('change', function() {
+  lpSearch(document.getElementById('lp-query').value);
+});
+
+async function lpSearch(query) {
+  var wrap        = document.getElementById('lp-results');
+  var skuId       = document.getElementById('lp-sku-id').value;
+  var warehouseId = document.getElementById('lp-warehouse').value;
+  wrap.innerHTML  = '<div class="lot-picker-searching">Searching…</div>';
+  try {
+    var data = await API.post({
+      action:       'searchLotsForLink',
+      query:        query,
+      sku_id:       skuId,
+      warehouse_id: warehouseId
+    });
+    lpRenderResults(data.lots || []);
+  } catch(e) {
+    wrap.innerHTML = '<div class="lot-picker-searching" style="color:var(--error)">' + esc(e.message || 'Search failed') + '</div>';
+  }
+}
+
+function lpRenderResults(lots) {
+  var wrap   = document.getElementById('lp-results');
+  var skuId  = document.getElementById('lp-sku-id').value;
+  if (!lots.length) {
+    wrap.innerHTML = '<div class="lot-picker-searching">No lots found</div>';
+    return;
+  }
+  wrap.innerHTML = lots.map(function(l) {
+    var skuTag   = l.sku_code ? '<span class="lp-sku">' + esc(l.sku_code) + '</span> · ' : '';
+    var availCls = l.available_bags > 0 ? 'lp-avail' : 'lp-muted';
+    var skuMatch = skuId && String(l.sku_id) === String(skuId) ? ' style="border-left:3px solid var(--accent)"' : '';
+    var lotJson  = JSON.stringify(l).replace(/"/g, '&quot;');
+    return '<div class="lot-picker-item" data-lot="' + lotJson + '" onclick="lpSelect(this)"' + skuMatch + '>' +
+      '<div class="lp-name">' + esc(l.sample_name) + '</div>' +
+      '<div class="lp-meta">' + skuTag +
+        (l.lot_number ? 'Lot ' + esc(l.lot_number) + ' · ' : '') +
+        '<span class="' + availCls + '">' + l.available_bags + ' avail</span>' +
+        (l.warehouse_name ? ' · ' + esc(l.warehouse_name) : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function lpSelect(el) {
+  var lot            = JSON.parse(el.getAttribute('data-lot').replace(/&quot;/g, '"'));
+  var contractLineId = document.getElementById('lp-contract-line-id').value;
+  el.style.opacity   = '0.5';
+  try {
+    var data = await API.post({
+      action:            'linkLotToContractLine',
+      contract_line_id:  contractLineId,
+      lot_id:            lot.lot_id
+    });
+    var con = PAGE_DATA.contracts.find(function(c) { return String(c.contract_id) === String(data.contract_id); });
+    if (con) con.lines = data.lines;
+    document.getElementById('modal-lot-picker').classList.remove('open');
+    renderContracts();
+    showToast('Lot linked.', 'success');
+  } catch(e) {
+    el.style.opacity = '1';
+    showModalError('modal-lot-picker', e.message || 'Link failed.');
+  }
+}
+
+async function unlinkLot(contractLineId) {
+  if (!confirm('Unlink this lot from the contract line?')) return;
+  try {
+    var data = await API.post({ action: 'unlinkLotFromContractLine', contract_line_id: contractLineId });
+    var con  = PAGE_DATA.contracts.find(function(c) { return String(c.contract_id) === String(data.contract_id); });
+    if (con) con.lines = data.lines;
+    renderContracts();
+    showToast('Lot unlinked.', 'success');
+  } catch(e) {
+    showToast(e.message || 'Unlink failed.', 'error');
+  }
+}
+
+
+// ── Contract Line SKU Autocomplete (v2.7.4) ───────────────────────────────────
+// cSkuInput / cSkuPick / cSkuClose / cSkuKey — per-row SKU search in Add modal.
+// On pick: sets sku_id, sku_code, auto-fills sample_name if empty.
+
+function cSkuInput(rowIdx, value) {
+  var drop = document.getElementById('csku-drop-' + rowIdx);
+  if (!drop) return;
+  lineRows[rowIdx].sku_code = value;
+  lineRows[rowIdx].sku_id   = '';
+  if (!value.trim()) { drop.style.display = 'none'; return; }
+
+  var q = value.toLowerCase();
+  var matches = (PAGE_DATA.product_skus || []).filter(function(s) {
+    return s.sku_code.toLowerCase().includes(q) || (s.sku_name || '').toLowerCase().includes(q);
+  }).slice(0, 10);
+
+  if (!matches.length) {
+    drop.innerHTML = '<div class="line-sku-item" style="color:var(--muted);cursor:default">No SKU match</div>';
+  } else {
+    drop.innerHTML = matches.map(function(s) {
+      return '<div class="line-sku-item" onmousedown="cSkuPick(' + rowIdx + ',' + s.sku_id + ')">' +
+        '<div class="lsi-code">' + esc(s.sku_code) + '</div>' +
+        '<div class="lsi-name">' + esc(s.sku_name || '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  drop.style.display = 'block';
+}
+
+function cSkuPick(rowIdx, skuId) {
+  var s = (PAGE_DATA.product_skus || []).find(function(x) { return String(x.sku_id) === String(skuId); });
+  if (!s) return;
+  lineRows[rowIdx].sku_id   = s.sku_id;
+  lineRows[rowIdx].sku_code = s.sku_code;
+  // Auto-fill product name if empty
+  if (!lineRows[rowIdx].sample_name && s.sku_name) {
+    lineRows[rowIdx].sample_name = s.sku_name;
+  }
+  cSkuClose(rowIdx);
+  renderLineRows();
+  // Refocus product name input for that row so staff can adjust if needed
+  var nameInput = document.querySelector('#l-rows-wrap .line-row[data-row="' + rowIdx + '"] input[placeholder="Product name *"]');
+  if (nameInput) nameInput.focus();
+}
+
+function cSkuClose(rowIdx) {
+  var drop = document.getElementById('csku-drop-' + rowIdx);
+  if (drop) drop.style.display = 'none';
+}
+
+function cSkuKey(e, rowIdx) {
+  if (e.key === 'Escape') cSkuClose(rowIdx);
+  if (e.key === 'Tab')    cSkuClose(rowIdx);
+}
+
 </script>
 </body>
 </html>

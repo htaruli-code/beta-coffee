@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<!-- Version 1.15.2 | samples.html -->
+<!-- Version 1.15.4 | samples.html -->
+<!-- v1.15.4: COMPLETE inline edit for sending_date, courier_name, tracking_number on inbound row.
+     ieInboundCell() + startEditInbound() + event delegation routing + tr expand guard. -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -434,7 +436,8 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.13.9 | samples.html script
+    // Version 1.15.4 | samples.html script
+    // v1.15.4: full inbound inline-edit: ieInboundCell, startEditInbound, delegation routing, tr guard.
     // v1.13.9: isNaN guard on inline-edit numeric fields (qty_grams, available_bags, bag_size, cost_price).
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
@@ -569,9 +572,9 @@
           <td>${UI.esc(supplierMap[s.supplier_id] || s.supplier_id)}</td>
           <td>${UI.esc(whMap[s.warehouse_id] || s.warehouse_id)}</td>
           <td>${UI.formatDate(s.created_at)}</td>
-          <td>${UI.formatDate(s.sending_date) || '—'}</td>
-          <td>${UI.esc(s.courier_name || '—')}</td>
-          <td>${UI.esc(s.tracking_number || '—')}</td>
+          ${ieInboundCell(s.inbound_id, 'sending_date',    s.sending_date    || '', 'date', '')}
+          ${ieInboundCell(s.inbound_id, 'courier_name',    s.courier_name    || '', 'text', '')}
+          ${ieInboundCell(s.inbound_id, 'tracking_number', s.tracking_number || '', 'text', 'font-family:var(--font-mono);font-size:0.78rem')}
           <td>${trackedBtn(s)}</td>
           <td>${receivedBtn(s)}</td>
           <td style="font-size:0.75rem;color:var(--muted)">${detCount ? detCount + ' sample' + (detCount > 1 ? 's' : '') : '—'}</td>
@@ -580,8 +583,9 @@
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openPrices(${s.inbound_id})">Prices</button>
           </td>`;
 
-        // Toggle expand on row click
-        tr.addEventListener('click', () => {
+        // Toggle expand on row click — v1.16.1: skip if click is on an ie-inbound-cell (inline edit)
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('.ie-inbound-cell')) return;
           if (expandedRows.has(s.inbound_id)) expandedRows.delete(s.inbound_id);
           else expandedRows.add(s.inbound_id);
           renderTable();
@@ -697,11 +701,33 @@
         '</td>';
     }
 
+    // v1.15.3: ieInboundCell — inline edit cell for inbound_samples header fields
+    // Uses data-inbound-id + data-raw (raw DB value for date seeding) instead of data-detail-id
+    function ieInboundCell(inboundId, field, val, type, tdStyle) {
+      const display = (val !== null && val !== undefined && val !== '')
+        ? (type === 'date' ? (UI.formatDate(val) || String(val)) : String(val))
+        : '—';
+      return '<td style="' + tdStyle + '" class="ie-cell ie-inbound-cell"' +
+        ' data-inbound-id="' + inboundId + '"' +
+        ' data-field="' + field + '"' +
+        ' data-type="' + type + '"' +
+        ' data-raw="' + UI.esc(String(val)) + '">' +
+        '<span class="ie-val">' + UI.esc(display) + '</span>' +
+        '<span class="ie-hint">✎</span>' +
+        '</td>';
+    }
+
     // v1.12.5: event delegation for ie-cell clicks — avoids inline onclick quoting issues
+    // v1.15.3: routes ie-inbound-cell clicks to startEditInbound before detail logic
     document.addEventListener('click', function(e) {
       const td = e.target.closest('td.ie-cell');
       if (!td || e.target.closest('input,select')) return;
       e.stopPropagation();
+      // Inbound-level cells (sending_date / courier_name / tracking_number)
+      if (td.classList.contains('ie-inbound-cell')) {
+        startEditInbound(td);
+        return;
+      }
       const detailId = td.dataset.detailId;
       const field    = td.dataset.field;
       if (!detailId || !field) return;
@@ -712,6 +738,49 @@
         startEdit(td, detailId, field, td.dataset.type || 'text');
       }
     });
+
+    // v1.15.3: startEditInbound — inline edit for inbound_samples fields
+    function startEditInbound(td) {
+      const inboundId = td.dataset.inboundId;
+      const field     = td.dataset.field;
+      const type      = td.dataset.type || 'text';
+      const rawVal    = td.dataset.raw || '';   // raw DB value — used as seed for date inputs
+
+      const span       = td.querySelector('.ie-val');
+      const curDisplay = span.textContent === '—' ? '' : span.textContent;
+      const curEdit    = type === 'date' ? rawVal : curDisplay;
+
+      const input = document.createElement('input');
+      input.type  = type;
+      input.value = curEdit;
+      input.className = 'ie-input';
+      input.style.width = Math.max(td.offsetWidth - 16, 80) + 'px';
+      td.innerHTML = '';
+      td.appendChild(input);
+      input.focus();
+      if (type !== 'date') input.select();
+
+      const commit = async () => {
+        const newVal = input.value.trim();
+        const unchanged = type === 'date' ? (newVal === rawVal) : (newVal === curDisplay || (newVal === '' && curDisplay === '—'));
+        if (unchanged) { renderTable(); return; }
+        try {
+          const res = await API.saveInboundField(inboundId, field, newVal);
+          const s = PAGE_DATA.samples.find(x => String(x.inbound_id) === String(inboundId));
+          if (s) s[field] = res.value;
+          UI.toastSuccess('Saved.');
+        } catch (err) {
+          UI.toastError(err.message);
+        }
+        renderTable();
+      };
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter')  { input.blur(); }
+        if (ev.key === 'Escape') { renderTable(); }
+        ev.stopPropagation();
+      });
+    }
 
 
     function startEdit(td, detailId, field, type) {
