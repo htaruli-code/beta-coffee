@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.7.5 | contracts.html -->
+<!-- Version 2.8.2 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -155,6 +155,68 @@
     /* ── Edit line SKU badge (v2.7.5) ── */
     .edit-sku-badge { display:inline-flex; align-items:center; gap:0.35rem; font-family:var(--font-mono); font-size:0.68rem; background:var(--surface); border:1px solid var(--border); border-radius:2px; padding:0.15rem 0.5rem; color:var(--accent); font-weight:600; margin-top:0.25rem; min-height:1.2rem; }
     .edit-sku-badge.empty { color:var(--muted); font-weight:400; }
+
+    /* ── PDF print styles (v2.8) ─────────────────────────────────────────────── */
+    .pdf-modal { max-width: 540px; }
+    .pdf-opt-group { margin-bottom: 0.75rem; }
+    .pdf-opt-label { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; display: block; }
+    .pdf-opt-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; font-family: var(--font-mono); font-size: 0.75rem; cursor: pointer; }
+    .pdf-opt-row input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; flex-shrink: 0; }
+    .pdf-opt-row.sub-opt { padding-left: 1.25rem; font-size: 0.72rem; color: var(--muted); }
+
+    @media print {
+      html, body { height: auto; overflow: visible; }
+      body > *:not(#pdf-print-area) { display: none !important; }
+      #pdf-print-area {
+        display: block !important;
+        position: static; width: 100%;
+        background: #fff; padding: 48px 56px;
+        font-family: Georgia, serif; font-size: 11px; color: #1a1a1a; line-height: 1.5;
+      }
+      .pdf-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; border-bottom: 2px solid #c47a2b; padding-bottom: 16px; }
+      .pdf-hdr-seller { font-size: 14px; }
+      .pdf-hdr-seller-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+      .pdf-hdr-seller-addr, .pdf-hdr-seller-email { font-family: monospace; font-size: 9px; color: #8a7060; }
+      .pdf-hdr-right { text-align: right; }
+      .pdf-hdr-label { font-family: monospace; font-size: 7px; letter-spacing: 0.15em; text-transform: uppercase; color: #c47a2b; margin-bottom: 4px; }
+      .pdf-hdr-number { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
+      .pdf-hdr-date { font-family: monospace; font-size: 9px; color: #8a7060; margin-bottom: 6px; }
+      .pdf-hdr-status { font-family: monospace; font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 10px; border-radius: 2px; display: inline-block; }
+      .pdf-section-label { font-family: monospace; font-size: 7px; letter-spacing: 0.12em; text-transform: uppercase; color: #8a7060; margin-bottom: 8px; border-bottom: 1px solid #f0e8da; padding-bottom: 3px; }
+      .pdf-section { margin-bottom: 22px; }
+      .pdf-buyer-name { font-weight: 700; font-size: 12px; margin-bottom: 2px; }
+      .pdf-buyer-attn, .pdf-buyer-email, .pdf-buyer-addr { font-size: 10px; color: #555; font-family: monospace; margin-bottom: 1px; }
+      .pdf-buyer-row { display: flex; gap: 32px; }
+      .pdf-buyer-col { flex: 1; }
+      .pdf-buyer-level-label { font-family: monospace; font-size: 7px; color: #8a7060; text-transform: uppercase; }
+      .pdf-buyer-level-val { font-weight: 700; color: #c47a2b; font-size: 11px; }
+      .pdf-lines-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 0; }
+      .pdf-lines-table th { font-family: monospace; font-size: 7.5px; color: #8a7060; text-transform: uppercase; letter-spacing: 0.06em; padding: 5px 6px; border-bottom: 1.5px solid #e8ddd0; background: #fdf8f2; }
+      .pdf-lines-table td { padding: 6px 6px; border-bottom: 1px solid #f0e8da; vertical-align: top; }
+      .pdf-lines-table .r { text-align: right; }
+      .pdf-lines-table .c { text-align: center; }
+      .pdf-fwd-tag { font-family: monospace; font-size: 7px; background: #eef4fd; color: #1a5ca8; padding: 1px 4px; border-radius: 2px; margin-top: 1px; display: inline-block; }
+      .pdf-total-row td { border-top: 1.5px solid #c47a2b; font-weight: 700; color: #c47a2b; font-size: 12px; padding: 6px 6px; border-bottom: none; }
+      .pdf-progress-bar { background: #f0e8da; border-radius: 2px; height: 5px; width: 64px; margin: 0 auto 1px; }
+      .pdf-progress-fill { background: #c47a2b; border-radius: 2px; height: 5px; }
+      .pdf-progress-fill.done { background: #1e6640; }
+      .pdf-progress-pct { font-family: monospace; font-size: 8px; color: #8a7060; text-align: center; }
+      .pdf-stats { display: flex; gap: 16px; margin-bottom: 8px; }
+      .pdf-stat { flex: 1; background: #fdf8f2; border: 1px solid #f0e8da; padding: 6px 10px; border-radius: 2px; }
+      .pdf-stat-label { font-family: monospace; font-size: 7px; color: #8a7060; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+      .pdf-stat-val { font-weight: 700; font-size: 12px; }
+      .pdf-dd-bar { background: #f0e8da; border-radius: 3px; height: 6px; }
+      .pdf-dd-fill { background: #c47a2b; border-radius: 3px; height: 6px; }
+      .pdf-sub-row { display: flex; gap: 10px; background: #fdf4e8; border: 1px solid #f5e0b8; padding: 4px 8px; border-radius: 2px; margin-bottom: 3px; font-size: 9px; font-family: monospace; color: #8a7060; flex-wrap: wrap; }
+      .pdf-notes-box { background: #fdf8f2; border: 1px solid #f0e8da; padding: 8px 12px; border-radius: 2px; font-size: 10px; color: #444; line-height: 1.6; }
+      .pdf-footer { margin-top: 32px; border-top: 1px solid #f0e8da; padding-top: 18px; }
+      .pdf-sig-row { display: flex; gap: 32px; margin-bottom: 18px; }
+      .pdf-sig { flex: 1; }
+      .pdf-sig-label { font-family: monospace; font-size: 7px; color: #8a7060; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 18px; }
+      .pdf-sig-line { border-bottom: 1px solid #ccc; margin-bottom: 4px; }
+      .pdf-sig-hint { font-family: monospace; font-size: 8px; color: #aaa; }
+      .pdf-foot-meta { display: flex; justify-content: space-between; font-family: monospace; font-size: 7px; color: #ccc; }
+    }
   </style>
 </head>
 <body>
@@ -403,6 +465,43 @@
   </div>
 </div>
 
+
+<!-- PDF Options Modal (v2.8) -->
+<div class="modal-overlay" id="modal-pdf">
+  <div class="modal pdf-modal">
+    <div class="modal-title" id="modal-pdf-title">PDF Options</div>
+    <div class="modal-section">Buyer Block</div>
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-buyer" checked> Buyer Details</label>
+      <label class="pdf-opt-row sub-opt"><input type="checkbox" id="pdf-opt-buyer-email" checked> Email</label>
+      <label class="pdf-opt-row sub-opt"><input type="checkbox" id="pdf-opt-buyer-addr" checked> Address</label>
+    </div>
+    <div class="modal-section">Contract Lines</div>
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-sku" checked> SKU Code column</label>
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-bagsize" checked> Bag Size column</label>
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-price" checked> Unit Price column</label>
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-value" checked> Line Value column</label>
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-drawn" checked> Drawn / Remaining columns</label>
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-progress" checked> Progress bar</label>
+    </div>
+    <div class="modal-section">Other Sections</div>
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-drawdown" checked> Drawdown Summary</label>
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-subs" checked> Lot Substitutions</label>
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-notes" checked> Notes</label>
+      <label class="pdf-opt-row"><input type="checkbox" id="pdf-opt-footer" checked> Footer / Signature block</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-pdf-cancel">Cancel</button>
+      <button class="btn" id="btn-pdf-print">&#x2399; Print / Save PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden print area (v2.8) -->
+<div id="pdf-print-area" style="display:none"></div>
+
 <div class="toast" id="toast"></div>
 
 <script src="js/config.js"></script>
@@ -410,7 +509,10 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.7.5 | contracts.html
+// Version 2.8.2 | contracts.html
+// v2.8.2: BUG FIX — blank pages 2+3 eliminated by hiding body siblings with display:none instead of visibility:hidden.
+// v2.8.1: BUG FIX — pdf-print-area position:fixed caused 3-page repeat; changed to position:absolute.
+// v2.8: PDF generation — print modal with field toggles + generateContractPDF().
 // v2.7.5: Edit Line modal shows current SKU badge; updates live when SKU is changed
 // v2.7.4: SKU autocomplete in Add Contract Lines modal (per row, matches PO pattern)
 // v2.7.3: Lot tooltip 2-row layout (name + lot/avail)
@@ -582,6 +684,7 @@ function renderContracts() {
         <div class="card-actions">
           <button class="btn btn-ghost btn-sm" onclick="openLineModal(${con.contract_id})">+ Line</button>
           <button class="btn btn-ghost btn-sm" onclick="openContractModal(${con.contract_id})">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="openPdfModal(${con.contract_id})" title="Print PDF">&#x2399; PDF</button>
         </div>
       </div>
       ${lines.length ? `<table class="lines-table">
@@ -1508,6 +1611,235 @@ function cSkuClose(rowIdx) {
 function cSkuKey(e, rowIdx) {
   if (e.key === 'Escape') cSkuClose(rowIdx);
   if (e.key === 'Tab')    cSkuClose(rowIdx);
+}
+
+// ── PDF Generation (v2.8) ─────────────────────────────────────────────────────
+// openPdfModal — shows options modal for a given contract.
+// generateContractPDF — builds hidden print area from PAGE_DATA, triggers window.print().
+// Zero extra API calls: all data already in PAGE_DATA from page load.
+
+var _pdfContractId = null;
+
+function openPdfModal(contractId) {
+  _pdfContractId = contractId;
+  var con = PAGE_DATA.contracts.find(function(c) { return String(c.contract_id) === String(contractId); });
+  if (!con) return;
+  document.getElementById('modal-pdf-title').textContent = 'PDF Options — ' + esc(con.contract_number);
+  document.getElementById('modal-pdf').classList.add('open');
+}
+
+document.getElementById('btn-pdf-cancel').onclick = function() {
+  document.getElementById('modal-pdf').classList.remove('open');
+};
+
+// Sub-option enable/disable when parent unchecked
+document.getElementById('pdf-opt-buyer').onchange = function() {
+  var on = this.checked;
+  document.getElementById('pdf-opt-buyer-email').disabled = !on;
+  document.getElementById('pdf-opt-buyer-addr').disabled  = !on;
+  if (!on) {
+    document.getElementById('pdf-opt-buyer-email').checked = false;
+    document.getElementById('pdf-opt-buyer-addr').checked  = false;
+  }
+};
+
+document.getElementById('btn-pdf-print').onclick = function() {
+  document.getElementById('modal-pdf').classList.remove('open');
+  generateContractPDF(_pdfContractId);
+};
+
+function getPdfOpts() {
+  return {
+    showBuyer:    document.getElementById('pdf-opt-buyer').checked,
+    showEmail:    document.getElementById('pdf-opt-buyer-email').checked,
+    showAddr:     document.getElementById('pdf-opt-buyer-addr').checked,
+    showSku:      document.getElementById('pdf-opt-sku').checked,
+    showBagSize:  document.getElementById('pdf-opt-bagsize').checked,
+    showPrice:    document.getElementById('pdf-opt-price').checked,
+    showValue:    document.getElementById('pdf-opt-value').checked,
+    showDrawn:    document.getElementById('pdf-opt-drawn').checked,
+    showProgress: document.getElementById('pdf-opt-progress').checked,
+    showDrawdown: document.getElementById('pdf-opt-drawdown').checked,
+    showSubs:     document.getElementById('pdf-opt-subs').checked,
+    showNotes:    document.getElementById('pdf-opt-notes').checked,
+    showFooter:   document.getElementById('pdf-opt-footer').checked,
+  };
+}
+
+var STATUS_PDF_STYLE = {
+  'Draft':           'background:#f5f5f5;color:#555;border:1px solid #ddd',
+  'Active':          'background:#edf7f0;color:#1e6640;border:1px solid #b6dfc6',
+  'Partially Drawn': 'background:#fef9ec;color:#854f0b;border:1px solid #f5d58a',
+  'Fully Drawn':     'background:#eef4fd;color:#1a5ca8;border:1px solid #b3cef5',
+  'Cancelled':       'background:#fdecea;color:#b00020;border:1px solid #f5b3bc',
+};
+
+function generateContractPDF(contractId) {
+  var con    = PAGE_DATA.contracts.find(function(c) { return String(c.contract_id) === String(contractId); });
+  if (!con) return;
+  var opts   = getPdfOpts();
+  var buyer  = PAGE_DATA.buyers.find(function(b) { return String(b.buyer_id) === String(con.buyer_id); });
+  var lines  = con.lines || [];
+  var subs   = con.lines ? con.lines.reduce(function(acc, l) { return acc.concat((l.substitutions || []).map(function(s){ return {line: l, sub: s}; })); }, []) : [];
+  var lots   = PAGE_DATA.inventory_lots;
+
+  // Warehouse — prefer the warehouse associated with the first linked lot; fall back to first warehouse
+  var firstLotLine = lines.find(function(l) { return l.inventory_lot_id; });
+  var firstLot     = firstLotLine ? lots.find(function(lot) { return String(lot.lot_id) === String(firstLotLine.inventory_lot_id); }) : null;
+  var wh = null;
+  if (firstLot && firstLot.warehouse_id) {
+    wh = (PAGE_DATA.warehouses || []).find(function(w) { return String(w.warehouse_id) === String(firstLot.warehouse_id); });
+  }
+  if (!wh && PAGE_DATA.warehouses && PAGE_DATA.warehouses.length) {
+    wh = PAGE_DATA.warehouses[0];
+  }
+  var whName  = wh ? esc(wh.warehouse_name) : 'Sample Tracker';
+  var whAddr  = wh ? esc(wh.address || '')  : '';
+  var whEmail = wh ? esc(wh.email   || '')  : '';
+
+  // Totals
+  var totalValue = lines.reduce(function(s, l) { return s + (l.contracted_bags * l.bag_size * l.unit_price); }, 0);
+  var totalBags  = lines.reduce(function(s, l) { return s + (l.contracted_bags || 0); }, 0);
+  var drawnBags  = lines.reduce(function(s, l) { return s + (l.drawn_bags      || 0); }, 0);
+  var remBags    = totalBags - drawnBags;
+  var pct        = totalBags > 0 ? Math.round(drawnBags / totalBags * 100) : 0;
+  var statusStyle = STATUS_PDF_STYLE[con.status] || STATUS_PDF_STYLE['Draft'];
+
+  // ── Header ──
+  var html = '<div class="pdf-hdr">'
+    + '<div class="pdf-hdr-seller">'
+    +   '<div class="pdf-hdr-seller-name">' + whName + '</div>'
+    +   (whAddr  ? '<div class="pdf-hdr-seller-addr">'  + whAddr  + '</div>' : '')
+    +   (whEmail ? '<div class="pdf-hdr-seller-email">' + whEmail + '</div>' : '')
+    + '</div>'
+    + '<div class="pdf-hdr-right">'
+    +   '<div class="pdf-hdr-label">Contract Document</div>'
+    +   '<div class="pdf-hdr-number">' + esc(con.contract_number) + '</div>'
+    +   '<div class="pdf-hdr-date">Issued ' + fmtDate(con.contract_date) + '</div>'
+    +   '<div class="pdf-hdr-status" style="' + statusStyle + '">' + esc(con.status) + '</div>'
+    + '</div>'
+    + '</div>';
+
+  // ── Buyer ──
+  if (opts.showBuyer && buyer) {
+    html += '<div class="pdf-section"><div class="pdf-section-label">Buyer</div>'
+      + '<div class="pdf-buyer-row">'
+      + '<div class="pdf-buyer-col">'
+      +   '<div class="pdf-buyer-name">' + esc(buyer.company_name) + '</div>'
+      +   '<div class="pdf-buyer-attn">Attn: ' + esc(buyer.contact_person || '') + '</div>'
+      +   (opts.showEmail && buyer.email ? '<div class="pdf-buyer-email">' + esc(buyer.email) + '</div>' : '')
+      + '</div>'
+      + (opts.showAddr && buyer.address ? '<div class="pdf-buyer-col"><div class="pdf-buyer-addr" style="white-space:pre-line">' + esc(buyer.address) + '</div></div>' : '')
+      + '<div style="text-align:right"><div class="pdf-buyer-level-label">Buyer Level</div>'
+      +   '<div class="pdf-buyer-level-val">' + esc(buyer.buyer_level || '—') + '</div></div>'
+      + '</div></div>';
+  }
+
+  // ── Contract Lines ──
+  html += '<div class="pdf-section"><div class="pdf-section-label">Contract Lines</div>'
+    + '<table class="pdf-lines-table"><thead><tr>'
+    + '<th style="text-align:left">Product / Sample</th>'
+    + (opts.showSku      ? '<th style="text-align:left">SKU</th>'        : '')
+    + '<th class="r">Bags</th>'
+    + (opts.showBagSize  ? '<th class="r">Bag Size</th>'                 : '')
+    + (opts.showPrice    ? '<th class="r">Unit Price</th>'               : '')
+    + (opts.showValue    ? '<th class="r">Line Value</th>'               : '')
+    + (opts.showDrawn    ? '<th class="r">Drawn</th><th class="r">Remaining</th>' : '')
+    + (opts.showProgress ? '<th class="c">Progress</th>'                 : '')
+    + '</tr></thead><tbody>';
+
+  lines.forEach(function(l, i) {
+    var lv  = l.contracted_bags * l.bag_size * l.unit_price;
+    var rem = l.contracted_bags - l.drawn_bags;
+    var lp  = l.contracted_bags > 0 ? Math.round(l.drawn_bags / l.contracted_bags * 100) : 0;
+    html += '<tr style="background:' + (i % 2 === 0 ? '#fff' : '#fdfcfa') + '">'
+      + '<td>'
+      +   '<strong>' + esc(l.sample_name) + '</strong>'
+      +   (l.availability_type === 'forward' ? '<br><span class="pdf-fwd-tag">FORWARD' + (l.expected_shipment_id ? ' · ETA ' + fmtDate(l.eta || '') : '') + '</span>' : '')
+      + '</td>'
+      + (opts.showSku     ? '<td style="font-family:monospace;font-size:9px;color:#8a7060">' + esc(l.sku_code || '—') + '</td>' : '')
+      + '<td class="r"><strong>' + (l.contracted_bags || 0) + '</strong></td>'
+      + (opts.showBagSize ? '<td class="r">' + (l.bag_size || '—') + esc(l.bag_size_unit || 'kg') + '</td>' : '')
+      + (opts.showPrice   ? '<td class="r">' + (l.unit_price ? '$' + fmt(l.unit_price) + '/' + esc(l.price_unit) : '—') + '</td>' : '')
+      + (opts.showValue   ? '<td class="r"><strong>$' + fmt(lv, 0) + '</strong></td>' : '')
+      + (opts.showDrawn   ? '<td class="r">' + (l.drawn_bags || 0) + '</td><td class="r" style="color:' + (rem === 0 ? '#1e6640' : '#1a1a1a') + '">' + rem + '</td>' : '')
+      + (opts.showProgress ? '<td class="c"><div class="pdf-progress-bar"><div class="pdf-progress-fill' + (lp === 100 ? ' done' : '') + '" style="width:' + lp + '%"></div></div><div class="pdf-progress-pct">' + lp + '%</div></td>' : '')
+      + '</tr>';
+  });
+
+  html += '</tbody>';
+  if (opts.showValue) {
+    var colSpan = 2
+      + (opts.showSku ? 1 : 0)
+      + (opts.showBagSize ? 1 : 0)
+      + (opts.showPrice ? 1 : 0);
+    html += '<tfoot><tr class="pdf-total-row">'
+      + '<td colspan="' + colSpan + '" style="text-align:right;font-family:monospace;font-size:8px;color:#8a7060;text-transform:uppercase;letter-spacing:0.08em;font-weight:400">Total Contract Value</td>'
+      + '<td class="r">$' + fmt(totalValue, 0) + '</td>'
+      + (opts.showDrawn    ? '<td colspan="2"></td>' : '')
+      + (opts.showProgress ? '<td></td>'             : '')
+      + '</tr></tfoot>';
+  }
+  html += '</table></div>';
+
+  // ── Drawdown Summary ──
+  if (opts.showDrawdown) {
+    html += '<div class="pdf-section"><div class="pdf-section-label">Drawdown Summary</div>'
+      + '<div class="pdf-stats">'
+      + '<div class="pdf-stat"><div class="pdf-stat-label">Total Contracted</div><div class="pdf-stat-val">' + totalBags + ' bags</div></div>'
+      + '<div class="pdf-stat"><div class="pdf-stat-label">Total Drawn</div><div class="pdf-stat-val">' + drawnBags + ' bags</div></div>'
+      + '<div class="pdf-stat"><div class="pdf-stat-label">Remaining</div><div class="pdf-stat-val">' + remBags + ' bags</div></div>'
+      + '<div class="pdf-stat"><div class="pdf-stat-label">Overall Progress</div><div class="pdf-stat-val">' + pct + '%</div></div>'
+      + '</div>'
+      + '<div class="pdf-dd-bar"><div class="pdf-dd-fill" style="width:' + pct + '%"></div></div>'
+      + '</div>';
+  }
+
+  // ── Lot Substitutions ──
+  if (opts.showSubs && subs.length > 0) {
+    html += '<div class="pdf-section"><div class="pdf-section-label">Lot Substitutions</div>';
+    lines.filter(function(l) { return (l.substitutions || []).length > 0; }).forEach(function(l) {
+      var origLot = lots.find(function(lot) { return String(lot.lot_id) === String(l.inventory_lot_id); });
+      html += '<div style="font-weight:600;font-size:10px;margin-bottom:4px;color:#555">' + esc(l.sample_name) + '</div>';
+      (l.substitutions || []).forEach(function(s) {
+        var replLot = lots.find(function(lot) { return String(lot.lot_id) === String(s.replacement_lot_id); });
+        html += '<div class="pdf-sub-row">'
+          + '<span>Original: ' + (origLot ? esc(origLot.lot_number || String(l.inventory_lot_id)) : 'Lot ' + l.inventory_lot_id) + '</span>'
+          + '<span style="color:#c47a2b;font-weight:700">&rarr;</span>'
+          + '<span style="color:#854f0b">' + (replLot ? esc(replLot.sample_name) + ' (Lot ' + s.replacement_lot_id + ')' : 'Lot ' + s.replacement_lot_id) + ' &middot; ' + s.bags_count + ' bags</span>'
+          + (s.reason ? '<span>&mdash; ' + esc(s.reason) + '</span>' : '')
+          + '</div>';
+      });
+    });
+    html += '</div>';
+  }
+
+  // ── Notes ──
+  if (opts.showNotes && con.notes) {
+    html += '<div class="pdf-section"><div class="pdf-section-label">Notes &amp; Terms</div>'
+      + '<div class="pdf-notes-box">' + esc(con.notes) + '</div></div>';
+  }
+
+  // ── Footer / Signature ──
+  if (opts.showFooter) {
+    html += '<div class="pdf-footer">'
+      + '<div class="pdf-sig-row">'
+      + '<div class="pdf-sig"><div class="pdf-sig-label">Authorised by (Seller)</div><div class="pdf-sig-line"></div><div class="pdf-sig-hint">Signature &amp; Date</div></div>'
+      + '<div class="pdf-sig"><div class="pdf-sig-label">Accepted by (Buyer)</div><div class="pdf-sig-line"></div><div class="pdf-sig-hint">Signature &amp; Date</div></div>'
+      + '</div>'
+      + '<div class="pdf-foot-meta">'
+      +   '<span>' + whName + ' &middot; ' + esc(con.contract_number) + '</span>'
+      +   '<span>Generated ' + fmtDate(new Date().toISOString().split("T")[0]) + '</span>'
+      + '</div>'
+      + '</div>';
+  }
+
+  var area = document.getElementById('pdf-print-area');
+  area.innerHTML = html;
+  area.style.display = 'block';
+  window.print();
+  area.style.display = 'none';
+  area.innerHTML = '';
 }
 
 </script>
