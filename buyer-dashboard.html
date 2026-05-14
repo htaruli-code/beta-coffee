@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- Version 1.2 | buyer-dashboard.html -->
+<!-- Version 1.3 | buyer-dashboard.html -->
+<!-- v1.3: ShipsGo ETA — forward lines now display ShipsGo eta when available (from rowToShipmentPublic via getBuyerDashboardData). No JS change needed — GAS returns shipsgo_eta field if buyer_tracking_enabled.
 <!-- v1.1: Drawdown status badges. Substitution lots shown per line.
            Forward lot ETA shown. Cancelled drawdowns excluded from display.
            Request modal shows available bags correctly. Escape closes modal. -->
@@ -204,7 +205,7 @@
         <label for="dd-bags">Bags requested <span style="color:var(--error)">*</span>
           <span id="dd-bags-hint" style="color:var(--muted);font-size:0.65rem;font-weight:400"></span>
         </label>
-        <input type="number" id="dd-bags" min="1" placeholder="0" />
+        <input type="text" inputmode="numeric" id="dd-bags" placeholder="0" />
       </div>
       <div class="field">
         <label for="dd-date">Preferred ship date</label>
@@ -229,7 +230,7 @@
 <script src="js/buyer-api.js"></script>
 <script src="js/buyer-ui.js"></script>
 <script>
-// Version 1.2 | buyer-dashboard.html
+// Version 1.3 | buyer-dashboard.html
 // v1.2: isNaN guard on dd-bags. dates formatted dd MMM yyyy via computer locale.
 
 function fmtDate(val) {
@@ -320,8 +321,8 @@ function buildLineRow(con, line) {
   const typeKey    = (line.availability_type || 'current').toLowerCase();
   const canRequest = available > 0 && con.status !== 'Cancelled' && con.status !== 'Fully Drawn';
 
-  const etaNote = (line.availability_type === 'forward' && line.eta)
-    ? '<span class="eta-tag">ETA ' + fmtDate(line.eta) + (line.sailing_status ? ' · ' + esc(line.sailing_status) : '') + '</span>'
+  const etaNote = (line.availability_type === 'forward' && (line.eta || line.shipsgo_eta))
+    ? '<span class="eta-tag">ETA ' + fmtDate(line.shipsgo_eta || line.eta) + (line.sailing_status ? ' · ' + esc(line.sailing_status) : '') + '</span>'
     : '';
 
   // Substitution indicator — only show if substitutions exist on this line
