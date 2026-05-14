@@ -1,6 +1,5 @@
-// Version 1.28
-// v1.28: stampOutboundPrices — writes current buyer-tier price to sale_price_sent for all
-//        details on an outbound. Clears ⚡ indicator in outbound.html.
+// Version 1.30
+// v1.30: saveInboundField — inline editing for inbound_samples (sending_date, courier_name, tracking_number).
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
 // v1.16: getBuyersPage    — page_num + search params.
@@ -30,6 +29,8 @@
 // v1.11.7: submitReservationInternal — session-authenticated reservation for outbound.html (uses reservation token, no session) (shipping_date, courier, tracking_number for Sent) → Auth.handleUnauthorized() → redirect to login
 // v1.13.2: saveSamplePrice accepts sale_unit; saveSamplePricesAll — batch upsert all 4 tier prices in one call
 // v1.14: sendCatalogueLink, getCataloguePage (public), submitCatalogueSelection (public)
+// v1.28: submitReservation accepts intent param (reserve / sample_only / reserve_and_sample)
+// v1.29: submitReservation accepts notes param — forwarded to GAS for email
 
 const API = (() => {
 
@@ -164,8 +165,11 @@ const API = (() => {
     return post({ action: 'getBuyerReservePage', token });
   }
 
-  async function submitReservation(token, bags_requested) {
-    return post({ action: 'submitReservation', token, bags_requested });
+  // v1.28: intent = 'reserve' | 'sample_only' | 'reserve_and_sample'
+  //         bags_requested = 0 when intent is sample_only
+  // v1.29: notes — optional buyer notes forwarded to GAS and included in confirmation email
+  async function submitReservation(token, bags_requested, intent, notes) {
+    return post({ action: 'submitReservation', token, bags_requested, intent: intent || 'reserve', notes: notes || '' });
   }
 
   // ─── Misc V1 ───────────────────────────────────────────────────────────────
@@ -196,6 +200,10 @@ const API = (() => {
 
   async function saveDetailField(detailId, field, value) {
     return post({ action: 'saveDetailField', detail_id: detailId, field, value, session_token: Auth.getToken() });
+  }
+
+  async function saveInboundField(inboundId, field, value) {
+    return post({ action: 'saveInboundField', inbound_id: inboundId, field, value, session_token: Auth.getToken() });
   }
 
   async function submitReservationInternal(outboundDetailId, bagsRequested) {
@@ -275,11 +283,6 @@ const API = (() => {
     return post({ action: 'updateCatalogueSendNotes', send_id: sendId, notes: notes || '', session_token: Auth.getToken() });
   }
 
-  // v1.28: stamp current buyer-tier prices to all outbound_details on an outbound
-  async function stampOutboundPrices(outboundId) {
-    return post({ action: 'stampOutboundPrices', outbound_id: outboundId, session_token: Auth.getToken() });
-  }
-
   return {
     post,                                             // exposed for v2 procurement pages
     sendAuthCode, verifyAuthCode,
@@ -294,15 +297,13 @@ const API = (() => {
     toggleDetailActive,
     saveBuyerMinimum, saveBuyerMinimumPublic,
     saveEvaluation, sendEvaluation,
-    saveDetailField,
+    saveDetailField, saveInboundField,
     submitReservationInternal,
     updateDetailCoffeeType,
     getAllSamplesPage,
     sendCatalogueLink, getCataloguePage, submitCatalogueSelection,
     // v1.27 — catalogue library
     getCataloguesPage, saveCatalogue, archiveCatalogue,
-    sendCatalogueFromLibrary, revokeCatalogueSend, updateCatalogueSendNotes,
-    // v1.28 — stamp prices
-    stampOutboundPrices
+    sendCatalogueFromLibrary, revokeCatalogueSend, updateCatalogueSendNotes
   };
 })();
