@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- Version 1.4 | buyer-dashboard.html -->
+<!-- Version 1.5 | buyer-dashboard.html -->
+<!-- v1.5: showLogin() resets IMPERSONATED flag — prevents banner persisting if tab reused for normal OTP login.
 <!-- v1.4: Login-As impersonation — detects ?impersonate=TOKEN on load, redeems it for a
            real buyer session via redeemImpersonateToken, shows amber "Viewing as staff" banner. -->
 <!-- v1.3: ShipsGo ETA — forward lines now display ShipsGo eta when available (from rowToShipmentPublic via getBuyerDashboardData). No JS change needed — GAS returns shipsgo_eta field if buyer_tracking_enabled. -->
@@ -241,9 +242,9 @@
 <script src="js/buyer-api.js"></script>
 <script src="js/buyer-ui.js"></script>
 <script>
-// Version 1.4 | buyer-dashboard.html
-// v1.4: impersonation via ?impersonate=TOKEN — redeems one-time token for real buyer session.
-//       Shows amber banner. Close tab link. Logout hidden for impersonated sessions.
+// Version 1.5 | buyer-dashboard.html
+// v1.5: showLogin() resets IMPERSONATED — prevents banner persisting on tab reuse.
+// v1.4: impersonation via ?impersonate=TOKEN.
 // v1.2: isNaN guard on dd-bags. dates formatted dd MMM yyyy via computer locale.
 
 function fmtDate(val) {
@@ -302,6 +303,8 @@ let IMPERSONATED = false;
 })();
 
 function showLogin() {
+  IMPERSONATED = false;  // v1.5: reset so banner never persists into a normal login
+  document.getElementById('impersonate-bar').classList.remove('show');
   document.getElementById('login-screen').style.display    = 'flex';
   document.getElementById('dashboard-screen').style.display = 'none';
   document.getElementById('btn-nav-logout').style.display   = 'none';

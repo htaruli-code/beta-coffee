@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.16 | buyers.html -->
+<!-- Version 1.17 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -235,15 +235,11 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.16 | buyers.html script
-    // v1.16: loginAsBuyer() sends buyer_id (from PAGE_DATA) instead of buyer_email —
-    //        removes getBuyerByEmail dependency from Code.gs entirely.
-    // v1.15: loginAsBuyer() now POSTs staffLoginAsBuyer to main GAS (APP_CONFIG.GAS_URL)
-    //        instead of BUYER_API_URL. Fixes cache isolation bug — validateSession()
-    //        must run in the same GAS project that created the staff session.
-    // v1.14: loginAsBuyer() reads BUYER_API_URL from APP_CONFIG.BUYER_API_URL (config.js).
-    // v1.13: loginAsBuyer() — staff clicks "Login As" → one-time impersonate token →
-    //        opens buyer-dashboard.html?impersonate=TOKEN in new tab.
+    // Version 1.17 | buyers.html script
+    // v1.17: Login As button uses data-attributes + event delegation — fixes XSS risk when
+    //        company_name contains single quotes (O'Brien). UI.esc() does not escape single quotes.
+    // v1.16: loginAsBuyer() sends buyer_id, posts to main GAS (APP_CONFIG.GAS_URL).
+    // v1.15: loginAsBuyer() posts to main GAS. v1.14: BUYER_API_URL. v1.13: Login As added.
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -457,7 +453,7 @@
         <td>${UI.esc(b.email || '—')}</td>
         <td style="display:none">${UI.esc(b.address || '—')}</td>
         <td><button class="btn btn-ghost btn-sm" onclick="openEdit(${b.buyer_id})">Edit</button>
-            ${b.email ? `<button class="btn btn-ghost btn-sm" onclick="loginAsBuyer(${b.buyer_id},'${UI.esc(b.company_name)}')" style="margin-left:0.4rem">Login As</button>` : ''}</td>
+            ${b.email ? `<button class="btn btn-ghost btn-sm btn-login-as" data-buyer-id="${b.buyer_id}" data-buyer-name="${UI.esc(b.company_name).replace(/"/g,'&quot;')}" style="margin-left:0.4rem">Login As</button>` : ''}</td>
       `);
     }
 
@@ -564,6 +560,13 @@
     }
 
     document.getElementById('btn-cancel').addEventListener('click', () => UI.closeModal('modal-buyer'));
+
+    // v1.17: Event delegation for Login As — avoids company_name in onclick attribute (XSS risk)
+    document.getElementById('buyers-tbody').addEventListener('click', function(e) {
+      const btn = e.target.closest('.btn-login-as');
+      if (!btn) return;
+      loginAsBuyer(btn.dataset.buyerId, btn.dataset.buyerName);
+    });
 
     // ── Save ──────────────────────────────────────────────────────────────────
     document.getElementById('btn-save').addEventListener('click', async () => {
