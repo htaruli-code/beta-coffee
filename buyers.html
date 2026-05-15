@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.12 | buyers.html -->
+<!-- Version 1.16 | buyers.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -235,7 +235,15 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.12 | buyers.html script
+    // Version 1.16 | buyers.html script
+    // v1.16: loginAsBuyer() sends buyer_id (from PAGE_DATA) instead of buyer_email —
+    //        removes getBuyerByEmail dependency from Code.gs entirely.
+    // v1.15: loginAsBuyer() now POSTs staffLoginAsBuyer to main GAS (APP_CONFIG.GAS_URL)
+    //        instead of BUYER_API_URL. Fixes cache isolation bug — validateSession()
+    //        must run in the same GAS project that created the staff session.
+    // v1.14: loginAsBuyer() reads BUYER_API_URL from APP_CONFIG.BUYER_API_URL (config.js).
+    // v1.13: loginAsBuyer() — staff clicks "Login As" → one-time impersonate token →
+    //        opens buyer-dashboard.html?impersonate=TOKEN in new tab.
 
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
@@ -448,7 +456,8 @@
         <td>${UI.esc(b.contact_person || '—')}</td>
         <td>${UI.esc(b.email || '—')}</td>
         <td style="display:none">${UI.esc(b.address || '—')}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="openEdit(${b.buyer_id})">Edit</button></td>
+        <td><button class="btn btn-ghost btn-sm" onclick="openEdit(${b.buyer_id})">Edit</button>
+            ${b.email ? `<button class="btn btn-ghost btn-sm" onclick="loginAsBuyer(${b.buyer_id},'${UI.esc(b.company_name)}')" style="margin-left:0.4rem">Login As</button>` : ''}</td>
       `);
     }
 
@@ -505,6 +514,53 @@
       })();
       renderMinimumsGrid(b.buyer_id);  // v1.8
       UI.openModal('modal-buyer');
+    }
+
+    // ── Login As (v1.16) ──────────────────────────────────────────────────────
+    // Posts to main GAS → gets HMAC-signed token (encryptToken, Utils.gs).
+    // Token is self-validating — buyer GAS decryptToken() checks signature + expiry.
+    // No shared cache, no sheet, no migration needed.
+    async function loginAsBuyer(buyerId, buyerName) {
+      if (!buyerId) return;
+
+      const staffToken = Auth.getToken();
+      if (!staffToken) { UI.toastError('Staff session not found. Please refresh and try again.'); return; }
+
+      // Find and disable the button to prevent double-click
+      const btn = event && event.target;
+      const originalText = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Opening…'; }
+
+      try {
+        const body = 'payload=' + encodeURIComponent(JSON.stringify({
+          action:        'staffLoginAsBuyer',
+          session_token: staffToken,
+          buyer_id:      buyerId
+        }));
+
+        const response = await fetch(APP_CONFIG.GAS_URL, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body:    body
+        });
+
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const json = await response.json();
+        if (!json.success) throw new Error(json.error || 'Failed to generate login link.');
+
+        const token = json.data.impersonate_token;
+        const buyerDashBase = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.BUYER_DASHBOARD_URL)
+          ? APP_CONFIG.BUYER_DASHBOARD_URL.replace(/\/$/, '')
+          : (window.location.pathname.replace(/\/[^/]*$/, '') || '');
+        const dashUrl = buyerDashBase + '/buyer-dashboard.html?impersonate=' + encodeURIComponent(token);
+        window.open(dashUrl, '_blank', 'noopener');
+
+      } catch (err) {
+        // Use alert for errors so staff can actually read them — toast is too brief
+        alert('Login As failed: ' + (err.message || 'Unknown error. Check GAS logs.'));
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = originalText; }
+      }
     }
 
     document.getElementById('btn-cancel').addEventListener('click', () => UI.closeModal('modal-buyer'));

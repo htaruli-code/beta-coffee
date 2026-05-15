@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<!-- Version 1.3 | buyer-dashboard.html -->
-<!-- v1.3: ShipsGo ETA — forward lines now display ShipsGo eta when available (from rowToShipmentPublic via getBuyerDashboardData). No JS change needed — GAS returns shipsgo_eta field if buyer_tracking_enabled.
+<!-- Version 1.4 | buyer-dashboard.html -->
+<!-- v1.4: Login-As impersonation — detects ?impersonate=TOKEN on load, redeems it for a
+           real buyer session via redeemImpersonateToken, shows amber "Viewing as staff" banner. -->
+<!-- v1.3: ShipsGo ETA — forward lines now display ShipsGo eta when available (from rowToShipmentPublic via getBuyerDashboardData). No JS change needed — GAS returns shipsgo_eta field if buyer_tracking_enabled. -->
 <!-- v1.1: Drawdown status badges. Substitution lots shown per line.
            Forward lot ETA shown. Cancelled drawdowns excluded from display.
            Request modal shows available bags correctly. Escape closes modal. -->
@@ -34,6 +36,10 @@
     .nav-buyer { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
     .btn-logout { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); border: none; background: none; cursor: pointer; padding: 0; letter-spacing: 0.06em; text-transform: uppercase; transition: color var(--transition); }
     .btn-logout:hover { color: var(--error); }
+
+    /* v1.4: impersonation banner */
+    .impersonate-bar { display: none; background: #fff8e8; border-bottom: 1px solid #f5d89a; color: #854f0b; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.04em; padding: 0.45rem 1.5rem; text-align: center; }
+    .impersonate-bar.show { display: block; }
 
     .page { max-width: 1020px; margin: 0 auto; padding: 2rem 1.5rem; }
     .page-header { margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
@@ -148,6 +154,11 @@
   </div>
 </nav>
 
+<!-- v1.4: impersonation banner — shown when staff logs in as a buyer -->
+<div class="impersonate-bar" id="impersonate-bar">
+  👁 Viewing as staff — you are browsing this buyer's dashboard. <a href="#" id="impersonate-close" style="color:inherit;margin-left:0.75rem;text-decoration:underline">Close tab</a>
+</div>
+
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">Sample Tracker</div>
@@ -230,7 +241,9 @@
 <script src="js/buyer-api.js"></script>
 <script src="js/buyer-ui.js"></script>
 <script>
-// Version 1.3 | buyer-dashboard.html
+// Version 1.4 | buyer-dashboard.html
+// v1.4: impersonation via ?impersonate=TOKEN — redeems one-time token for real buyer session.
+//       Shows amber banner. Close tab link. Logout hidden for impersonated sessions.
 // v1.2: isNaN guard on dd-bags. dates formatted dd MMM yyyy via computer locale.
 
 function fmtDate(val) {
@@ -244,9 +257,46 @@ if (typeof BuyerAuth    === 'undefined') throw new Error('buyer-auth.js not load
 if (typeof BuyerAPI     === 'undefined') throw new Error('buyer-api.js not loaded');
 if (typeof BuyerUI      === 'undefined') throw new Error('buyer-ui.js not loaded');
 
-let PAGE_DATA = { buyer: null, contracts: [] };
+let PAGE_DATA    = { buyer: null, contracts: [] };
+let IMPERSONATED = false;
 
-(function init() {
+(async function init() {
+  // v1.4: Check for ?impersonate=TOKEN — staff login-as flow
+  const urlParams      = new URLSearchParams(window.location.search);
+  const impersonateToken = urlParams.get('impersonate');
+
+  if (impersonateToken) {
+    // Remove token from URL so refresh doesn't re-use it
+    history.replaceState(null, '', window.location.pathname);
+
+    try {
+      const body = 'payload=' + encodeURIComponent(JSON.stringify({
+        action:            'redeemImpersonateToken',
+        impersonate_token: impersonateToken
+      }));
+      const response = await fetch(BUYER_API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    body
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const json = await response.json();
+      if (!json.success) throw new Error(json.error || 'Invalid login link.');
+
+      const data = json.data;
+      BuyerAuth.setSession(data.session_token, data.buyer);
+      IMPERSONATED = true;
+      showDashboard();
+      loadDashboard();
+    } catch (e) {
+      // Token expired or already used — show login screen with error
+      showLogin();
+      showAlert('email-error', 'Login link expired or already used. Ask staff to try again.', 'error');
+    }
+    return;
+  }
+
+  // Normal flow
   if (BuyerAuth.isLoggedIn()) { showDashboard(); loadDashboard(); }
   else showLogin();
 })();
@@ -265,9 +315,18 @@ function showDashboard() {
   if (buyer) {
     document.getElementById('nav-buyer').textContent  = buyer.company_name || '';
     document.getElementById('dash-title').textContent = 'My Orders';
-    document.getElementById('dash-sub').textContent   = 'Welcome back, ' + (buyer.contact_person || buyer.company_name) + '.';
+    document.getElementById('dash-sub').textContent   = IMPERSONATED
+      ? 'Viewing orders for ' + (buyer.company_name || '')
+      : 'Welcome back, ' + (buyer.contact_person || buyer.company_name) + '.';
   }
-  document.getElementById('btn-nav-logout').style.display = 'inline';
+  // v1.4: show impersonation banner; hide logout for impersonated sessions
+  if (IMPERSONATED) {
+    document.getElementById('impersonate-bar').classList.add('show');
+    document.getElementById('btn-nav-logout').style.display = 'none';
+  } else {
+    document.getElementById('impersonate-bar').classList.remove('show');
+    document.getElementById('btn-nav-logout').style.display = 'inline';
+  }
 }
 
 async function loadDashboard() {
@@ -427,11 +486,18 @@ document.getElementById('input-code').addEventListener('input', function() { thi
 document.getElementById('btn-nav-logout').onclick = async function() {
   try { await BuyerAPI.logout(); } catch (e) {}
   BuyerAuth.clearSession();
-  PAGE_DATA = { buyer: null, contracts: [] };
+  PAGE_DATA    = { buyer: null, contracts: [] };
+  IMPERSONATED = false;
   document.getElementById('input-email').value = '';
   document.getElementById('input-code').value  = '';
   switchStep('step-email');
   showLogin();
+};
+
+// v1.4: impersonation banner close — just close the tab
+document.getElementById('impersonate-close').onclick = function(e) {
+  e.preventDefault();
+  window.close();
 };
 
 // ── Drawdown Modal ────────────────────────────────────────────────────────────
