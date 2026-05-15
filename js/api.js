@@ -1,4 +1,6 @@
-// Version 1.30
+// Version 1.31
+// v1.31: stampOutboundPrices — was defined in Code.gs (v2.7.6) and called in outbound.html
+//        but was never added to api.js. Caused "API.stampOutboundPrices is not a function".
 // v1.30: saveInboundField — inline editing for inbound_samples (sending_date, courier_name, tracking_number).
 // api.js — All fetch calls to GAS. One place to change the transport layer.
 // v1.15: getOutboundPage  — page_num + status_filter params.
@@ -244,6 +246,10 @@ const API = (() => {
     });
   }
 
+  async function stampOutboundPrices(outboundId) {
+    return post({ action: 'stampOutboundPrices', outbound_id: outboundId, session_token: Auth.getToken() });
+  }
+
   // ─── Catalogue Library (v1.27) ─────────────────────────────────────────────
   // New: named catalogues that can be sent/resent to different buyers.
 
@@ -300,6 +306,7 @@ const API = (() => {
     saveDetailField, saveInboundField,
     submitReservationInternal,
     updateDetailCoffeeType,
+    stampOutboundPrices,
     getAllSamplesPage,
     sendCatalogueLink, getCataloguePage, submitCatalogueSelection,
     // v1.27 — catalogue library
