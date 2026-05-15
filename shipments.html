@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.2.9 | shipments.html -->
+<!-- Version 2.3.0 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -272,6 +272,11 @@
 <script src="js/ui.js"></script>
 <script>
 // Version 2.2.9 | shipments.html
+// v2.3.0: BUG FIX — openShipmentModal date fields empty on edit.
+//   Added toInputDate() helper — normalises any date format to YYYY-MM-DD
+//   (the only format input[type=date] accepts). Without this, dates from the
+//   spreadsheet in ISO or other formats silently rendered as blank.
+//   Same fix already applied in inventory.html v2.1.5.
 // v2.2.9: renderLinkedPoLines — replace "Line #ID" with product sample_name.
 //   Display: PO number · Sample Name · N bags
 // v2.2.8: PO picker layout — full rebuild. Search on top full-width. PO Line +
@@ -303,6 +308,21 @@ if (typeof UI   === 'undefined') throw new Error('ui.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
 const fmtDate = v => UI.formatDate(v);
+
+// Normalise any date value to YYYY-MM-DD for input[type=date].
+// Handles: YYYY-MM-DD (pass-through), full ISO string, any parseable format.
+// Uses UTC to avoid timezone-shift off-by-one errors.
+function toInputDate(v) {
+  if (!v) return '';
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (isNaN(d)) return '';
+  const y   = d.getUTCFullYear();
+  const m   = ('0' + (d.getUTCMonth() + 1)).slice(-2);
+  const day = ('0' + d.getUTCDate()).slice(-2);
+  return y + '-' + m + '-' + day;
+}
 let PAGE_DATA = {
   shipments: [], purchase_orders: [], suppliers: [], po_lines: [],
   junctions: [], instructions: [], carriers: [],
@@ -471,10 +491,10 @@ function openShipmentModal(shipmentId) {
   document.getElementById('s-id').value        = s ? s.shipment_id : '';
   document.getElementById('s-container').value = s ? (s.container_number      || '') : '';
   document.getElementById('s-bl').value        = s ? (s.bill_of_lading        || '') : '';
-  document.getElementById('s-planned').value   = s ? (s.planned_shipping_date || '') : '';
-  document.getElementById('s-etd').value       = s ? (s.etd                   || '') : '';
-  document.getElementById('s-eta').value       = s ? (s.eta                   || '') : '';
-  document.getElementById('s-arrival').value   = s ? (s.actual_arrival_date   || '') : '';
+  document.getElementById('s-planned').value   = s ? toInputDate(s.planned_shipping_date) : '';
+  document.getElementById('s-etd').value       = s ? toInputDate(s.etd)                   : '';
+  document.getElementById('s-eta').value       = s ? toInputDate(s.eta)                   : '';
+  document.getElementById('s-arrival').value   = s ? toInputDate(s.actual_arrival_date)   : '';
   document.getElementById('s-notes').value     = s ? (s.notes                 || '') : '';
 
   // Sailing status
