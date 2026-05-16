@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<!-- Version 1.1 | sample-info-submit.html -->
+<!-- v1.1: MAX_FILES increased from 3 to 6. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sample Information Request</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #ffffff;
+      --surface:  #fdf8f2;
+      --border:   #f0e8da;
+      --accent:   #c47a2b;
+      --text:     #1a1a1a;
+      --muted:    #8a7060;
+      --error:    #c0392b;
+      --success:  #2e7d52;
+      --warn:     #b45309;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 6px;
+      --transition: 160ms ease;
+    }
+    body {
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2.5rem 1rem 4rem;
+    }
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 100%;
+      max-width: 520px;
+      padding: 2.5rem 2rem;
+    }
+    .card-brand {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 2rem;
+    }
+    /* ── States ── */
+    #state-loading, #state-error, #state-success, #state-already, #state-form { display: none; }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 2rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── State titles ── */
+    .state-icon  { font-size: 2rem; text-align: center; margin-bottom: 1rem; }
+    .state-title { font-family: var(--font-mono); font-size: 1rem; font-weight: 600; text-align: center; margin-bottom: 0.5rem; }
+    .state-sub   { font-size: 0.83rem; color: var(--muted); text-align: center; line-height: 1.7; }
+    .state-title.success { color: var(--success); }
+    .state-title.error   { color: var(--error); }
+    .state-title.warn    { color: var(--warn); }
+
+    /* ── Info block ── */
+    .info-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.75rem;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .info-value {
+      font-size: 0.83rem;
+      color: var(--text);
+      text-align: right;
+      word-break: break-word;
+    }
+    .info-value.mono {
+      font-family: var(--font-mono);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ── Expiry banner ── */
+    .expiry-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #fef9ec;
+      border: 1px solid #f5d89a;
+      border-radius: var(--radius);
+      padding: 0.65rem 1rem;
+      margin-bottom: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: #854f0b;
+    }
+    .expiry-banner.urgent { background: #fdf0ee; border-color: #f5c6c6; color: var(--error); }
+
+    /* ── Section label ── */
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Fields ── */
+    .field { margin-bottom: 1.25rem; }
+    label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+    }
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      padding: 0.65rem 0.875rem;
+      outline: none;
+      resize: vertical;
+      min-height: 100px;
+      transition: border-color var(--transition);
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    /* ── File upload ── */
+    .file-drop {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+    .file-drop:hover, .file-drop.drag-over {
+      border-color: var(--accent);
+      background: #fdf8f2;
+    }
+    .file-drop input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .file-drop-icon  { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .file-drop-label {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+    .file-drop-hint  { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
+
+    /* ── File list ── */
+    .file-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.45rem 0.75rem;
+      font-size: 0.8rem;
+    }
+    .file-item-name { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text); word-break: break-all; }
+    .file-item-size { font-size: 0.68rem; color: var(--muted); margin-left: 0.5rem; white-space: nowrap; }
+    .file-item-remove {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+      padding: 0 0.25rem;
+      transition: color var(--transition);
+      margin-left: 0.5rem;
+      flex-shrink: 0;
+    }
+    .file-item-remove:hover { color: var(--error); }
+    .file-error { font-size: 0.75rem; color: var(--error); margin-top: 0.4rem; }
+
+    /* ── Submit button ── */
+    .btn {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.875rem 1rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: opacity var(--transition);
+      margin-top: 1.5rem;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-inner { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn-spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-family: var(--font-mono); font-size: 0.75rem;
+      padding: 0.65rem 1.1rem; z-index: 9999;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      animation: fadeUp 0.2s ease;
+    }
+    .toast-error   { border-color: #f5c6c6; color: var(--error);   background: #fdf0ee; }
+    .toast-success { border-color: #b8e0cb; color: var(--success); background: #edf7f0; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+    @media (max-width: 480px) {
+      .card { padding: 1.75rem 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-brand">Sample Tracker</div>
+
+    <!-- Loading -->
+    <div id="state-loading">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- Error (invalid/expired token) -->
+    <div id="state-error">
+      <div class="state-icon">✕</div>
+      <div class="state-title error">Link Invalid</div>
+      <div class="state-sub" id="error-msg">This link has expired or is invalid. Please contact your buyer to request a new link.</div>
+    </div>
+
+    <!-- Already submitted -->
+    <div id="state-already">
+      <div class="state-icon">✓</div>
+      <div class="state-title warn">Already Submitted</div>
+      <div class="state-sub">This sample information has already been submitted. No further action is required.</div>
+    </div>
+
+    <!-- Success -->
+    <div id="state-success">
+      <div class="state-icon" style="color:var(--success)">✓</div>
+      <div class="state-title success">Submission Received</div>
+      <div class="state-sub">Thank you. Your notes and files have been saved.<br>The team has been notified.</div>
+    </div>
+
+    <!-- Form -->
+    <div id="state-form">
+      <div style="font-family:var(--font-mono);font-size:1rem;font-weight:600;margin-bottom:0.3rem">Sample Information Request</div>
+      <div style="font-size:0.83rem;color:var(--muted);margin-bottom:1.75rem">Please review the sample details below and submit your notes and any supporting files.</div>
+
+      <!-- Expiry warning — shown when < 1 hour remaining -->
+      <div id="expiry-banner" class="expiry-banner" style="display:none">
+        <span>⚠</span>
+        <span id="expiry-text">This link expires soon.</span>
+      </div>
+
+      <!-- Sample info (read-only) -->
+      <div class="info-block">
+        <div class="info-row">
+          <span class="info-label">Coffee Name</span>
+          <span class="info-value" id="info-name">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Origin Code</span>
+          <span class="info-value mono" id="info-code">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Sample ID</span>
+          <span class="info-value mono" id="info-id">—</span>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="section-label">Your Notes</div>
+      <div class="field">
+        <label for="f-notes">Notes <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+        <textarea id="f-notes" placeholder="Cupping impressions, moisture %, screen size, any relevant observations…" rows="5"></textarea>
+      </div>
+
+      <!-- File upload -->
+      <div class="section-label" style="margin-top:0.25rem">Supporting Files <span style="color:var(--muted);font-family:var(--font-sans);font-weight:400;letter-spacing:0;text-transform:none;font-size:0.72rem">(PDF or images — max 6 MB each, up to 6 files)</span></div>
+      <div class="file-drop" id="file-drop" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="file-input" accept=".pdf,image/*" multiple onchange="onFileChange(this)" />
+        <div class="file-drop-icon">📎</div>
+        <div class="file-drop-label">Click to choose files or drag and drop here</div>
+        <div class="file-drop-hint">PDF, JPG, PNG, WEBP</div>
+      </div>
+      <div id="file-error" class="file-error" style="display:none"></div>
+      <div class="file-list" id="file-list"></div>
+
+      <button class="btn" id="btn-submit" type="button" onclick="onSubmit()">
+        <div class="btn-inner">
+          <div class="btn-spinner" id="btn-spinner"></div>
+          <span id="btn-label">Submit</span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    // Version 1.0 | sample-info-submit.html script
+    // Dependencies: config.js (APP_CONFIG), api.js (API.getSampleInfoPage, API.submitSampleInfo)
+    if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+    if (typeof API       === 'undefined') throw new Error('api.js not loaded');
+
+    const MAX_FILES    = 6;
+    const MAX_BYTES    = 6 * 1024 * 1024; // 6 MB
+    const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    const token     = new URLSearchParams(window.location.search).get('t');
+    let   fileQueue = []; // array of { name, mime_type, file } — File objects
+    let   pageData  = null;
+
+    // ── State helpers ────────────────────────────────────────────────────────
+
+    function showState(id) {
+      ['state-loading','state-error','state-success','state-already','state-form'].forEach(function(s) {
+        document.getElementById(s).style.display = (s === id) ? 'block' : 'none';
+      });
+    }
+
+    function showToast(msg, type) {
+      var el = document.createElement('div');
+      el.className = 'toast toast-' + (type || 'error');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function() { el.remove(); }, 3500);
+    }
+
+    // ── Expiry countdown ─────────────────────────────────────────────────────
+
+    function startExpiryCheck(tokenExpires) {
+      function check() {
+        var now       = Date.now();
+        var expiresMs = new Date(tokenExpires).getTime();
+        var diffMs    = expiresMs - now;
+        if (diffMs <= 0) {
+          // Expired while supplier had the tab open — disable form
+          document.getElementById('btn-submit').disabled = true;
+          var banner = document.getElementById('expiry-banner');
+          banner.className = 'expiry-banner urgent';
+          banner.style.display = 'flex';
+          document.getElementById('expiry-text').textContent = 'This link has expired. Please contact your buyer to request a new one.';
+          return;
+        }
+        var diffHours = diffMs / (1000 * 60 * 60);
+        if (diffHours < 1) {
+          var diffMins = Math.ceil(diffMs / (1000 * 60));
+          var banner   = document.getElementById('expiry-banner');
+          banner.style.display = 'flex';
+          if (diffMins <= 10) banner.className = 'expiry-banner urgent';
+          document.getElementById('expiry-text').textContent =
+            'This link expires in approximately ' + diffMins + ' minute' + (diffMins === 1 ? '' : 's') + '.';
+        }
+      }
+      check();
+      setInterval(check, 60000); // re-check every minute
+    }
+
+    // ── File handling ─────────────────────────────────────────────────────────
+
+    function validateAndAddFiles(newFiles) {
+      var errEl = document.getElementById('file-error');
+      errEl.style.display = 'none';
+      errEl.textContent   = '';
+
+      var added = 0;
+      for (var i = 0; i < newFiles.length; i++) {
+        var f = newFiles[i];
+        if (fileQueue.length + added >= MAX_FILES) {
+          errEl.textContent   = 'Maximum ' + MAX_FILES + ' files allowed.';
+          errEl.style.display = 'block';
+          break;
+        }
+        if (!ALLOWED_MIME.includes(f.type)) {
+          errEl.textContent   = '"' + f.name + '" is not a supported file type. Use PDF or image files.';
+          errEl.style.display = 'block';
+          continue;
+        }
+        if (f.size > MAX_BYTES) {
+          errEl.textContent   = '"' + f.name + '" exceeds the 6 MB limit (' + (f.size / 1048576).toFixed(1) + ' MB).';
+          errEl.style.display = 'block';
+          continue;
+        }
+        fileQueue.push({ name: f.name, mime_type: f.type, file: f });
+        added++;
+      }
+      renderFileList();
+      // Reset input so same file can be re-selected after removal
+      document.getElementById('file-input').value = '';
+    }
+
+    function renderFileList() {
+      var wrap = document.getElementById('file-list');
+      wrap.innerHTML = '';
+      fileQueue.forEach(function(f, i) {
+        var item = document.createElement('div');
+        item.className = 'file-item';
+        var sizeMb = (f.file.size / 1048576).toFixed(2);
+        item.innerHTML =
+          '<span class="file-item-name">' + escHtml(f.name) + '</span>' +
+          '<span class="file-item-size">' + sizeMb + ' MB</span>' +
+          '<button class="file-item-remove" type="button" onclick="removeFile(' + i + ')" title="Remove">✕</button>';
+        wrap.appendChild(item);
+      });
+    }
+
+    function removeFile(i) {
+      fileQueue.splice(i, 1);
+      renderFileList();
+    }
+
+    function onFileChange(input) {
+      validateAndAddFiles(Array.from(input.files));
+    }
+
+    function onDragOver(e) {
+      e.preventDefault();
+      document.getElementById('file-drop').classList.add('drag-over');
+    }
+
+    function onDragLeave() {
+      document.getElementById('file-drop').classList.remove('drag-over');
+    }
+
+    function onDrop(e) {
+      e.preventDefault();
+      document.getElementById('file-drop').classList.remove('drag-over');
+      validateAndAddFiles(Array.from(e.dataTransfer.files));
+    }
+
+    // ── HTML escape helper ───────────────────────────────────────────────────
+
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Base64 encode file ───────────────────────────────────────────────────
+
+    function readFileAsBase64(file) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload  = function(e) { resolve(e.target.result.split(',')[1]); };
+        reader.onerror = function()  { reject(new Error('Failed to read file: ' + file.name)); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ── Submit ───────────────────────────────────────────────────────────────
+
+    async function onSubmit() {
+      // Client-side expiry re-check before sending
+      if (pageData && pageData.token_expires) {
+        if (new Date() > new Date(pageData.token_expires)) {
+          showToast('This link has expired. Please contact your buyer.', 'error');
+          return;
+        }
+      }
+
+      var btn     = document.getElementById('btn-submit');
+      var spinner = document.getElementById('btn-spinner');
+      var label   = document.getElementById('btn-label');
+      btn.disabled      = true;
+      spinner.style.display = 'block';
+      label.textContent = 'Submitting…';
+
+      try {
+        // Base64-encode all queued files
+        var filesPayload = [];
+        for (var i = 0; i < fileQueue.length; i++) {
+          var b64 = await readFileAsBase64(fileQueue[i].file);
+          filesPayload.push({
+            name:        fileQueue[i].name,
+            mime_type:   fileQueue[i].mime_type,
+            data_base64: b64
+          });
+        }
+
+        var notes = document.getElementById('f-notes').value.trim();
+        await API.submitSampleInfo(token, notes, filesPayload);
+        showState('state-success');
+
+      } catch (err) {
+        showToast(err.message || 'Submission failed. Please try again.', 'error');
+        btn.disabled      = false;
+        spinner.style.display = 'none';
+        label.textContent = 'Submit';
+      }
+    }
+
+    // ── Page load ────────────────────────────────────────────────────────────
+
+    (async function() {
+      if (!token) {
+        document.getElementById('error-msg').textContent = 'No submission token found in this link.';
+        showState('state-error');
+        return;
+      }
+      showState('state-loading');
+      try {
+        var data = await API.getSampleInfoPage(token);
+
+        if (data.status === 'Submitted') {
+          showState('state-already');
+          return;
+        }
+
+        // Populate read-only sample info
+        document.getElementById('info-name').textContent = data.sample_name        || '—';
+        document.getElementById('info-code').textContent = data.origin_sample_code || '—';
+        document.getElementById('info-id').textContent   = data.sample_id          || '—';
+
+        pageData = data;
+        startExpiryCheck(data.token_expires);
+        showState('state-form');
+
+      } catch (err) {
+        document.getElementById('error-msg').textContent = err.message || 'This link has expired or is invalid.';
+        showState('state-error');
+      }
+    })();
+  </script>
+</body>
+</html>

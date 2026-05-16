@@ -1,5 +1,12 @@
 <!DOCTYPE html>
-<!-- Version 1.15.4 | samples.html -->
+<!-- Version 1.17 | samples.html -->
+<!-- v1.17: Submission viewer modal — notes + files served via GAS, no Drive access needed.
+     sv-btn delegated listener opens modal-submission-view. getSubmissionFiles API call.
+     PDF rendered inline via blob URL. Images shown inline. Other files download link. -->
+<!-- v1.16: Per-detail sample info request — Request Info button, submission status badge.
+     Drive folder link (Submitted), modal with editable recipient email.
+     sendInfoRequest(), submissionMap built from PAGE_DATA.submissions.
+     submissions included in getSamplesPage bundle (Code.gs v2.9.3). -->
 <!-- v1.15.4: COMPLETE inline edit for sending_date, courier_name, tracking_number on inbound row.
      ieInboundCell() + startEditInbound() + event delegation routing + tr expand guard. -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
@@ -113,7 +120,7 @@
 
     /* ── Details section ── */
     .details-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1rem; }
-    .detail-row { display: grid; grid-template-columns: 1.6fr 1.1fr 0.55fr 1.3fr 0.55fr 0.55fr 0.65fr 0.75fr auto; gap: 0.4rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
+    .detail-row { display: grid; grid-template-columns: 1.6fr 1.1fr 0.55fr 1.3fr 0.55fr 0.55fr 1.3fr 0.75fr auto; gap: 0.4rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.8rem; }
     .detail-row:last-child { border-bottom: none; }
     .detail-header { background: var(--surface2); font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
@@ -245,6 +252,19 @@
     .status-sent       { background: #eef4fd; color: #1a5ca8; border: 1px solid #b5d0f5; }
     .status-received   { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; }
     .status-dropped    { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+    /* Sample info request submission badges (v1.16) */
+    .sub-pending   { background: #fef9ec; color: #854f0b; border: 1px solid #f5d89a; font-family: var(--font-mono); font-size: 0.63rem; padding: 1px 6px; border-radius: 3px; display: inline-block; }
+    .sub-submitted { background: #edf7f0; color: #1e6640; border: 1px solid #b8e0cb; font-family: var(--font-mono); font-size: 0.63rem; padding: 1px 6px; border-radius: 3px; display: inline-block; }
+    .sub-expired   { background: #fdf0ee; color: #a32d2d; border: 1px solid #f5c6c6; font-family: var(--font-mono); font-size: 0.63rem; padding: 1px 6px; border-radius: 3px; display: inline-block; }
+
+    /* Submission viewer modal (v1.17) */
+    .sv-file-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
+    .sv-file-name { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text); word-break: break-all; margin-bottom: 0.5rem; }
+    .sv-file-meta { font-size: 0.68rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .sv-file-preview { max-width: 100%; border: 1px solid var(--border); border-radius: 3px; margin-top: 0.5rem; }
+    .sv-file-preview iframe { width: 100%; height: 420px; border: none; }
+    .sv-notes-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; font-size: 0.83rem; color: var(--text); white-space: pre-wrap; word-break: break-word; margin-bottom: 1.25rem; min-height: 3rem; }
 
     /* Info block (supplier-submit / buyer-reserve) */
     .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.75rem; }
@@ -391,7 +411,7 @@
 
       <!-- Details sub-section -->
       <div class="field">
-        <label>Sample Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-family:var(--font-sans);font-size:0.75rem">— optional, supplier can fill via link</span></label>
+        <div style="display:block;font-size:0.72rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem">Sample Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-family:var(--font-sans);font-size:0.75rem">— optional, supplier can fill via link</span></div>
         <div class="details-list" id="details-list">
           <div class="detail-row detail-header">
             <span>Sample Name</span><span>Origin Code</span><span>Qty (g)</span><span>Coffee Sales Name</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Type</span><span></span>
@@ -431,6 +451,43 @@
     </div>
   </div>
 
+
+  <!-- ── Modal: Request Sample Info (v1.16) ── -->
+  <div class="st-modal" id="modal-info-request">
+    <div class="modal-box" style="max-width:480px">
+      <div class="modal-title" id="info-request-title">Request Sample Info</div>
+      <p style="font-size:0.83rem;color:var(--muted);margin-bottom:1.25rem">
+        A link will be emailed to the supplier. They can submit notes and upload supporting files.
+        The link expires in 14 days.
+      </p>
+      <!-- Read-only sample info -->
+      <div class="info-block" id="info-request-detail-block" style="margin-bottom:1.25rem"></div>
+      <!-- Editable recipient email -->
+      <div class="field">
+        <label for="info-request-email">Recipient Email <span style="color:var(--error)">*</span></label>
+        <input type="email" id="info-request-email" placeholder="supplier@example.com" />
+        <div class="field-note">Defaults to supplier email — edit if sending to a different contact.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="UI.closeModal('modal-info-request')">Cancel</button>
+        <button class="btn" id="btn-confirm-info-request">Send Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Submission Viewer (v1.17) ── -->
+  <div class="st-modal" id="modal-submission-view">
+    <div class="modal-box" style="max-width:1020px">
+      <div class="modal-title">Submission — <span id="sv-sample-name" style="color:var(--accent)"></span></div>
+      <div id="sv-body">
+        <div class="st-spinner"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="UI.closeModal('modal-submission-view')">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
@@ -443,7 +500,7 @@
     if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
     // ── State ─────────────────────────────────────────────────────────────────
-    let PAGE_DATA = { samples: [], details: [], prices: [], tiers: [], reservedMap: {}, suppliers: [], warehouses: [], coffeeTypes: [], sampleTypes: [] };  // v1.8/v1.15
+    let PAGE_DATA = { samples: [], details: [], prices: [], tiers: [], reservedMap: {}, suppliers: [], warehouses: [], coffeeTypes: [], sampleTypes: [], submissions: [] };  // v1.8/v1.15/v1.16
     let editingInboundId = null;
     let pendingLinkInboundId = null;
     let detailRows = []; // temp detail buffer for modal
@@ -494,6 +551,7 @@
         PAGE_DATA = await API.getSamplesPage(warehouseId);
         if (!PAGE_DATA.coffeeTypes) PAGE_DATA.coffeeTypes = ['Microlot', 'Blend']; // fallback
         if (!PAGE_DATA.sampleTypes) PAGE_DATA.sampleTypes = ['Preship', 'Type', 'Spot Lot']; // fallback v1.15
+        if (!PAGE_DATA.submissions) PAGE_DATA.submissions = []; // fallback v1.16
         renderTable();
         populateModalDropdowns();
       } catch (err) {
@@ -606,10 +664,19 @@
           detHtml += '<div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Sample Details</div>';
           detHtml += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
           detHtml += '<thead><tr style="background:var(--surface2)">';
-          ['Sample ID','Name','Origin Code','Sales Name','Coffee Type','Sample Type','Qty(g)','Bags','Bag kg','Cost $','Active'].forEach(h => {
+          ['Sample ID','Name','Origin Code','Sales Name','Coffee Type','Sample Type','Qty(g)','Bags','Bag kg','Cost $','Info Request','Active'].forEach(h => {
             detHtml += '<th style="text-align:left;padding:4px 8px;font-size:0.65rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)">' + h + '</th>';
           });
           detHtml += '</tr></thead><tbody>';
+
+          // v1.16: submission lookup keyed by detail_id for O(1) access
+          const subMap = {};
+          (PAGE_DATA.submissions || []).forEach(function(sub) { subMap[String(sub.detail_id)] = sub; });
+
+          // Default recipient email from parent inbound supplier
+          const supplierForInbound = PAGE_DATA.suppliers.find(function(sup) { return String(sup.supplier_id) === String(s.supplier_id); });
+          const defaultEmail = supplierForInbound ? (supplierForInbound.email || '') : '';
+
           dets.forEach(d => {
             const inactive = d.is_active === false || d.is_active === 'FALSE';
             const rowStyle = inactive ? 'opacity:0.45;' : '';
@@ -627,6 +694,39 @@
             detHtml += ieCell(d.detail_id, 'available_bags',     d.available_bags,     'number', P);
             detHtml += ieCell(d.detail_id, 'bag_size',           d.bag_size,           'number', P);
             detHtml += ieCell(d.detail_id, 'cost_price',         d.cost_price,         'number', P);
+
+            // v1.16.1: Info Request cell — data-* attributes, no string args in onclick.
+            // Delegated listener reads data attributes — avoids CSP eval violation.
+            const sub = subMap[String(d.detail_id)];
+            detHtml += '<td style="' + P + 'white-space:nowrap">';
+            if (!sub) {
+              detHtml += '<button class="btn btn-ghost btn-sm ir-btn" style="font-size:0.65rem;padding:2px 8px"' +
+                ' data-detail-id="' + d.detail_id + '"' +
+                ' data-sample-name="' + UI.esc(d.sample_name || '') + '"' +
+                ' data-origin-code="' + UI.esc(d.origin_sample_code || '') + '"' +
+                ' data-sample-id="' + UI.esc(d.sample_id || '') + '"' +
+                ' data-email="' + UI.esc(defaultEmail) + '">Request Info</button>';
+            } else if (sub.status === 'Submitted') {
+              detHtml += '<span class="sub-submitted">Submitted</span> ';
+              // v1.17: View button — opens in-app modal, no Drive access needed
+              detHtml += '<button class="btn btn-ghost btn-sm sv-btn" style="font-size:0.65rem;padding:2px 8px"' +
+                ' data-detail-id="' + d.detail_id + '"' +
+                ' data-submission-id="' + sub.submission_id + '"' +
+                ' data-sample-name="' + UI.esc(d.sample_name || '') + '">' +
+                'View</button>';
+
+            } else {
+              const badgeClass = sub.status === 'Expired' ? 'sub-expired' : 'sub-pending';
+              detHtml += '<span class="' + badgeClass + '">' + UI.esc(sub.status) + '</span> ';
+              detHtml += '<button class="btn btn-ghost btn-sm ir-btn" style="font-size:0.65rem;padding:2px 8px"' +
+                ' data-detail-id="' + d.detail_id + '"' +
+                ' data-sample-name="' + UI.esc(d.sample_name || '') + '"' +
+                ' data-origin-code="' + UI.esc(d.origin_sample_code || '') + '"' +
+                ' data-sample-id="' + UI.esc(d.sample_id || '') + '"' +
+                ' data-email="' + UI.esc(defaultEmail) + '">Resend</button>';
+            }
+            detHtml += '</td>';
+
             // Active toggle
             detHtml += '<td style="' + P + '">';
             detHtml += '<button onclick="event.stopPropagation();toggleActive(' + d.detail_id + ',' + inactive + ')" class="btn btn-ghost btn-sm" style="font-size:0.65rem;padding:2px 8px;border-color:' + (inactive ? 'var(--error)' : 'var(--success)') + ';color:' + (inactive ? 'var(--error)' : 'var(--success)') + '">' + (inactive ? 'Inactive' : 'Active') + '</button>';
@@ -1256,7 +1356,84 @@
       }
     }
 
-    // ── Coffee Type (v1.8) ────────────────────────────────────────────────────
+    // ── Submission Viewer (v1.17) ─────────────────────────────────────────────
+    // Delegated listener for .sv-btn (View button on Submitted detail rows).
+    // Reads data-detail-id + data-sample-name from button — no string args in onclick.
+
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.sv-btn');
+      if (!btn) return;
+      e.stopPropagation();
+      openSubmissionView(btn.dataset.detailId, btn.dataset.sampleName || '');
+    });
+
+    async function openSubmissionView(detailId, sampleName) {
+      document.getElementById('sv-sample-name').textContent = sampleName || 'Sample';
+      document.getElementById('sv-body').innerHTML = '<div class="st-spinner"></div>';
+      UI.openModal('modal-submission-view');
+
+      try {
+        const data = await API.getSubmissionFiles(detailId);
+
+        let html = '';
+
+        // Submitted at
+        if (data.submitted_at) {
+          html += '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:1rem">Submitted ' + UI.formatDate(data.submitted_at) + '</div>';
+        }
+
+        // Notes
+        html += '<div class="modal-section">Supplier Notes</div>';
+        html += '<div class="sv-notes-block">' + (data.notes ? UI.esc(data.notes) : '<span style="color:var(--muted);font-style:italic">No notes provided.</span>') + '</div>';
+
+        // Files
+        html += '<div class="modal-section">Files</div>';
+
+        if (data.folder_error) {
+          html += '<p style="font-size:0.82rem;color:var(--error)">Could not access the Drive folder. The files may have been moved or the service account lost access.</p>';
+        } else if (!data.files || !data.files.length) {
+          html += '<p style="font-size:0.82rem;color:var(--muted);font-style:italic">No files uploaded.</p>';
+        } else {
+          data.files.forEach(function(f) {
+            html += '<div class="sv-file-item">';
+            html += '<div class="sv-file-name">📎 ' + UI.esc(f.name) + '</div>';
+            html += '<div class="sv-file-meta">' + UI.esc(f.mime_type) + ' · ' + (f.size_bytes ? (f.size_bytes / 1024).toFixed(1) + ' KB' : '—') + '</div>';
+
+            if (f.too_large) {
+              html += '<div style="font-size:0.75rem;color:var(--warn)">File too large to preview (over 5 MB). Access via Google Drive directly.</div>';
+            } else if (f.data_base64) {
+              if (f.mime_type === 'application/pdf') {
+                // PDF — store b64 in data attribute; iframe rendered after innerHTML is set
+                html += '<div class="sv-file-preview" data-b64="' + f.data_base64 + '" data-mime="' + UI.esc(f.mime_type) + '" data-is-pdf="1"></div>';
+              } else if (f.mime_type.startsWith('image/')) {
+                // Image — show inline
+                html += '<img class="sv-file-preview" src="data:' + UI.esc(f.mime_type) + ';base64,' + f.data_base64 + '" alt="' + UI.esc(f.name) + '" style="max-height:320px;object-fit:contain" />';
+              } else {
+                // Other — download link
+                html += '<a href="data:' + UI.esc(f.mime_type) + ';base64,' + f.data_base64 + '" download="' + UI.esc(f.name) + '" style="font-size:0.75rem;color:var(--accent);font-family:var(--font-mono)">Download ' + UI.esc(f.name) + '</a>';
+              }
+            }
+            html += '</div>';
+          });
+        }
+
+        document.getElementById('sv-body').innerHTML = html;
+
+        // Render PDF iframes now that containers are in the DOM
+        document.querySelectorAll('.sv-file-preview[data-is-pdf]').forEach(function(div) {
+          const bytes = Uint8Array.from(atob(div.dataset.b64), function(c) { return c.charCodeAt(0); });
+          const blob  = new Blob([bytes], { type: div.dataset.mime });
+          const url   = URL.createObjectURL(blob);
+          div.innerHTML = '<iframe src="' + url + '" style="width:100%;height:480px;border:none"></iframe>';
+          div.removeAttribute('data-b64'); // free memory reference
+        });
+
+      } catch (err) {
+        document.getElementById('sv-body').innerHTML =
+          '<div style="color:var(--error);font-size:0.82rem">' + UI.esc(err.message) + '</div>';
+      }
+    }
+
     // User sets coffee type on inbound detail — internal classification, not shown to supplier.
 
     async function saveCoffeeType(detailId, coffeeType) {
@@ -1270,6 +1447,78 @@
         UI.toastError(err.message);
       }
     }
+
+    // ── Sample Info Request (v1.16.1) ─────────────────────────────────────────
+    // Delegated listener on .ir-btn — reads data-* attributes from the clicked button.
+    // No string arguments in onclick — avoids CSP eval violation.
+
+    let _pendingInfoDetailId = null;
+
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.ir-btn');
+      if (!btn) return;
+      e.stopPropagation();
+
+      const detailId  = btn.dataset.detailId;
+      const sampleName = btn.dataset.sampleName || '';
+      const originCode = btn.dataset.originCode || '';
+      const sampleId   = btn.dataset.sampleId   || '';
+      const email      = btn.dataset.email       || '';
+
+      _pendingInfoDetailId = detailId;
+
+      // Determine if resend
+      const sub = (PAGE_DATA.submissions || []).find(s => String(s.detail_id) === String(detailId));
+      const isResend = sub && sub.status !== 'Submitted';
+      document.getElementById('info-request-title').textContent = isResend ? 'Resend Sample Info Request' : 'Request Sample Info';
+
+      // Populate read-only detail block
+      document.getElementById('info-request-detail-block').innerHTML =
+        '<div class="info-row"><span class="info-label">Coffee Name</span><span class="info-value">' + UI.esc(sampleName || '—') + '</span></div>' +
+        '<div class="info-row"><span class="info-label">Origin Code</span><span class="info-value accent">' + UI.esc(originCode || '—') + '</span></div>' +
+        '<div class="info-row"><span class="info-label">Sample ID</span><span class="info-value accent">' + UI.esc(sampleId || '—') + '</span></div>';
+
+      // Pre-fill email
+      document.getElementById('info-request-email').value = email;
+
+      UI.openModal('modal-info-request');
+      document.getElementById('info-request-email').focus();
+    });
+
+    document.getElementById('btn-confirm-info-request').addEventListener('click', async () => {
+      const email = (document.getElementById('info-request-email').value || '').trim();
+      if (!email) { UI.toastError('Recipient email is required.'); return; }
+      // Basic email format guard
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { UI.toastError('Enter a valid email address.'); return; }
+
+      const btn = document.getElementById('btn-confirm-info-request');
+      UI.setLoading(btn, true);
+      try {
+        const result = await API.sendSampleInfoRequest(_pendingInfoDetailId, email);
+        // Update local submission state so badge refreshes without a page reload
+        const existing = (PAGE_DATA.submissions || []).find(s => String(s.detail_id) === String(_pendingInfoDetailId));
+        if (existing) {
+          existing.status        = 'Pending';
+          existing.token_expires = result.token_expires;
+        } else {
+          PAGE_DATA.submissions = PAGE_DATA.submissions || [];
+          PAGE_DATA.submissions.push({
+            submission_id:    result.submission_id,
+            detail_id:        _pendingInfoDetailId,
+            status:           'Pending',
+            token_expires:    result.token_expires,
+            files_folder_url: ''
+          });
+        }
+        UI.closeModal('modal-info-request');
+        UI.toastSuccess('Info request sent.');
+        renderTable(); // refresh badges
+      } catch (err) {
+        UI.toastError(err.message);
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    });
   </script>
 
   <!-- ── Modal: Sample Prices (v1.3) ── -->
@@ -1285,7 +1534,5 @@
       </div>
     </div>
   </div>
-
-
 </body>
 </html>
