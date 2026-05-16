@@ -1,4 +1,6 @@
-// Version 1.31
+// Version 1.33
+// v1.33: getSubmissionFiles — staff views supplier notes + files in-app without Drive access.
+//        resendSampleInfoRequest not added — sendSampleInfoRequest handles both send and resend.
 // v1.31: stampOutboundPrices — was defined in Code.gs (v2.7.6) and called in outbound.html
 //        but was never added to api.js. Caused "API.stampOutboundPrices is not a function".
 // v1.30: saveInboundField — inline editing for inbound_samples (sending_date, courier_name, tracking_number).
@@ -289,6 +291,30 @@ const API = (() => {
     return post({ action: 'updateCatalogueSendNotes', send_id: sendId, notes: notes || '', session_token: Auth.getToken() });
   }
 
+  // ─── Sample Info Requests (v1.32) ─────────────────────────────────────────
+  // Staff: send or resend a 14-day info request link for a specific inbound_detail.
+  // Handles both first-send and resend — server determines which path based on existing row.
+  // recipient_email: defaults to supplier email on the UI, editable by staff before sending.
+  async function sendSampleInfoRequest(detailId, recipientEmail) {
+    return post({ action: 'sendSampleInfoRequest', detail_id: detailId, recipient_email: recipientEmail, session_token: Auth.getToken() });
+  }
+
+  // Public (supplier): validate token and return sample read-only info for the form.
+  async function getSampleInfoPage(token) {
+    return post({ action: 'getSampleInfoPage', token: token });
+  }
+
+  // Public (supplier): submit notes + files — token-auth, no session.
+  // files: array of { name, mime_type, data_base64 }
+  async function submitSampleInfo(token, supplierNotes, files) {
+    return post({ action: 'submitSampleInfo', token: token, supplier_notes: supplierNotes || '', files: files || [] });
+  }
+
+  // Staff: load supplier notes + files for a submitted detail — served via GAS, no Drive access needed.
+  async function getSubmissionFiles(detailId) {
+    return post({ action: 'getSubmissionFiles', detail_id: detailId, session_token: Auth.getToken() });
+  }
+
   return {
     post,                                             // exposed for v2 procurement pages
     sendAuthCode, verifyAuthCode,
@@ -311,6 +337,10 @@ const API = (() => {
     sendCatalogueLink, getCataloguePage, submitCatalogueSelection,
     // v1.27 — catalogue library
     getCataloguesPage, saveCatalogue, archiveCatalogue,
-    sendCatalogueFromLibrary, revokeCatalogueSend, updateCatalogueSendNotes
+    sendCatalogueFromLibrary, revokeCatalogueSend, updateCatalogueSendNotes,
+    // v1.32 — sample info requests
+    sendSampleInfoRequest, getSampleInfoPage, submitSampleInfo,
+    // v1.33 — submission file viewer
+    getSubmissionFiles
   };
 })();
