@@ -1,6 +1,6 @@
-// Version 1.33
-// v1.33: getSubmissionFiles — staff views supplier notes + files in-app without Drive access.
-//        resendSampleInfoRequest not added — sendSampleInfoRequest handles both send and resend.
+// Version 1.34
+// v1.34: generateSupplierLink — generates token + returns link (no email).
+//        sendSupplierLink — emails existing token (no regen). Split for Link modal UX.
 // v1.31: stampOutboundPrices — was defined in Code.gs (v2.7.6) and called in outbound.html
 //        but was never added to api.js. Caused "API.stampOutboundPrices is not a function".
 // v1.30: saveInboundField — inline editing for inbound_samples (sending_date, courier_name, tracking_number).
@@ -103,6 +103,10 @@ const API = (() => {
 
   async function saveDetail(inboundId, warehouseId, countryId, detail) {
     return post(Object.assign({ action: 'saveDetail', inbound_id: inboundId, warehouse_id: warehouseId, country_id: countryId, session_token: Auth.getToken() }, detail));
+  }
+
+  async function generateSupplierLink(inboundId) {
+    return post({ action: 'generateSupplierLink', inbound_id: inboundId, session_token: Auth.getToken() });
   }
 
   async function sendSupplierLink(inboundId) {
@@ -319,7 +323,7 @@ const API = (() => {
     post,                                             // exposed for v2 procurement pages
     sendAuthCode, verifyAuthCode,
     getSamplesPage, getSuppliersPage, getInboundDetailPage,
-    saveSupplier, saveInbound, saveDetail, sendSupplierLink, updateTracking,
+    saveSupplier, saveInbound, saveDetail, generateSupplierLink, sendSupplierLink, updateTracking,
     getSupplierPage, supplierSubmit,
     getBuyersPage, saveBuyer,
     getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus,
