@@ -1,5 +1,11 @@
 <!DOCTYPE html>
-<!-- Version 1.17 | samples.html -->
+<!-- Version 1.19 | samples.html -->
+<!-- v1.19: Send Link modal — after sending, modal stays open and displays the supplier link
+     so staff can copy it. btn-confirm-link hides after send, Close replaces Cancel.
+     Copy button uses navigator.clipboard with execCommand fallback. -->
+<!-- v1.18: New Sample modal — hide Coffee Sales Name, add Origin Country dropdown per row.
+     origin_country_id passed as countryId arg to API.saveDetail() per row (same as supplier-submit.html).
+     Supplier country_id no longer used as fallback on save — row-level country wins. -->
 <!-- v1.17: Submission viewer modal — notes + files served via GAS, no Drive access needed.
      sv-btn delegated listener opens modal-submission-view. getSubmissionFiles API call.
      PDF rendered inline via blob URL. Images shown inline. Other files download link. -->
@@ -414,7 +420,7 @@
         <div style="display:block;font-size:0.72rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem">Sample Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-family:var(--font-sans);font-size:0.75rem">— optional, supplier can fill via link</span></div>
         <div class="details-list" id="details-list">
           <div class="detail-row detail-header">
-            <span>Sample Name</span><span>Origin Code</span><span>Qty (g)</span><span>Coffee Sales Name</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Type</span><span></span>
+            <span>Sample Name</span><span>Origin Code</span><span>Qty (g)</span><span>Origin Country</span><span>Bags</span><span>Bag kg</span><span>Cost $</span><span>Type</span><span></span>
           </div>
           <div id="details-rows"></div>
         </div>
@@ -444,8 +450,19 @@
         The link expires in 7 days.
       </p>
       <div id="link-info" style="font-size:0.82rem;margin-bottom:1.5rem;"></div>
+      <!-- v1.19: link display — shown after send, hidden initially -->
+      <div id="link-result" style="display:none;margin-bottom:1.25rem">
+        <div style="font-size:0.72rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Supplier Link</div>
+        <div style="display:flex;gap:0.5rem;align-items:stretch">
+          <input type="text" id="link-url" readonly
+            style="flex:1;font-family:var(--font-mono);font-size:0.72rem;background:var(--surface);color:var(--text);border:1px solid var(--border);padding:0.45rem 0.625rem;border-radius:var(--radius);outline:none;min-width:0;cursor:text" />
+          <button id="btn-copy-link" type="button" class="btn btn-ghost btn-sm"
+            style="white-space:nowrap;flex-shrink:0">Copy</button>
+        </div>
+        <div id="link-copy-confirm" style="display:none;font-size:0.72rem;color:var(--success);margin-top:0.35rem">✓ Copied to clipboard</div>
+      </div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="UI.closeModal('modal-link')">Cancel</button>
+        <button class="btn btn-ghost" id="btn-link-close" onclick="UI.closeModal('modal-link')">Close</button>
         <button class="btn" id="btn-confirm-link">Send Link</button>
       </div>
     </div>
@@ -493,7 +510,10 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.15.4 | samples.html script
+    // Version 1.19 | samples.html script
+    // v1.19: Send Link modal — link displayed after send for staff to copy. navigator.clipboard + fallback.
+    // v1.18: New Sample modal — coffee_sales_name removed, origin_country_id added per row.
+    //        API.saveDetail() now receives d.origin_country_id as countryId (not supplier.country_id).
     // v1.15.4: full inbound inline-edit: ieInboundCell, startEditInbound, delegation routing, tr guard.
     // v1.13.9: isNaN guard on inline-edit numeric fields (qty_grams, available_bags, bag_size, cost_price).
 
@@ -960,7 +980,7 @@
     // ── Modal: New Sample ─────────────────────────────────────────────────────
     document.getElementById('btn-new-sample').addEventListener('click', () => {
       editingInboundId = null;
-      detailRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', coffee_type: '' }];  // v1.3/v1.8/v1.15.2: cost_price_unit added
+      detailRows = [{ sample_name: '', origin_sample_code: '', qty_grams: '', origin_country_id: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', coffee_type: '' }];  // v1.18: origin_country_id replaces coffee_sales_name
       document.getElementById('modal-sample-title').textContent = 'New Sample Request';
       document.getElementById('s-po').value = '';
       document.getElementById('s-ref').value = '';
@@ -984,12 +1004,15 @@
       detailRows.forEach((d, i) => {
         const row = document.createElement('div');
         row.className = 'detail-row';
-        // v1.1: coffee_sales_name | v1.3: available_bags, bag_size, cost_price | v1.15.2: cost_price_unit
+        // v1.18: origin_country_id select replaces coffee_sales_name input
         row.innerHTML = `
           <input type="text" placeholder="Sample name" value="${UI.esc(d.sample_name)}" onchange="detailRows[${i}].sample_name=this.value" />
           <input type="text" placeholder="Origin code" value="${UI.esc(d.origin_sample_code)}" onchange="detailRows[${i}].origin_sample_code=this.value" />
           <input type="number" placeholder="g" min="0" value="${UI.esc(d.qty_grams)}" onchange="detailRows[${i}].qty_grams=this.value" />
-          <input type="text" placeholder="Sales name" value="${UI.esc(d.coffee_sales_name || '')}" onchange="detailRows[${i}].coffee_sales_name=this.value" />
+          <select onchange="detailRows[${i}].origin_country_id=this.value" title="Coffee origin country">
+            <option value="">— Origin —</option>
+            ${(PAGE_DATA.countries || []).map(c => '<option value="' + c.country_id + '"' + (String(d.origin_country_id) === String(c.country_id) ? ' selected' : '') + '>' + c.country_code + ' – ' + c.country_name + '</option>').join('')}
+          </select>
           <input type="number" placeholder="0" min="0" value="${UI.esc(d.available_bags || '')}" onchange="detailRows[${i}].available_bags=this.value" title="Available bags" />
           <input type="number" placeholder="0" min="0" step="0.1" value="${UI.esc(d.bag_size || '')}" onchange="detailRows[${i}].bag_size=this.value" title="Bag size (kg)" />
           <div style="display:flex;align-items:center;gap:4px">
@@ -1019,7 +1042,7 @@
     }
 
     document.getElementById('btn-add-detail').addEventListener('click', () => {
-      detailRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', coffee_sales_name: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', coffee_type: '' });  // v1.3/v1.8/v1.15.2: cost_price_unit added
+      detailRows.push({ sample_name: '', origin_sample_code: '', qty_grams: '', origin_country_id: '', available_bags: '', bag_size: '', cost_price: '', cost_price_unit: 'kg', coffee_type: '' });  // v1.18: origin_country_id replaces coffee_sales_name
       renderDetailRows();
     });
 
@@ -1057,10 +1080,10 @@
         });
 
         // 2. Save each detail (one call per detail — unavoidable for sample_id gen)
-        // Supplier's country is used for sample_id — get from supplier's country_id
-        const supplier = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(supplierId));
+        // v1.18: origin_country_id from the row wins (same resolution as supplier-submit.html).
+        // GAS saveInboundDetail: origin_country_id → rowCountryId → used for sample_id generation.
         for (const d of validDetails) {
-          await API.saveDetail(inbound_id, warehouseId, supplier.country_id, d);
+          await API.saveDetail(inbound_id, warehouseId, d.origin_country_id || '', d);
         }
 
         UI.closeModal('modal-sample');
@@ -1074,6 +1097,7 @@
     });
 
     // ── Send Link ─────────────────────────────────────────────────────────────
+    // v1.19: after sending, modal stays open and displays the link for staff to copy.
     function openSendLink(inboundId) {
       pendingLinkInboundId = inboundId;
       const s = PAGE_DATA.samples.find(x => String(x.inbound_id) === String(inboundId));
@@ -1083,6 +1107,12 @@
       document.getElementById('link-info').innerHTML =
         'Supplier: <strong>' + UI.esc(supplier ? supplier.supplier_name : s.supplier_id) + '</strong><br>' +
         'Email: <strong>' + UI.esc(supplier ? supplier.email : '—') + '</strong>';
+      // Reset link display
+      document.getElementById('link-result').style.display = 'none';
+      document.getElementById('link-url').value = '';
+      document.getElementById('link-copy-confirm').style.display = 'none';
+      document.getElementById('btn-confirm-link').style.display = '';
+      document.getElementById('btn-link-close').textContent = 'Cancel';
       UI.openModal('modal-link');
     }
 
@@ -1090,14 +1120,37 @@
       const btn = document.getElementById('btn-confirm-link');
       UI.setLoading(btn, true);
       try {
-        await API.sendSupplierLink(pendingLinkInboundId);
-        UI.closeModal('modal-link');
+        const result = await API.sendSupplierLink(pendingLinkInboundId);
+        // Show link for copying — keep modal open
+        if (result && result.link) {
+          document.getElementById('link-url').value = result.link;
+          document.getElementById('link-result').style.display = '';
+        }
+        btn.style.display = 'none';  // hide Send button — already sent
+        document.getElementById('btn-link-close').textContent = 'Close';
         UI.toastSuccess('Link sent to supplier.');
       } catch (err) {
         UI.toastError(err.message);
       } finally {
         UI.setLoading(btn, false);
       }
+    });
+
+    document.getElementById('btn-copy-link').addEventListener('click', () => {
+      const url = document.getElementById('link-url').value;
+      if (!url) return;
+      navigator.clipboard.writeText(url).then(() => {
+        const confirm = document.getElementById('link-copy-confirm');
+        confirm.style.display = '';
+        setTimeout(() => { confirm.style.display = 'none'; }, 2500);
+      }).catch(() => {
+        // Fallback for older browsers
+        document.getElementById('link-url').select();
+        document.execCommand('copy');
+        const confirm = document.getElementById('link-copy-confirm');
+        confirm.style.display = '';
+        setTimeout(() => { confirm.style.display = 'none'; }, 2500);
+      });
     });
 
     // ── Prices Modal (v1.3) ───────────────────────────────────────────────────
