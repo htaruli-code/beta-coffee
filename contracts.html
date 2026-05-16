@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.8.2 | contracts.html -->
+<!-- Version 2.8.3 | contracts.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -509,7 +509,11 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.8.2 | contracts.html
+// Version 2.8.3 | contracts.html
+// v2.8.3: BUG FIX — contract date blank on Edit modal.
+//          Added toInputDate() helper — normalises any date format (ISO string, Date
+//          serialised, locale string) to YYYY-MM-DD, the only format input[type=date]
+//          accepts. Same fix already applied in shipments.html v2.3.0 and inventory.html v2.1.5.
 // v2.8.2: BUG FIX — blank pages 2+3 eliminated by hiding body siblings with display:none instead of visibility:hidden.
 // v2.8.1: BUG FIX — pdf-print-area position:fixed caused 3-page repeat; changed to position:absolute.
 // v2.8: PDF generation — print modal with field toggles + generateContractPDF().
@@ -525,6 +529,18 @@
 // v2.5.2: isNaN guards + sanitised numeric fields on contract line and substitution save.
 //         dates via UI.formatDate. page-width 1300px.
 const fmtDate = v => UI.formatDate(v);
+// toInputDate — normalises any server date value to YYYY-MM-DD for input[type=date].
+// Handles: full ISO string, locale string, Date serialised to string, already-correct YYYY-MM-DD.
+function toInputDate(v) {
+  if (!v) return '';
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
 // v2.5: Product Name autocomplete by SKU name/code.
 // v2.3: Lot substitution panel — staff can record replacement lots per contract line.
 // v2.2: 📧 Dashboard button removed — buyers now log in via OTP at buyer-dashboard.html
@@ -710,7 +726,7 @@ function openContractModal(contractId) {
   document.getElementById('modal-contract-title').textContent = con ? 'Edit Contract' : 'New Contract';
   document.getElementById('c-id').value     = con ? con.contract_id     : '';
   document.getElementById('c-number').value = con ? con.contract_number  : '';
-  document.getElementById('c-date').value   = con ? con.contract_date    : '';
+  document.getElementById('c-date').value   = con ? toInputDate(con.contract_date) : '';
   document.getElementById('c-notes').value  = con ? con.notes            : '';
   document.getElementById('c-buyer').innerHTML = PAGE_DATA.buyers.map(b =>
     `<option value="${b.buyer_id}" ${con && String(con.buyer_id)===String(b.buyer_id)?'selected':''}>${esc(b.company_name)}</option>`
