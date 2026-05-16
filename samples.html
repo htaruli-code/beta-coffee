@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- Version 1.19 | samples.html -->
-<!-- v1.19: Send Link modal — after sending, modal stays open and displays the supplier link
-     so staff can copy it. btn-confirm-link hides after send, Close replaces Cancel.
+<!-- v1.19: Send Link modal — generateSupplierLink called on modal open, link shown immediately
+     for staff to copy. Send Link button emails the already-generated link (no regen).
      Copy button uses navigator.clipboard with execCommand fallback. -->
 <!-- v1.18: New Sample modal — hide Coffee Sales Name, add Origin Country dropdown per row.
      origin_country_id passed as countryId arg to API.saveDetail() per row (same as supplier-submit.html).
@@ -450,7 +450,7 @@
         The link expires in 7 days.
       </p>
       <div id="link-info" style="font-size:0.82rem;margin-bottom:1.5rem;"></div>
-      <!-- v1.19: link display — shown after send, hidden initially -->
+      <!-- v1.19: link display — generated on modal open, shown immediately for copying -->
       <div id="link-result" style="display:none;margin-bottom:1.25rem">
         <div style="font-size:0.72rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Supplier Link</div>
         <div style="display:flex;gap:0.5rem;align-items:stretch">
@@ -511,7 +511,8 @@
   <script src="js/ui.js"></script>
   <script>
     // Version 1.19 | samples.html script
-    // v1.19: Send Link modal — link displayed after send for staff to copy. navigator.clipboard + fallback.
+    // v1.19: openSendLink calls API.generateSupplierLink on modal open — link shown immediately.
+    //        Send Link button calls API.sendSupplierLink to email the existing token, no regen.
     // v1.18: New Sample modal — coffee_sales_name removed, origin_country_id added per row.
     //        API.saveDetail() now receives d.origin_country_id as countryId (not supplier.country_id).
     // v1.15.4: full inbound inline-edit: ieInboundCell, startEditInbound, delegation routing, tr guard.
@@ -1097,8 +1098,9 @@
     });
 
     // ── Send Link ─────────────────────────────────────────────────────────────
-    // v1.19: after sending, modal stays open and displays the link for staff to copy.
-    function openSendLink(inboundId) {
+    // v1.19: openSendLink calls generateSupplierLink immediately on modal open —
+    // link is shown before staff decides to send. Send Link button emails it.
+    async function openSendLink(inboundId) {
       pendingLinkInboundId = inboundId;
       const s = PAGE_DATA.samples.find(x => String(x.inbound_id) === String(inboundId));
       const supplierMap = {};
@@ -1107,26 +1109,32 @@
       document.getElementById('link-info').innerHTML =
         'Supplier: <strong>' + UI.esc(supplier ? supplier.supplier_name : s.supplier_id) + '</strong><br>' +
         'Email: <strong>' + UI.esc(supplier ? supplier.email : '—') + '</strong>';
-      // Reset link display
+      // Reset state — disable Send until link is ready
       document.getElementById('link-result').style.display = 'none';
       document.getElementById('link-url').value = '';
       document.getElementById('link-copy-confirm').style.display = 'none';
-      document.getElementById('btn-confirm-link').style.display = '';
+      document.getElementById('btn-confirm-link').disabled = true;
       document.getElementById('btn-link-close').textContent = 'Cancel';
       UI.openModal('modal-link');
+
+      // Generate link immediately on modal open — no email sent yet
+      try {
+        const result = await API.generateSupplierLink(inboundId);
+        if (result && result.link) {
+          document.getElementById('link-url').value = result.link;
+          document.getElementById('link-result').style.display = '';
+        }
+        document.getElementById('btn-confirm-link').disabled = false;
+      } catch (err) {
+        UI.toastError('Could not generate link: ' + err.message);
+      }
     }
 
     document.getElementById('btn-confirm-link').addEventListener('click', async () => {
       const btn = document.getElementById('btn-confirm-link');
       UI.setLoading(btn, true);
       try {
-        const result = await API.sendSupplierLink(pendingLinkInboundId);
-        // Show link for copying — keep modal open
-        if (result && result.link) {
-          document.getElementById('link-url').value = result.link;
-          document.getElementById('link-result').style.display = '';
-        }
-        btn.style.display = 'none';  // hide Send button — already sent
+        await API.sendSupplierLink(pendingLinkInboundId);
         document.getElementById('btn-link-close').textContent = 'Close';
         UI.toastSuccess('Link sent to supplier.');
       } catch (err) {
@@ -1144,7 +1152,6 @@
         confirm.style.display = '';
         setTimeout(() => { confirm.style.display = 'none'; }, 2500);
       }).catch(() => {
-        // Fallback for older browsers
         document.getElementById('link-url').select();
         document.execCommand('copy');
         const confirm = document.getElementById('link-copy-confirm');
