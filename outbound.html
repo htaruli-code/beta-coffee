@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.23 | outbound.html -->
+<!-- Version 1.24 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -392,8 +392,9 @@
           <label for="o-beans">Beans <span style="color:var(--error)">*</span></label>
           <select id="o-beans" style="width:100%">
             <option value="">— Select type —</option>
-            <option value="Green">Green</option>
-            <option value="Roasted">Roasted</option>
+            <option value="NO Sample">NO Sample</option>
+            <option value="Green Sample">Green Sample</option>
+            <option value="Roasted Sample">Roasted Sample</option>
           </select>
         </div>
         <div class="field">
@@ -922,7 +923,9 @@
 
     function beansBadge(beans) {
       if (!beans) return '<span style="color:var(--muted)">—</span>';
-      const cls = beans === 'Green' ? 'badge-green' : 'badge-roasted';
+      const cls = beans === 'Green Sample'   ? 'badge-green'
+                : beans === 'Roasted Sample' ? 'badge-roasted'
+                : 'badge-requested';  // NO Sample
       return `<span class="badge ${cls}">${UI.esc(beans)}</span>`;
     }
 
@@ -1126,7 +1129,8 @@
 
       if (!buyerId)     { UI.toastError('Select a buyer.'); return; }
       if (!warehouseId) { UI.toastError('Select a warehouse.'); return; }
-      if (!beans)       { UI.toastError('Select beans type.'); return; }
+      const validBeans = ['NO Sample', 'Green Sample', 'Roasted Sample'];
+      if (!beans || !validBeans.includes(beans)) { UI.toastError('Select beans type.'); return; }
 
       const validDetails = outboundDetailRows.filter(d => d.inbound_detail_id);  // v1.7: must pick from picker
       if (!validDetails.length) { UI.toastError('Select at least one sample from the picker.'); return; }
