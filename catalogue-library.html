@@ -1,5 +1,13 @@
 <!DOCTYPE html>
-<!-- Version 1.2 | catalogue-library.html -->
+<!-- Version 1.6 | catalogue-library.html -->
+<!-- v1.6: New Catalogue modal — lots sorted by sample_name ascending; modal max-width
+     680px → 1020px (+50%); bag count display "10bg" → "10 bg". -->
+<!-- v1.5: renderLotPicker — filter out inactive lots (is_active false/FALSE).
+     Only active samples shown in New/Edit Catalogue lot picker. -->
+<!-- v1.4: Send modal — buyer dropdown replaced with search input + results list.
+     Buyers sorted by company_name. Selected buyer stored in hidden send-buyer-id.
+     No warehouse filter on buyers needed — catalogue is already warehouse-scoped. -->
+<!-- v1.3: Warehouse filter dropdown on catalogue left panel. -->
 <!-- Theme: Warm Precision v1.0 — matches existing app aesthetic -->
 <html lang="en">
 <head>
@@ -137,6 +145,19 @@
     .filter-bar { display: flex; gap: 0.5rem; align-items: center; padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); }
     .filter-bar input[type="text"] { font-size: 0.75rem; padding: 0.35rem 0.6rem; }
     .filter-bar select { font-size: 0.75rem; padding: 0.35rem 0.6rem; }
+
+    /* ── Buyer search ── */
+    .buyer-search-wrap { position: relative; }
+    .buyer-search-wrap input[type="text"] { padding-right: 1.75rem; }
+    .buyer-search-clear { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.85rem; line-height: 1; padding: 0; display: none; }
+    .buyer-search-clear:hover { color: var(--text); }
+    .buyer-results { position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: #fff; border: 1px solid var(--accent); border-radius: var(--radius); max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: none; }
+    .buyer-result-item { padding: 0.5rem 0.75rem; font-size: 0.82rem; cursor: pointer; border-bottom: 1px solid var(--border); transition: background var(--transition); }
+    .buyer-result-item:last-child { border-bottom: none; }
+    .buyer-result-item:hover, .buyer-result-item.focused { background: #fef4e8; }
+    .buyer-result-item .buyer-name { font-weight: 500; color: var(--text); }
+    .buyer-result-item .buyer-contact { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+    .buyer-selected-display { font-family: var(--font-mono); font-size: 0.75rem; color: var(--success); margin-top: 0.35rem; min-height: 1rem; }
   </style>
 </head>
 <body>
@@ -168,6 +189,9 @@
         <div class="panel-header">
           <span class="panel-title">Catalogues</span>
           <div style="display:flex;gap:0.5rem;align-items:center">
+            <select id="filter-warehouse" style="font-size:0.72rem;padding:0.25rem 0.5rem;width:auto;min-width:120px">
+              <option value="">All Warehouses</option>
+            </select>
             <label style="font-size:0.72rem;color:var(--muted);display:flex;gap:0.3rem;align-items:center;cursor:pointer;margin:0">
               <input type="checkbox" id="show-archived" style="accent-color:var(--accent);" />
               Show archived
@@ -201,7 +225,7 @@
 
   <!-- ── Modal: New / Edit Catalogue ── -->
   <div class="modal-overlay" id="modal-cat">
-    <div class="modal-box" style="max-width:680px">
+    <div class="modal-box" style="max-width:1020px">
       <div class="modal-header">
         <span class="modal-title" id="modal-cat-title">New Catalogue</span>
         <button class="modal-close" id="btn-modal-cat-close">✕</button>
@@ -253,10 +277,14 @@
         </p>
         <div id="send-cat-name" style="font-family:var(--font-mono);font-size:0.78rem;color:var(--accent);margin-bottom:1rem"></div>
         <div class="field">
-          <label for="send-buyer">Buyer <span style="color:var(--error)">*</span></label>
-          <select id="send-buyer">
-            <option value="">Select buyer…</option>
-          </select>
+          <label for="send-buyer-search">Buyer <span style="color:var(--error)">*</span></label>
+          <div class="buyer-search-wrap">
+            <input type="text" id="send-buyer-search" placeholder="Type to search buyer…" autocomplete="off" />
+            <button type="button" class="buyer-search-clear" id="send-buyer-clear" tabindex="-1">✕</button>
+            <div class="buyer-results" id="send-buyer-results"></div>
+          </div>
+          <div class="buyer-selected-display" id="send-buyer-selected"></div>
+          <input type="hidden" id="send-buyer-id" />
         </div>
       </div>
       <div class="modal-footer">
@@ -292,7 +320,8 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.0 | catalogue-library.html script
+    // Version 1.2 | catalogue-library.html script
+    // v1.2: warehouse filter on left panel (v1.3 HTML); buyer search input in send modal (v1.4).
     // Dependency check
     if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
     if (typeof Auth      === 'undefined') throw new Error('auth.js not loaded');
@@ -305,6 +334,7 @@
     let PAGE_DATA      = { catalogues: [], sends: [], buyers: [], warehouses: [], details: [] };
     let selectedCatId  = null;
     let showArchived   = false;
+    let filterWarehouse = '';
 
     // ── Boot ──────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
@@ -314,6 +344,10 @@
       document.getElementById('btn-new-cat').addEventListener('click', openNewCatModal);
       document.getElementById('show-archived').addEventListener('change', e => {
         showArchived = e.target.checked;
+        renderCatList();
+      });
+      document.getElementById('filter-warehouse').addEventListener('change', e => {
+        filterWarehouse = e.target.value;
         renderCatList();
       });
 
@@ -348,6 +382,16 @@
         document.getElementById('cat-spinner').style.display = 'none';
         document.getElementById('cat-list').style.display    = '';
 
+        // Populate warehouse filter select in left panel
+        const whFilter = document.getElementById('filter-warehouse');
+        whFilter.innerHTML = '<option value="">All Warehouses</option>';
+        (PAGE_DATA.warehouses || []).forEach(w => {
+          const o = document.createElement('option');
+          o.value = w.warehouse_id;
+          o.textContent = w.warehouse_name;
+          whFilter.appendChild(o);
+        });
+
         // Populate warehouse select in modal
         const whSel = document.getElementById('cat-warehouse');
         whSel.innerHTML = '<option value="">Select warehouse…</option>';
@@ -356,16 +400,6 @@
           o.value = w.warehouse_id;
           o.textContent = w.warehouse_name;
           whSel.appendChild(o);
-        });
-
-        // Populate buyer select in send modal
-        const bySel = document.getElementById('send-buyer');
-        bySel.innerHTML = '<option value="">Select buyer…</option>';
-        (PAGE_DATA.buyers || []).forEach(b => {
-          const o = document.createElement('option');
-          o.value = b.buyer_id;
-          o.textContent = b.company_name + (b.contact_person ? ' — ' + b.contact_person : '');
-          bySel.appendChild(o);
         });
 
         renderCatList();
@@ -377,7 +411,10 @@
     // ── Render catalogue list ─────────────────────────────────────────────────
     function renderCatList() {
       const ul   = document.getElementById('cat-list');
-      const cats = (PAGE_DATA.catalogues || []).filter(c => showArchived || c.status !== 'Archived');
+      let cats = (PAGE_DATA.catalogues || []).filter(c => showArchived || c.status !== 'Archived');
+      if (filterWarehouse) {
+        cats = cats.filter(c => String(c.warehouse_id) === String(filterWarehouse));
+      }
       ul.innerHTML = '';
 
       if (cats.length === 0) {
@@ -491,7 +528,10 @@
     // ── Lot picker ─────────────────────────────────────────────────────────────
     function renderLotPicker(warehouseId, selectedIds) {
       const picker  = document.getElementById('cat-lot-picker');
-      const details = (PAGE_DATA.details || []).filter(d => !warehouseId || String(d.warehouse_id) === String(warehouseId));
+      const details = (PAGE_DATA.details || []).filter(d =>
+        (!warehouseId || String(d.warehouse_id) === String(warehouseId)) &&
+        d.is_active !== false && d.is_active !== 'FALSE'
+      );
       const selSet  = new Set((selectedIds || []).map(String));
 
       if (!warehouseId) {
@@ -505,12 +545,14 @@
         return;
       }
 
-      picker.innerHTML = details.map(d => `
+      const sorted  = details.slice().sort((a, b) => (a.sample_name || '').localeCompare(b.sample_name || ''));
+
+      picker.innerHTML = sorted.map(d => `
         <label class="lot-row">
           <input type="checkbox" class="lot-check" value="${d.detail_id}" ${selSet.has(String(d.detail_id)) ? 'checked' : ''} />
           <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${UI.esc(d.sample_name || d.sample_id)}</span>
           <span class="lot-code">${UI.esc(d.sample_id || '')}</span>
-          <span class="lot-avail">${d.buyer_available || d.available_bags || 0}bg</span>
+          <span class="lot-avail">${d.buyer_available || d.available_bags || 0} bg</span>
         </label>
       `).join('');
 
@@ -558,8 +600,14 @@
       const cat = (PAGE_DATA.catalogues || []).find(c => String(c.catalogue_id) === String(selectedCatId));
       if (!cat) return;
       document.getElementById('send-cat-name').textContent = cat.catalogue_name;
-      document.getElementById('send-buyer').value = '';
+      // Reset buyer search
+      document.getElementById('send-buyer-search').value    = '';
+      document.getElementById('send-buyer-id').value        = '';
+      document.getElementById('send-buyer-selected').textContent = '';
+      document.getElementById('send-buyer-clear').style.display  = 'none';
+      document.getElementById('send-buyer-results').style.display = 'none';
       openModal('modal-send');
+      setTimeout(() => document.getElementById('send-buyer-search').focus(), 80);
     }
 
     function openNotesModal(sendId, currentNotes) {
@@ -613,7 +661,7 @@
 
     // ── Send catalogue to buyer ────────────────────────────────────────────────
     async function doSendCatalogue() {
-      const buyerId = document.getElementById('send-buyer').value;
+      const buyerId = document.getElementById('send-buyer-id').value;
       if (!buyerId)      return UI.toastError('Please select a buyer');
       if (!selectedCatId) return;
 
@@ -678,6 +726,114 @@
         UI.setLoading(btn, false);
       }
     }
+
+    // ── Buyer search widget (v1.4) ─────────────────────────────────────────────
+    // Sorted buyer list built once per open. Input filters inline, keyboard nav supported.
+
+    (function initBuyerSearch() {
+      const input    = document.getElementById('send-buyer-search');
+      const results  = document.getElementById('send-buyer-results');
+      const hiddenId = document.getElementById('send-buyer-id');
+      const display  = document.getElementById('send-buyer-selected');
+      const clearBtn = document.getElementById('send-buyer-clear');
+      let focusIdx   = -1;
+
+      function getSortedBuyers() {
+        return (PAGE_DATA.buyers || []).slice().sort((a, b) =>
+          (a.company_name || '').localeCompare(b.company_name || '')
+        );
+      }
+
+      function showResults(filtered) {
+        focusIdx = -1;
+        if (!filtered.length) {
+          results.style.display = 'none';
+          return;
+        }
+        results.innerHTML = filtered.map((b, i) =>
+          '<div class="buyer-result-item" data-id="' + b.buyer_id + '" data-idx="' + i + '">' +
+            '<div class="buyer-name">' + UI.esc(b.company_name) + '</div>' +
+            (b.contact_person ? '<div class="buyer-contact">' + UI.esc(b.contact_person) + '</div>' : '') +
+          '</div>'
+        ).join('');
+        results.style.display = 'block';
+
+        results.querySelectorAll('.buyer-result-item').forEach(item => {
+          item.addEventListener('mousedown', e => {
+            e.preventDefault(); // keep focus on input
+            selectBuyer(item.dataset.id);
+          });
+        });
+      }
+
+      function selectBuyer(buyerId) {
+        const b = (PAGE_DATA.buyers || []).find(x => String(x.buyer_id) === String(buyerId));
+        if (!b) return;
+        hiddenId.value  = b.buyer_id;
+        input.value     = b.company_name + (b.contact_person ? ' — ' + b.contact_person : '');
+        display.textContent = '✓ Selected';
+        clearBtn.style.display = 'block';
+        results.style.display  = 'none';
+        focusIdx = -1;
+      }
+
+      function clearSelection() {
+        hiddenId.value  = '';
+        input.value     = '';
+        display.textContent = '';
+        clearBtn.style.display = 'none';
+        results.style.display  = 'none';
+        input.focus();
+      }
+
+      input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        hiddenId.value = '';
+        display.textContent = '';
+        clearBtn.style.display = q ? 'block' : 'none';
+        if (!q) { results.style.display = 'none'; return; }
+        const filtered = getSortedBuyers().filter(b =>
+          (b.company_name   || '').toLowerCase().includes(q) ||
+          (b.contact_person || '').toLowerCase().includes(q)
+        );
+        showResults(filtered);
+      });
+
+      input.addEventListener('focus', () => {
+        if (!hiddenId.value && !input.value) {
+          showResults(getSortedBuyers());
+        }
+      });
+
+      input.addEventListener('keydown', e => {
+        const items = results.querySelectorAll('.buyer-result-item');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          focusIdx = Math.min(focusIdx + 1, items.length - 1);
+          items.forEach((el, i) => el.classList.toggle('focused', i === focusIdx));
+          if (items[focusIdx]) items[focusIdx].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          focusIdx = Math.max(focusIdx - 1, 0);
+          items.forEach((el, i) => el.classList.toggle('focused', i === focusIdx));
+          if (items[focusIdx]) items[focusIdx].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (focusIdx >= 0 && items[focusIdx]) {
+            selectBuyer(items[focusIdx].dataset.id);
+          }
+        } else if (e.key === 'Escape') {
+          results.style.display = 'none';
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        // Delay so mousedown on result fires first
+        setTimeout(() => { results.style.display = 'none'; }, 150);
+      });
+
+      clearBtn.addEventListener('click', clearSelection);
+    })();
 
     // ── Reload without losing selection ───────────────────────────────────────
     async function reload() {

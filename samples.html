@@ -1,5 +1,10 @@
 <!DOCTYPE html>
-<!-- Version 1.21 | samples.html -->
+<!-- Version 1.22 | samples.html -->
+<!-- v1.22: Show and inline-edit PO Number and Supplier Ref on the main inbound table.
+     Two new TH columns added between Warehouse and Created. ieInboundCell used for both
+     fields — same inline-edit pattern as sending_date/courier_name/tracking_number.
+     Backend: DataService.gs v1.18 (INBOUND_EDITABLE_FIELDS) + Code.gs v2.9.6 (whitelist).
+     colspan updated from 12 → 14 throughout. -->
 <!-- v1.19: Send Link modal — generateSupplierLink called on modal open, link shown immediately
      for staff to copy. Send Link button emails the already-generated link (no regen).
      Copy button uses navigator.clipboard with execCommand fallback. -->
@@ -354,13 +359,15 @@
 
     <!-- Table -->
     <div class="table-wrap" style="overflow-x:auto">
-      <table style="min-width:900px">
+      <table style="min-width:1100px">
         <thead>
           <tr>
             <th></th>
             <th>Inbound ID</th>
             <th>Supplier</th>
             <th>Warehouse</th>
+            <th>PO Number</th>
+            <th>Supplier Ref</th>
             <th>Created</th>
             <th>Sending Date</th>
             <th>Courier</th>
@@ -372,7 +379,7 @@
           </tr>
         </thead>
         <tbody id="samples-tbody">
-          <tr><td colspan="12" class="st-empty"><div class="st-spinner"></div></td></tr>
+          <tr><td colspan="14" class="st-empty"><div class="st-spinner"></div></td></tr>
         </tbody>
       </table>
       <div id="pagination-bar" style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted)">
@@ -574,7 +581,7 @@
         populateModalDropdowns();
       } catch (err) {
         document.getElementById('samples-tbody').innerHTML =
-          '<tr><td colspan="12" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+          '<tr><td colspan="14" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
     }
 
@@ -647,6 +654,8 @@
           <td><span class="sample-id">#${UI.esc(s.inbound_id)}</span></td>
           <td>${UI.esc(supplierMap[s.supplier_id] || s.supplier_id)}</td>
           <td>${UI.esc(whMap[s.warehouse_id] || s.warehouse_id)}</td>
+          ${ieInboundCell(s.inbound_id, 'po_number',       s.po_number       || '', 'text', 'font-family:var(--font-mono);font-size:0.78rem')}
+          ${ieInboundCell(s.inbound_id, 'supplier_ref',    s.supplier_ref    || '', 'text', 'font-family:var(--font-mono);font-size:0.78rem')}
           <td>${UI.formatDate(s.created_at)}</td>
           ${ieInboundCell(s.inbound_id, 'sending_date',    s.sending_date    || '', 'date', '')}
           ${ieInboundCell(s.inbound_id, 'courier_name',    s.courier_name    || '', 'text', '')}
@@ -672,13 +681,13 @@
         // Show notes on inbound row (v1.12)
         if (s.notes) {
           const notesTr = document.createElement('tr');
-          notesTr.innerHTML = '<td colspan="12" style="padding:4px 1rem 6px 2.5rem;font-size:0.78rem;color:var(--muted);font-style:italic;background:var(--surface)">📝 ' + UI.esc(s.notes) + '</td>';
+          notesTr.innerHTML = '<td colspan="14" style="padding:4px 1rem 6px 2.5rem;font-size:0.78rem;color:var(--muted);font-style:italic;background:var(--surface)">📝 ' + UI.esc(s.notes) + '</td>';
           tbody.appendChild(notesTr);
         }
         if (isOpen && detCount > 0) {
           const detTr = document.createElement('tr');
           detTr.style.background = 'var(--surface)';
-          let detHtml = '<td colspan="12" style="padding:0.75rem 1rem 1rem 2.5rem">';
+          let detHtml = '<td colspan="14" style="padding:0.75rem 1rem 1rem 2.5rem">';
           detHtml += '<div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem">Sample Details</div>';
           detHtml += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
           detHtml += '<thead><tr style="background:var(--surface2)">';
@@ -757,7 +766,7 @@
       });
 
       if (!pageRows.length) {
-        tbody.innerHTML = '<tr><td colspan="12" class="st-empty">No inbound samples found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" class="st-empty">No inbound samples found.</td></tr>';
       }
     }
 
