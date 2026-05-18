@@ -1,4 +1,4 @@
-<!-- Version 2.3.0 | purchase-orders.html -->
+<!-- Version 2.3.1 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -866,10 +866,25 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.2.1 | purchase-orders.html
+// Version 2.3.1 | purchase-orders.html
+// v2.3.1: BUG FIX — PO date blank on Edit modal.
+//          Added toInputDate() helper — normalises any date format (ISO string, Date
+//          serialised, locale string) to YYYY-MM-DD, the only format input[type=date]
+//          accepts. Same fix applied in contracts.html v2.8.3, shipments.html v2.3.0,
+//          inventory.html v2.1.5.
 // v2.2.1: "Import from Contract" — search contract lines, select row, auto-populate SKU + bags into PO line row.
 // v2.2.7: dates formatted via UI.formatDate (computer locale, dd MMM yyyy)
 const fmtDate = v => UI.formatDate(v);
+// toInputDate — normalises any server date value to YYYY-MM-DD for input[type=date].
+function toInputDate(v) {
+  if (!v) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
 // v2.1: Shipping Instructions modal added — Save Draft + Save & Send Email
 
 // ── Dependency check ──────────────────────────────────────────────────────────
@@ -1021,7 +1036,7 @@ function openPoModal(poId) {
   document.getElementById('modal-po-title').textContent = po ? 'Edit Purchase Order' : 'New Purchase Order';
   document.getElementById('po-id').value     = po ? po.po_id : '';
   document.getElementById('po-number').value = po ? po.po_number : '';
-  document.getElementById('po-date').value   = po ? po.po_date : '';
+  document.getElementById('po-date').value   = po ? toInputDate(po.po_date) : '';
   document.getElementById('po-notes').value  = po ? po.notes   : '';
 
   const sup = document.getElementById('po-supplier');
