@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.2.9 | shipments.html -->
+<!-- Version 2.3.1 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -18,12 +18,13 @@
     }
     body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
     .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
-    .nav-brand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
-    .nav-links { display: flex; gap: 1.5rem; }
-    .nav-links a { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
-    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
-    .nav-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); cursor: pointer; }
-    .nav-user:hover { color: var(--error); }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
+    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
+    .nav-links a:hover { background: var(--surface); color: var(--text); }
+    .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
+    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
+    .nav-user:hover { color: var(--accent); }
     .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
@@ -85,15 +86,15 @@
 <nav class="nav">
   <span class="nav-brand" id="nav-brand">Sample Tracker</span>
   <div class="nav-links">
+    <a href="all-samples.html" id="nav-all-samples">All Samples</a>
     <a href="purchase-orders.html" id="nav-po">Purchase Orders</a>
     <a href="shipments.html" id="nav-shipments" class="active">Shipments</a>
     <a href="inventory.html" id="nav-inventory">Inventory</a>
     <a href="inventory-locations.html" id="nav-locations">Locations</a>
-    <a href="product-skus.html" id="nav-skus">SKUs</a>
+    <a href="product-skus.html" id="nav-skus">SKU</a>
     <a href="suppliers.html" id="nav-suppliers">Suppliers</a>
     <a href="contracts.html" id="nav-contracts">Contracts</a>
     <a href="drawdowns.html" id="nav-drawdowns">Drawdowns</a>
-    <a href="catalogue-library.html" id="nav-catalogues">Catalogues</a>
   </div>
   <span class="nav-user" id="nav-user"></span>
 </nav>
@@ -272,6 +273,11 @@
 <script src="js/ui.js"></script>
 <script>
 // Version 2.2.9 | shipments.html
+// v2.3.0: BUG FIX — openShipmentModal date fields empty on edit.
+//   Added toInputDate() helper — normalises any date format to YYYY-MM-DD
+//   (the only format input[type=date] accepts). Without this, dates from the
+//   spreadsheet in ISO or other formats silently rendered as blank.
+//   Same fix already applied in inventory.html v2.1.5.
 // v2.2.9: renderLinkedPoLines — replace "Line #ID" with product sample_name.
 //   Display: PO number · Sample Name · N bags
 // v2.2.8: PO picker layout — full rebuild. Search on top full-width. PO Line +
@@ -303,6 +309,21 @@ if (typeof UI   === 'undefined') throw new Error('ui.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
 const fmtDate = v => UI.formatDate(v);
+
+// Normalise any date value to YYYY-MM-DD for input[type=date].
+// Handles: YYYY-MM-DD (pass-through), full ISO string, any parseable format.
+// Uses UTC to avoid timezone-shift off-by-one errors.
+function toInputDate(v) {
+  if (!v) return '';
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (isNaN(d)) return '';
+  const y   = d.getUTCFullYear();
+  const m   = ('0' + (d.getUTCMonth() + 1)).slice(-2);
+  const day = ('0' + d.getUTCDate()).slice(-2);
+  return y + '-' + m + '-' + day;
+}
 let PAGE_DATA = {
   shipments: [], purchase_orders: [], suppliers: [], po_lines: [],
   junctions: [], instructions: [], carriers: [],
@@ -471,10 +492,10 @@ function openShipmentModal(shipmentId) {
   document.getElementById('s-id').value        = s ? s.shipment_id : '';
   document.getElementById('s-container').value = s ? (s.container_number      || '') : '';
   document.getElementById('s-bl').value        = s ? (s.bill_of_lading        || '') : '';
-  document.getElementById('s-planned').value   = s ? (s.planned_shipping_date || '') : '';
-  document.getElementById('s-etd').value       = s ? (s.etd                   || '') : '';
-  document.getElementById('s-eta').value       = s ? (s.eta                   || '') : '';
-  document.getElementById('s-arrival').value   = s ? (s.actual_arrival_date   || '') : '';
+  document.getElementById('s-planned').value   = s ? toInputDate(s.planned_shipping_date) : '';
+  document.getElementById('s-etd').value       = s ? toInputDate(s.etd)                   : '';
+  document.getElementById('s-eta').value       = s ? toInputDate(s.eta)                   : '';
+  document.getElementById('s-arrival').value   = s ? toInputDate(s.actual_arrival_date)   : '';
   document.getElementById('s-notes').value     = s ? (s.notes                 || '') : '';
 
   // Sailing status
