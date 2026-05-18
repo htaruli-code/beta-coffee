@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.24 | outbound.html -->
+<!-- Version 1.26 | outbound.html -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -310,7 +310,7 @@
     <div class="page-header">
       <div class="page-title">Outbound Samples</div>
       <div style="display:flex;gap:0.5rem">
-        <button class="btn btn-ghost" id="btn-catalogue">✉ Send Catalogue</button>
+        <button class="btn btn-ghost" id="btn-catalogue" style="display:none">✉ Send Catalogue</button>
         <button class="btn" id="btn-new">+ New Outbound</button>
       </div>
     </div>
@@ -378,8 +378,16 @@
 
       <div class="field-row">
         <div class="field">
-          <label for="o-buyer">Buyer <span style="color:var(--error)">*</span></label>
-          <select id="o-buyer" style="width:100%"></select>
+          <label for="o-buyer-input">Buyer <span style="color:var(--error)">*</span></label>
+          <div class="ac-wrap" id="buyer-ac-wrap">
+            <input type="text" class="ac-input" id="o-buyer-input" placeholder="Search buyer…"
+              autocomplete="off"
+              oninput="onBuyerAcInput(this.value)"
+              onfocus="onBuyerAcInput(this.value)"
+              onkeydown="onBuyerAcKey(event)" />
+            <input type="hidden" id="o-buyer-id" />
+            <div class="ac-dropdown" id="buyer-ac-drop" style="display:none"></div>
+          </div>
         </div>
         <div class="field">
           <label for="o-warehouse">Warehouse <span style="color:var(--error)">*</span></label>
@@ -931,7 +939,7 @@
 
     // ── Populate modal dropdowns ───────────────────────────────────────────────
     function populateModalDropdowns() {
-      UI.populateSelect(document.getElementById('o-buyer'),     PAGE_DATA.buyers,    'buyer_id',     'company_name',   '— Select buyer —');
+      // buyer uses autocomplete search — no select to populate
       UI.populateSelect(document.getElementById('o-warehouse'), Auth.getWarehouses(), 'warehouse_id', 'warehouse_name', '— Select warehouse —');
     }
 
@@ -940,22 +948,79 @@
       document.getElementById('o-notes-count').textContent = this.value.length + ' / 250';
     });
 
-    // v1.6: Auto-fill warehouse when buyer selected | v1.7: re-render picker (prices change per level)
-    document.getElementById('o-buyer').addEventListener('change', function() {
-      const buyerId = this.value;
-      if (!buyerId) return;
-      const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(buyerId));
-      if (buyer && buyer.warehouse_id) {
+    // ── Buyer autocomplete (v1.25) ────────────────────────────────────────────
+    // Replaces buyer <select> with search-as-you-type input, same pattern as sample picker.
+
+    function onBuyerAcInput(value) {
+      const drop = document.getElementById('buyer-ac-drop');
+      if (!drop) return;
+
+      // If user edits after a pick, clear the hidden id
+      const hiddenEl = document.getElementById('o-buyer-id');
+      if (hiddenEl && hiddenEl.value) {
+        const current = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === hiddenEl.value);
+        if (current && value !== current.company_name) {
+          hiddenEl.value = '';
+        }
+      }
+
+      const q = value.toLowerCase().trim();
+      if (!q) { drop.style.display = 'none'; return; }
+
+      const matches = (PAGE_DATA.buyers || []).filter(b =>
+        (b.company_name || '').toLowerCase().includes(q) ||
+        (b.email        || '').toLowerCase().includes(q)
+      ).slice(0, 10);
+
+      if (!matches.length) {
+        drop.innerHTML = '<div class="ac-item" style="color:var(--muted)">No buyers found</div>';
+      } else {
+        drop.innerHTML = matches.map(b => {
+          const levelCls = 'level-' + (b.buyer_level || 'small').toLowerCase();
+          return `<div class="ac-item" onmousedown="onBuyerAcPick('${b.buyer_id}')">
+            <span class="ac-item-id">${UI.esc(b.company_name || '')}</span>
+            <span class="badge ${levelCls}" style="float:right;font-size:0.62rem;padding:1px 6px">${UI.esc(b.buyer_level || '')}</span>
+            <div class="ac-item-sub">${UI.esc(b.email || '—')}</div>
+          </div>`;
+        }).join('');
+      }
+
+      const inputEl = document.getElementById('o-buyer-input');
+      if (inputEl) {
+        const rect = inputEl.getBoundingClientRect();
+        drop.style.top   = (rect.bottom + window.scrollY) + 'px';
+        drop.style.left  = rect.left + 'px';
+        drop.style.width = rect.width + 'px';
+      }
+      drop.style.display = 'block';
+    }
+
+    function onBuyerAcKey(e) {
+      if (e.key === 'Escape') {
+        document.getElementById('buyer-ac-drop').style.display = 'none';
+      }
+    }
+
+    function onBuyerAcPick(buyerId) {
+      const buyer = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(buyerId));
+      if (!buyer) return;
+      document.getElementById('o-buyer-input').value = buyer.company_name || '';
+      document.getElementById('o-buyer-id').value    = buyer.buyer_id;
+      document.getElementById('buyer-ac-drop').style.display = 'none';
+      // v1.6: auto-fill warehouse | v1.7: refresh prices in sample picker
+      if (buyer.warehouse_id) {
         document.getElementById('o-warehouse').value = buyer.warehouse_id;
       }
-      renderOutboundDetailRows(); // v1.7: refresh prices in picker for new buyer's level
-    });
+      renderOutboundDetailRows();
+    }
 
     // ── New Outbound Modal ────────────────────────────────────────────────────
     document.getElementById('btn-new').addEventListener('click', () => {
       outboundDetailRows = [{ inbound_detail_id: '', sample_code: '', sample_name: '', origin_sample_code: '', qty_grams: '' }];  // v1.7
-      document.getElementById('o-buyer').value         = '';
-      document.getElementById('o-warehouse').value     = '';
+      document.getElementById('o-buyer-input').value  = '';
+      document.getElementById('o-buyer-id').value     = '';
+      document.getElementById('buyer-ac-drop').style.display = 'none';
+      document.getElementById('o-warehouse').value    = '';
       document.getElementById('o-beans').value         = '';
       document.getElementById('o-shipping-date').value = '';
       document.getElementById('o-courier').value       = '';
@@ -1123,11 +1188,11 @@
 
     // ── Save Outbound ─────────────────────────────────────────────────────────
     document.getElementById('btn-save-outbound').addEventListener('click', async () => {
-      const buyerId     = document.getElementById('o-buyer').value;
+      const buyerId     = document.getElementById('o-buyer-id').value;
       const warehouseId = document.getElementById('o-warehouse').value;
       const beans       = document.getElementById('o-beans').value;
 
-      if (!buyerId)     { UI.toastError('Select a buyer.'); return; }
+      if (!buyerId)     { UI.toastError('Select a buyer from the list.'); return; }
       if (!warehouseId) { UI.toastError('Select a warehouse.'); return; }
       const validBeans = ['NO Sample', 'Green Sample', 'Roasted Sample'];
       if (!beans || !validBeans.includes(beans)) { UI.toastError('Select beans type.'); return; }
