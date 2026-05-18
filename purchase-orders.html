@@ -1,4 +1,4 @@
-<!-- Version 2.2.9 | purchase-orders.html -->
+<!-- Version 2.3.0 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -426,14 +426,9 @@
   </div>
 
   <div class="toolbar">
+    <input type="text" id="filter-search" placeholder="Search PO number or supplier…" style="width:260px" />
     <select id="filter-status" style="width:auto">
       <option value="">All Statuses</option>
-    </select>
-    <select id="filter-supplier" style="width:auto">
-      <option value="">All Suppliers</option>
-    </select>
-    <select id="filter-warehouse" style="width:auto">
-      <option value="">All Warehouses</option>
     </select>
   </div>
 
@@ -911,35 +906,23 @@ function populateFilters() {
   PAGE_DATA.po_statuses.forEach(s => {
     const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
   });
-  const fsp = document.getElementById('filter-supplier');
-  PAGE_DATA.suppliers.forEach(s => {
-    const o = document.createElement('option'); o.value = s.supplier_id; o.textContent = s.supplier_name; fsp.appendChild(o);
-  });
-  const fwh = document.getElementById('filter-warehouse');
-  (PAGE_DATA.warehouses || []).forEach(w => {
-    const o = document.createElement('option'); o.value = w.warehouse_id; o.textContent = w.warehouse_name; fwh.appendChild(o);
-  });
-  fs.onchange = fsp.onchange = fwh.onchange = renderPoList;
+  fs.onchange = renderPoList;
+  document.getElementById('filter-search').addEventListener('input', renderPoList);
 }
 
 // ── Render POs ────────────────────────────────────────────────────────────────
 function renderPoList() {
-  const statusFilter    = document.getElementById('filter-status').value;
-  const supplierFilter  = document.getElementById('filter-supplier').value;
-  const warehouseFilter = document.getElementById('filter-warehouse').value;
+  const statusFilter = document.getElementById('filter-status').value;
+  const search       = document.getElementById('filter-search').value.trim().toLowerCase();
 
   let pos = PAGE_DATA.purchase_orders;
-  if (statusFilter)   pos = pos.filter(p => p.status === statusFilter);
-  if (supplierFilter) pos = pos.filter(p => String(p.supplier_id) === String(supplierFilter));
-  if (warehouseFilter) {
-    // Keep POs whose lines have at least one received inventory lot in the selected warehouse
-    const wStr = String(warehouseFilter);
-    const poLineIds = new Set(
-      (PAGE_DATA.inventory_lots || [])
-        .filter(lot => String(lot.warehouse_id) === wStr)
-        .map(lot => String(lot.po_line_id))
-    );
-    pos = pos.filter(p => (p.lines || []).some(l => poLineIds.has(String(l.po_line_id))));
+  if (statusFilter) pos = pos.filter(p => p.status === statusFilter);
+  if (search) {
+    pos = pos.filter(p => {
+      const supplier = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(p.supplier_id));
+      const supplierName = supplier ? supplier.supplier_name.toLowerCase() : '';
+      return p.po_number.toLowerCase().includes(search) || supplierName.includes(search);
+    });
   }
 
   const list = document.getElementById('po-list');
