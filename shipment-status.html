@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.6 | shipment-status.html -->
+<!-- Version 1.9 | shipment-status.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -49,6 +49,9 @@
     thead th .sort-arrow { margin-left: 0.3rem; opacity: 0.5; }
     thead th.sorted .sort-arrow { opacity: 1; }
     tbody tr { border-bottom: 1px solid var(--border); transition: background var(--transition); }
+    tbody tr[style*="border-bottom:none"] { border-bottom: none; }
+    tbody tr[style*="border-bottom:none"] + tr { border-bottom: 1px solid var(--border); }
+    tbody tr[style*="border-bottom:none"]:hover td, tbody tr[style*="border-bottom:none"] + tr:hover td { background: var(--surface); }
     tbody tr:hover { background: var(--surface); }
     tbody td { padding: 0.65rem 0.75rem; vertical-align: middle; }
     .empty { text-align: center; padding: 3rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
@@ -57,11 +60,11 @@
     /* Cell components */
     .cell-id { font-family: var(--font-mono); font-size: 0.81rem; font-weight: 600; }
     .cell-sub { font-size: 0.76rem; color: var(--muted); margin-top: 0.15rem; }
-    .cell-mono { font-family: var(--font-mono); font-size: 0.79rem; }
+    .cell-mono { font-family: var(--font-mono); font-size: 0.91rem; font-weight: 600; color: var(--text); }
     .cell-flag { font-size: 1.1rem; line-height: 1; }
 
     /* Status badges */
-    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.18rem 0.55rem; border-radius: 3px; white-space: nowrap; }
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.22rem 0.65rem; border-radius: 3px; white-space: nowrap; }
     .badge-booked     { background: #dbeafe; color: #1e40af; }
     .badge-loaded     { background: #e0f2fe; color: #0369a1; }
     .badge-sailing    { background: #dcfce7; color: #166534; }
@@ -75,7 +78,7 @@
     .badge-none       { background: var(--border); color: var(--muted); }
 
     /* Progress bar */
-    .progress-wrap { width: 100%; background: var(--border); border-radius: 2px; height: 5px; min-width: 80px; }
+    .progress-wrap { width: 100%; background: var(--border); border-radius: 2px; height: 5px; min-width: 120px; }
     .progress-fill { height: 5px; border-radius: 2px; transition: width 0.3s; }
     .progress-green  { background: var(--success); }
     .progress-amber  { background: var(--warning); }
@@ -152,14 +155,13 @@
           <th>BL / Container</th>
           <th>Status</th>
           <th data-sort="shipsgo_etd">From <span class="sort-arrow">&#8645;</span></th>
-          <th></th><!-- carrier col, no sort -->
+          <th></th>
           <th data-sort="shipsgo_eta">To <span class="sort-arrow">&#8645;</span></th>
-          <th>Progress</th>
           <th>Last Synced</th>
         </tr>
       </thead>
       <tbody id="status-body">
-        <tr><td colspan="8" class="loading">Loading shipments...</td></tr>
+        <tr><td colspan="7" class="loading">Loading shipments...</td></tr>
       </tbody>
     </table>
   </div>
@@ -172,7 +174,14 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 1.6 | shipment-status.html
+// Version 1.9 | shipment-status.html
+// v1.9: BL, container and status badge font size matches ETD/ETA (0.91rem bold black).
+// v1.8: Two-row layout — Shipment/BL/Status/LastSynced rowspan=2;
+//   From+Carrier+To in row 1, progress colspan=3 in row 2.
+//   Country flag shown from UNLOCODE first 2 chars.
+//   Progress <th> removed — 7 columns total.
+// v1.7: Layout fixes — container number below BL in Col 2;
+//   progress bar is its own Col 7 (not under From/To).
 // v1.6: port-date ETD/ETA +2pt again: 0.78rem → 0.91rem black.
 // v1.5: Split sync-info into sync-info (small muted, last synced) and
 //   progress-label (0.78rem black, progress % + days). port-date stays 0.78rem black.
@@ -322,7 +331,7 @@ function renderTable() {
   const tbody = document.getElementById('status-body');
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">No shipments in this category.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No shipments in this category.</td></tr>';
     return;
   }
 
@@ -332,35 +341,38 @@ function renderTable() {
 function renderRow(r) {
   const hasTracking = !!r.shipsgo_id;
   const sgStatus    = r.shipsgo_status || '';
-  const today       = Date.now();
 
-  // ── Col 1: Shipment ID + date ────────────────────────────────────────────
+  // ── Col 1: ShipsGo ID + created date ────────────────────────────────────
   const shipmentCell =
-    '<div class="cell-id">' + esc(r.container_number || '—') + '</div>' +
+    (r.shipsgo_id
+      ? '<div class="cell-sub" style="font-family:var(--font-mono)">ShipsGo: ' + esc(String(r.shipsgo_id)) + '</div>'
+      : '') +
     '<div class="cell-sub">' + fmtDate(r.created_at) + '</div>';
 
-  // ── Col 2: BL + tracking ref ─────────────────────────────────────────────
+  // ── Col 2: BL on top, container below ───────────────────────────────────
   const blCell =
     '<div class="cell-mono">' + esc(r.bill_of_lading || '—') + '</div>' +
-    (r.shipsgo_id ? '<div class="cell-sub">ShipsGo: ' + esc(String(r.shipsgo_id)) + '</div>' : '<div class="cell-sub" style="color:var(--muted)">Not registered</div>');
+    (r.container_number ? '<div style="font-family:var(--font-mono);font-size:0.91rem;font-weight:600;color:var(--text);margin-top:0.15rem">' + esc(r.container_number) + '</div>' : '') +
+    (!r.shipsgo_id ? '<div class="cell-sub" style="color:var(--muted)">Not registered</div>' : '');
 
-  // ── Col 3: Status badges ──────────────────────────────────────────────────
-  const sailBadge = buildSailingBadge(r.sailing_status);
-  const sgBadge   = hasTracking ? buildShipsGoBadge(sgStatus) : '';
+  // ── Col 3: Status badges ─────────────────────────────────────────────────
+  const sailBadge  = buildSailingBadge(r.sailing_status);
+  const sgBadge    = hasTracking ? buildShipsGoBadge(sgStatus) : '';
   const statusCell = sailBadge + (sgBadge ? '<br><span style="margin-top:0.25rem;display:inline-block">' + sgBadge + '</span>' : '');
 
-  // ── Col 4: From (origin) ──────────────────────────────────────────────────
+  // ── Col 4: From — flag + port name + ETD ────────────────────────────────
+  // Flag derived from first 2 chars of UNLOCODE (ISO country code)
   const fromFlag = r.pol_code ? countryFlag(r.pol_code) : '';
   const etd      = r.shipsgo_etd || r.etd || '';
   const fromCell = r.pol_name
     ? '<div class="route-port">' +
-        '<span class="cell-flag">' + fromFlag + '</span> ' +
+        (fromFlag ? '<span class="cell-flag">' + fromFlag + '</span> ' : '') +
         '<span class="port-name">' + esc(r.pol_name) + '</span>' +
         (etd ? '<div class="port-date">ETD ' + fmtDate(etd) + '</div>' : '') +
       '</div>'
     : '<span style="color:var(--muted)">—</span>';
 
-  // ── Col 5: Carrier ────────────────────────────────────────────────────────
+  // ── Col 5: Carrier badge + transshipment count ───────────────────────────
   const carrierName = r.carrier_name || r.carrier_scac || r.carrier_scac_sg || '';
   const tsCount     = r.ts_count || 0;
   const carrierCell = carrierName
@@ -369,12 +381,11 @@ function renderRow(r) {
       '</span>'
     : '<span style="color:var(--muted)">—</span>';
 
-  // ── Col 6: To (destination) ───────────────────────────────────────────────
-  const toFlag = r.pod_code ? countryFlag(r.pod_code) : '';
-  // ETA — check for conflict between our manual ETA and ShipsGo ETA
-  const ourEta  = r.eta || '';
-  const sgEta   = r.shipsgo_eta || '';
-  const useEta  = sgEta || ourEta;
+  // ── Col 6: To — flag + port name + ETA ──────────────────────────────────
+  const toFlag   = r.pod_code ? countryFlag(r.pod_code) : '';
+  const ourEta   = r.eta         || '';
+  const sgEta    = r.shipsgo_eta || '';
+  const useEta   = sgEta || ourEta;
   const etaConflict = sgEta && ourEta && sgEta !== ourEta &&
     Math.abs(new Date(sgEta) - new Date(ourEta)) / 86400000 >= 1;
   const etaDisplay = etaConflict
@@ -382,31 +393,40 @@ function renderRow(r) {
     : (useEta ? fmtDate(useEta) : '');
   const toCell = r.pod_name
     ? '<div class="route-port">' +
-        '<span class="cell-flag">' + toFlag + '</span> ' +
+        (toFlag ? '<span class="cell-flag">' + toFlag + '</span> ' : '') +
         '<span class="port-name">' + esc(r.pod_name) + '</span>' +
         (etaDisplay ? '<div class="port-date">ETA ' + etaDisplay + '</div>' : '') +
       '</div>'
     : '<span style="color:var(--muted)">—</span>';
 
-  // ── Col 7: Progress bar ───────────────────────────────────────────────────
-  const progressCell = buildProgressBar(etd, useEta, r.actual_arrival_date, r.sailing_status, etaConflict);
-
-  // ── Col 8: Last synced ────────────────────────────────────────────────────
+  // ── Col 7: Last synced ───────────────────────────────────────────────────
   const syncedCell = r.last_synced_at
     ? '<div class="sync-info">' + fmtDateTime(r.last_synced_at) + '</div>' +
       '<div class="sync-info" style="margin-top:0.1rem">' + esc(r.sync_source || '') + '</div>'
     : '<span style="color:var(--muted);font-size:0.7rem">—</span>';
 
-  return '<tr>' +
-    '<td>' + shipmentCell  + '</td>' +
-    '<td>' + blCell        + '</td>' +
-    '<td>' + statusCell    + '</td>' +
-    '<td>' + fromCell      + '</td>' +
-    '<td>' + carrierCell   + '</td>' +
-    '<td>' + toCell        + '</td>' +
-    '<td>' + progressCell  + '</td>' +
-    '<td>' + syncedCell    + '</td>' +
-  '</tr>';
+  // ── Progress bar — colspan=3 spanning From+Carrier+To ───────────────────
+  const progressBar = buildProgressBar(etd, useEta, r.actual_arrival_date, r.sailing_status, etaConflict);
+
+  // Two-row structure:
+  // Row 1: Shipment | BL | Status | From | Carrier | To | LastSynced
+  //        (Shipment, BL, Status, LastSynced use rowspan=2)
+  // Row 2: [spanned] | [spanned] | [spanned] | colspan=3 progress | [spanned]
+  return '' +
+    // ── Row 1 ──
+    '<tr style="border-bottom:none">' +
+      '<td rowspan="2" style="vertical-align:top;padding-bottom:0">' + shipmentCell + '</td>' +
+      '<td rowspan="2" style="vertical-align:top;padding-bottom:0">' + blCell       + '</td>' +
+      '<td rowspan="2" style="vertical-align:top;padding-bottom:0">' + statusCell   + '</td>' +
+      '<td style="padding-bottom:0.25rem;vertical-align:top">'       + fromCell     + '</td>' +
+      '<td style="padding-bottom:0.25rem;vertical-align:middle">'    + carrierCell  + '</td>' +
+      '<td style="padding-bottom:0.25rem;vertical-align:top">'       + toCell       + '</td>' +
+      '<td rowspan="2" style="vertical-align:top;padding-bottom:0">' + syncedCell   + '</td>' +
+    '</tr>' +
+    // ── Row 2: progress spans From+Carrier+To ──
+    '<tr>' +
+      '<td colspan="3" style="padding-top:0.3rem">' + progressBar + '</td>' +
+    '</tr>';
 }
 
 // ─── Badge builders ───────────────────────────────────────────────────────────
