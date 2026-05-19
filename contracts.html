@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<!-- Version 2.8.4 | contracts.html -->
+<!-- Version 2.8.5 | contracts.html -->
+<!-- v2.8.5: Toolbar buyer filter — replaced dropdown with search input + results list (client-side filter, no extra API call).
+     New Contract / Edit Contract modal — buyer dropdown replaced with search input + results list.
+     Selected buyer stored in hidden c-buyer-id input. Pattern mirrors catalogue-library.html v1.4. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -165,6 +168,40 @@
     .pdf-opt-row input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; flex-shrink: 0; }
     .pdf-opt-row.sub-opt { padding-left: 1.25rem; font-size: 0.72rem; color: var(--muted); }
 
+    /* ── Buyer search (v2.8.5) ──────────────────────────────────────────────── */
+    .buyer-search-wrap { position: relative; }
+    .buyer-search-wrap input { width: 180px; }
+    .buyer-search-drop {
+      position: absolute; z-index: 300; top: calc(100% + 2px); left: 0;
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+      min-width: 220px; max-height: 220px; overflow-y: auto; display: none;
+    }
+    .buyer-search-drop.open { display: block; }
+    .bsd-item {
+      padding: 0.4rem 0.75rem; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono); font-size: 0.75rem; color: var(--text);
+    }
+    .bsd-item:last-child { border-bottom: none; }
+    .bsd-item:hover, .bsd-item.bsd-active { background: var(--surface); }
+    .bsd-clear { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 0.85rem; padding: 0; line-height: 1; display: none; }
+    .bsd-clear.show { display: block; }
+    /* Modal buyer search full-width */
+    .buyer-search-wrap.modal-buyer { display: block; }
+    .buyer-search-wrap.modal-buyer input { width: 100%; }
+    .buyer-search-wrap.modal-buyer .buyer-search-drop { min-width: 100%; }
+    .buyer-selected-tag {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-family: var(--font-mono); font-size: 0.72rem;
+      background: #edf7f0; color: #1e6640;
+      border: 1px solid #b2d8c0; border-radius: 2px;
+      padding: 0.15rem 0.5rem; margin-top: 0.3rem;
+    }
+    .buyer-selected-tag.empty { background: var(--surface); color: var(--muted); border-color: var(--border); }
+
     @media print {
       html, body { height: auto; overflow: visible; }
       body > *:not(#pdf-print-area) { display: none !important; }
@@ -248,7 +285,12 @@
   </div>
   <div class="toolbar">
     <select id="filter-status" style="width:auto"><option value="">All Statuses</option></select>
-    <select id="filter-buyer"  style="width:auto"><option value="">All Buyers</option></select>
+    <div class="buyer-search-wrap" id="filter-buyer-wrap">
+      <input type="text" id="filter-buyer-input" placeholder="Filter by buyer…" autocomplete="off" />
+      <button type="button" class="bsd-clear" id="filter-buyer-clear" title="Clear">✕</button>
+      <div class="buyer-search-drop" id="filter-buyer-drop"></div>
+    </div>
+    <input type="hidden" id="filter-buyer" value="" />
   </div>
   <div id="contract-list"><div class="loading">Loading contracts…</div></div>
 </div>
@@ -259,10 +301,15 @@
     <div class="modal-title" id="modal-contract-title">New Contract</div>
     <div class="modal-error" id="modal-contract-error"></div>
     <input type="hidden" id="c-id" />
+    <input type="hidden" id="c-buyer-id" />
     <div class="field-row">
       <div class="field">
         <label>Buyer <span style="color:var(--error)">*</span></label>
-        <select id="c-buyer"></select>
+        <div class="buyer-search-wrap modal-buyer" id="c-buyer-wrap">
+          <input type="text" id="c-buyer-input" placeholder="Search buyer…" autocomplete="off" />
+          <div class="buyer-search-drop" id="c-buyer-drop"></div>
+        </div>
+        <span class="buyer-selected-tag empty" id="c-buyer-tag">No buyer selected</span>
       </div>
       <div class="field">
         <label>Contract Number <span style="color:var(--error)">*</span></label>
@@ -511,7 +558,11 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.8.3 | contracts.html
+// Version 2.8.5 | contracts.html
+// v2.8.5: Toolbar buyer filter — replaced dropdown with search input + results list (client-side, no extra API call).
+//          New/Edit Contract modal — buyer dropdown replaced with search input + results list.
+//          Selected buyer stored in hidden c-buyer-id input. initBuyerSearch() shared helper.
+// v2.8.4: (previous)
 // v2.8.3: BUG FIX — contract date blank on Edit modal.
 //          Added toInputDate() helper — normalises any date format (ISO string, Date
 //          serialised, locale string) to YYYY-MM-DD, the only format input[type=date]
@@ -572,11 +623,104 @@ function populateFilters() {
   PAGE_DATA.contract_statuses.forEach(s => {
     const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
   });
-  const fb = document.getElementById('filter-buyer');
-  PAGE_DATA.buyers.forEach(b => {
-    const o = document.createElement('option'); o.value = b.buyer_id; o.textContent = b.company_name; fb.appendChild(o);
+  fs.onchange = renderContracts;
+  // Toolbar buyer search — client-side filter on PAGE_DATA.buyers
+  initBuyerSearch({
+    inputId:   'filter-buyer-input',
+    dropId:    'filter-buyer-drop',
+    hiddenId:  'filter-buyer',
+    clearId:   'filter-buyer-clear',
+    onSelect:  renderContracts,
+    onClear:   renderContracts
   });
-  fs.onchange = fb.onchange = renderContracts;
+}
+
+// ── Shared buyer search helper (v2.8.5) ──────────────────────────────────────
+// Wires up a text input + dropdown + hidden id field against PAGE_DATA.buyers.
+// opts: { inputId, dropId, hiddenId, clearId?, tagId?, onSelect, onClear }
+function initBuyerSearch(opts) {
+  const input  = document.getElementById(opts.inputId);
+  const drop   = document.getElementById(opts.dropId);
+  const hidden = document.getElementById(opts.hiddenId);
+  const clearBtn = opts.clearId ? document.getElementById(opts.clearId) : null;
+  const tag    = opts.tagId    ? document.getElementById(opts.tagId)   : null;
+
+  function showDrop(items) {
+    if (!items.length) { drop.classList.remove('open'); return; }
+    drop.innerHTML = items.map(b =>
+      '<div class="bsd-item" data-id="' + b.buyer_id + '">' + esc(b.company_name) + '</div>'
+    ).join('');
+    drop.classList.add('open');
+    drop.querySelectorAll('.bsd-item').forEach(el => {
+      el.onmousedown = e => {
+        e.preventDefault();
+        selectBuyer(String(el.dataset.id), el.textContent);
+      };
+    });
+  }
+
+  function selectBuyer(id, name) {
+    hidden.value  = id;
+    input.value   = name;
+    drop.classList.remove('open');
+    if (clearBtn) clearBtn.classList.add('show');
+    if (tag) { tag.textContent = name; tag.className = 'buyer-selected-tag'; }
+    if (opts.onSelect) opts.onSelect();
+  }
+
+  function clearBuyer() {
+    hidden.value  = '';
+    input.value   = '';
+    drop.classList.remove('open');
+    if (clearBtn) clearBtn.classList.remove('show');
+    if (tag) { tag.textContent = 'No buyer selected'; tag.className = 'buyer-selected-tag empty'; }
+    if (opts.onClear) opts.onClear();
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    // Clear hidden id while typing (user hasn't confirmed selection)
+    hidden.value = '';
+    if (clearBtn) clearBtn.classList.remove('show');
+    if (tag) { tag.textContent = 'No buyer selected'; tag.className = 'buyer-selected-tag empty'; }
+    if (!q) { drop.classList.remove('open'); if (opts.onClear) opts.onClear(); return; }
+    const matches = PAGE_DATA.buyers
+      .filter(b => b.company_name.toLowerCase().includes(q))
+      .slice(0, 12);
+    showDrop(matches);
+  });
+
+  input.addEventListener('keydown', e => {
+    const items = drop.querySelectorAll('.bsd-item');
+    const active = drop.querySelector('.bsd-active');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? (active.nextElementSibling || items[0]) : items[0];
+      if (active) active.classList.remove('bsd-active');
+      if (next) next.classList.add('bsd-active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active ? (active.previousElementSibling || items[items.length-1]) : items[items.length-1];
+      if (active) active.classList.remove('bsd-active');
+      if (prev) prev.classList.add('bsd-active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active) { selectBuyer(active.dataset.id, active.textContent); }
+    } else if (e.key === 'Escape') {
+      drop.classList.remove('open');
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    // Delay to allow mousedown on item to fire first
+    setTimeout(() => drop.classList.remove('open'), 150);
+  });
+
+  if (clearBtn) clearBtn.onclick = clearBuyer;
+
+  // Expose selectBuyer for programmatic pre-fill (used in openContractModal)
+  input._selectBuyer = selectBuyer;
+  input._clearBuyer  = clearBuyer;
 }
 
 function renderContracts() {
@@ -726,13 +870,28 @@ function calcTotal(lines) {
 function openContractModal(contractId) {
   const con = contractId ? PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId)) : null;
   document.getElementById('modal-contract-title').textContent = con ? 'Edit Contract' : 'New Contract';
-  document.getElementById('c-id').value     = con ? con.contract_id     : '';
-  document.getElementById('c-number').value = con ? con.contract_number  : '';
+  document.getElementById('c-id').value     = con ? con.contract_id    : '';
+  document.getElementById('c-number').value = con ? con.contract_number : '';
   document.getElementById('c-date').value   = con ? toInputDate(con.contract_date) : '';
-  document.getElementById('c-notes').value  = con ? con.notes            : '';
-  document.getElementById('c-buyer').innerHTML = PAGE_DATA.buyers.map(b =>
-    `<option value="${b.buyer_id}" ${con && String(con.buyer_id)===String(b.buyer_id)?'selected':''}>${esc(b.company_name)}</option>`
-  ).join('');
+  document.getElementById('c-notes').value  = con ? con.notes           : '';
+
+  // Init buyer search on modal (re-initialise each open to reset state cleanly)
+  initBuyerSearch({
+    inputId:  'c-buyer-input',
+    dropId:   'c-buyer-drop',
+    hiddenId: 'c-buyer-id',
+    tagId:    'c-buyer-tag'
+  });
+
+  // Pre-fill buyer if editing
+  const buyerInput = document.getElementById('c-buyer-input');
+  if (con) {
+    const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id));
+    if (buyer && buyerInput._selectBuyer) buyerInput._selectBuyer(String(buyer.buyer_id), buyer.company_name);
+  } else {
+    if (buyerInput._clearBuyer) buyerInput._clearBuyer();
+  }
+
   document.getElementById('c-status').innerHTML = PAGE_DATA.contract_statuses.map(s =>
     `<option value="${s}" ${con && con.status===s?'selected':''}>${s}</option>`
   ).join('');
@@ -744,10 +903,15 @@ document.getElementById('btn-c-cancel').onclick = () => document.getElementById(
 
 document.getElementById('btn-c-save').onclick = async () => {
   const btn = document.getElementById('btn-c-save'); btn.disabled = true;
+  const buyerId = document.getElementById('c-buyer-id').value;
+  if (!buyerId) {
+    showModalError('modal-contract', 'Please select a buyer.');
+    btn.disabled = false; return;
+  }
   const payload = {
     action: 'saveContract',
     contract_id:     document.getElementById('c-id').value || null,
-    buyer_id:        document.getElementById('c-buyer').value,
+    buyer_id:        buyerId,
     contract_number: document.getElementById('c-number').value,
     contract_date:   document.getElementById('c-date').value,
     status:          document.getElementById('c-status').value,
