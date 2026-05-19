@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.4 | shipment-status.html -->
+<!-- Version 2.6 | shipment-status.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -61,7 +61,8 @@
     .cell-id { font-family: var(--font-mono); font-size: 0.81rem; font-weight: 600; }
     .cell-sub { font-size: 0.76rem; color: var(--muted); margin-top: 0.15rem; }
     .cell-mono { font-family: var(--font-mono); font-size: 0.91rem; font-weight: 600; color: var(--text); }
-    .cell-flag { font-size: 1.1rem; line-height: 1; }
+    .cell-flag { display: inline-block; vertical-align: middle; margin-right: 0.25rem; line-height: 1; }
+    .cell-flag img { display: block; border-radius: 1px; box-shadow: 0 0 0 1px rgba(0,0,0,0.08); }
 
     /* Status badges */
     .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.22rem 0.65rem; border-radius: 3px; white-space: nowrap; }
@@ -173,7 +174,7 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.4 | shipment-status.html
+// Version 2.6 | shipment-status.html
 // v2.1: Nav updated to match shipments.html v2.3.2 — samples.html style with
 //   Shipments dropdown containing Manage + Live Status. Live Status active inside dropdown.
 // v2.0: Navbar CSS + HTML replaced to match shipments.html exactly.
@@ -511,15 +512,20 @@ function buildProgressBar(etd, eta, actualArrival, sailingStatus, etaConflict) {
 // Emoji regional indicator letters: A=0x1F1E6 ... Z=0x1F1FF
 
 function countryFlag(unlocode) {
+  // Returns a flagcdn.com <img> tag — works on all platforms including Windows.
+  // flagcdn.com provides free flag images keyed by ISO 3166-1 alpha-2 country code.
+  // UNLOCODE first 2 chars = country code (e.g. "BRSSZ" → "br", "AUSYD" → "au").
   if (!unlocode || unlocode.length < 2) return '';
   try {
-    const cc = unlocode.slice(0, 2).toUpperCase();
-    return cc.split('').map(c => {
-      const code = c.charCodeAt(0) - 65;
-      return code >= 0 && code < 26
-        ? String.fromCodePoint(0x1F1E6 + code)
-        : '';
-    }).join('');
+    const cc = unlocode.slice(0, 2).toLowerCase();
+    // Validate: must be two ASCII letters
+    if (!/^[a-z]{2}$/.test(cc)) return '';
+    return '<img src="https://flagcdn.com/20x15/' + cc + '.png"' +
+           ' srcset="https://flagcdn.com/40x30/' + cc + '.png 2x"' +
+           ' width="20" height="15"' +
+           ' alt="' + cc.toUpperCase() + '"' +
+           ' onerror="this.style.display=&quot;none&quot;"' +
+           ' />';
   } catch (e) {
     return '';
   }
