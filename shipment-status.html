@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<!-- Version 1.6 | shipment-status.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Shipment Status — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --warning: #b8860b; --info: #1a5ca8;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 52px; gap: 2rem; position: sticky; top: 0; z-index: 100; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
+    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
+    .nav-links a:hover { background: var(--surface); color: var(--text); }
+    .nav-links a.active { background: var(--surface); color: var(--accent); font-weight: 500; }
+    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
+    .nav-user:hover { color: var(--accent); }
+
+    /* Page */
+    .page { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* Tab bar */
+    .tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; overflow-x: auto; }
+    .tab { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border: none; background: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: color var(--transition), border-color var(--transition); }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-count { font-size: 0.65rem; background: var(--border); color: var(--muted); padding: 0.1rem 0.4rem; border-radius: 10px; margin-left: 0.35rem; }
+    .tab.active .tab-count { background: rgba(196,122,43,0.15); color: var(--accent); }
+
+    /* Table */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    thead th { font-family: var(--font-mono); font-size: 0.74rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; cursor: pointer; user-select: none; }
+    thead th:hover { color: var(--accent); }
+    thead th.sorted { color: var(--accent); }
+    thead th .sort-arrow { margin-left: 0.3rem; opacity: 0.5; }
+    thead th.sorted .sort-arrow { opacity: 1; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background var(--transition); }
+    tbody tr:hover { background: var(--surface); }
+    tbody td { padding: 0.65rem 0.75rem; vertical-align: middle; }
+    .empty { text-align: center; padding: 3rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+
+    /* Cell components */
+    .cell-id { font-family: var(--font-mono); font-size: 0.81rem; font-weight: 600; }
+    .cell-sub { font-size: 0.76rem; color: var(--muted); margin-top: 0.15rem; }
+    .cell-mono { font-family: var(--font-mono); font-size: 0.79rem; }
+    .cell-flag { font-size: 1.1rem; line-height: 1; }
+
+    /* Status badges */
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.18rem 0.55rem; border-radius: 3px; white-space: nowrap; }
+    .badge-booked     { background: #dbeafe; color: #1e40af; }
+    .badge-loaded     { background: #e0f2fe; color: #0369a1; }
+    .badge-sailing    { background: #dcfce7; color: #166534; }
+    .badge-arrived    { background: #bbf7d0; color: #14532d; }
+    .badge-discharged { background: #d1fae5; color: #065f46; }
+    .badge-new        { background: #f1f5f9; color: #475569; }
+    .badge-inprogress { background: #eff6ff; color: #1d4ed8; }
+    .badge-untracked  { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .badge-syncerror  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .badge-pending    { background: #f8fafc; color: #64748b; }
+    .badge-none       { background: var(--border); color: var(--muted); }
+
+    /* Progress bar */
+    .progress-wrap { width: 100%; background: var(--border); border-radius: 2px; height: 5px; min-width: 80px; }
+    .progress-fill { height: 5px; border-radius: 2px; transition: width 0.3s; }
+    .progress-green  { background: var(--success); }
+    .progress-amber  { background: var(--warning); }
+    .progress-grey   { background: var(--muted); }
+
+    /* Route cell */
+    .route { display: flex; align-items: center; gap: 0.4rem; font-size: 0.81rem; }
+    .route-arrow { color: var(--muted); font-size: 0.7rem; }
+    .route-port { line-height: 1.3; }
+    .route-port .port-name { font-weight: 500; }
+    .route-port .port-date { font-family: var(--font-mono); font-size: 0.91rem; color: var(--text); font-weight: 600; }
+
+    /* Carrier badge */
+    .carrier-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 0.2rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; white-space: nowrap; }
+    .ts-badge { background: var(--accent); color: #fff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 700; flex-shrink: 0; }
+
+    /* Sync info */
+    .sync-info { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); white-space: nowrap; }
+    .progress-label { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text); white-space: nowrap; }
+
+    /* ETA conflict */
+    .eta-conflict { color: var(--warning); font-weight: 600; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .toast.error { background: var(--error); }
+    .toast.success { background: var(--success); }
+
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.45rem 0.9rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.68rem; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="purchase-orders.html">Purchase Orders</a>
+    <a href="shipments.html">Shipments</a>
+    <a href="shipment-status.html" class="active">Live Status</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="inventory-locations.html">Locations</a>
+    <a href="product-skus.html">SKUs</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="contracts.html">Contracts</a>
+    <a href="drawdowns.html">Drawdowns</a>
+    <a href="catalogue-library.html">Catalogues</a>
+  </div>
+  <span class="nav-user" id="nav-user" title="Sign out">Sign out</span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Live Shipment Status</div>
+      <div class="page-sub" id="page-sub">Loading...</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="btn-refresh">&#8635; Refresh</button>
+  </div>
+
+  <!-- Tab bar — populated from data -->
+  <div class="tab-bar" id="tab-bar"></div>
+
+  <!-- Table -->
+  <div class="tbl-wrap">
+    <table id="status-table">
+      <thead>
+        <tr>
+          <th data-sort="created_at">Shipment <span class="sort-arrow">&#8595;</span></th>
+          <th>BL / Container</th>
+          <th>Status</th>
+          <th data-sort="shipsgo_etd">From <span class="sort-arrow">&#8645;</span></th>
+          <th></th><!-- carrier col, no sort -->
+          <th data-sort="shipsgo_eta">To <span class="sort-arrow">&#8645;</span></th>
+          <th>Progress</th>
+          <th>Last Synced</th>
+        </tr>
+      </thead>
+      <tbody id="status-body">
+        <tr><td colspan="8" class="loading">Loading shipments...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 1.6 | shipment-status.html
+// v1.6: port-date ETD/ETA +2pt again: 0.78rem → 0.91rem black.
+// v1.5: Split sync-info into sync-info (small muted, last synced) and
+//   progress-label (0.78rem black, progress % + days). port-date stays 0.78rem black.
+// v1.4: Font size increases — table +1pt, ETD/ETA dates +2pt black,
+//   progress % and days remaining +2pt black.
+// v1.3: buildProgressBar — isCompleted now also requires actual_arrival_date is
+//   today or in the past. Prevents 100% when ShipsGo writes a future discharge date.
+// v1.2: buildProgressBar — only treat as completed when BOTH actual_arrival_date
+//   AND sailing_status=Arrived. Fixes 100% complete after accidental status correction.
+// v1.1: Navbar CSS + HTML rewritten to match samples.html exactly.
+// Shipment Status Dashboard — read-only live view of all shipments with ShipsGo tracking.
+// Single API call: getShipmentStatusPage
+// Tabs: All | Booked | Sailing | Arrived | Discharged | Untracked | In Progress
+// Columns: Shipment · BL/Container · Status · From · Carrier · To · Progress · Last Synced
+
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API  === 'undefined') throw new Error('api.js not loaded');
+if (typeof UI   === 'undefined') throw new Error('ui.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+const fmtDate = v => UI.formatDate(v);
+
+let ALL_ROWS    = [];
+let activeTab   = 'All';
+let sortCol     = 'created_at';
+let sortDir     = 'desc'; // desc = newest first
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+(async () => {
+  const user    = Auth.getUser();
+  const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick      = () => Auth.logout();
+  await loadData();
+})();
+
+async function loadData() {
+  try {
+    const data = await API.post({ action: 'getShipmentStatusPage' });
+    ALL_ROWS = data.shipments || [];
+    buildTabs();
+    renderTable();
+    const synced = ALL_ROWS.filter(r => r.shipsgo_id).length;
+    document.getElementById('page-sub').textContent =
+      ALL_ROWS.length + ' shipments · ' + synced + ' tracked on ShipsGo';
+  } catch (e) {
+    document.getElementById('status-body').innerHTML =
+      '<tr><td colspan="8" class="empty">Failed to load: ' + esc(e.message || 'Unknown error') + '</td></tr>';
+    showToast('Load failed: ' + (e.message || 'error'), 'error');
+  }
+}
+
+document.getElementById('btn-refresh').onclick = async () => {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  await loadData();
+  btn.disabled = false;
+  showToast('Refreshed.', 'success');
+};
+
+// ─── Tabs ──────────────────────────────────────────────────────────────────────
+
+// Tab definitions — order matters
+const TAB_DEFS = [
+  { key: 'All',         label: 'All',         filter: r => true },
+  { key: 'Sailing',     label: 'Sailing',      filter: r => r.shipsgo_status === 'SAILING'    || r.sailing_status === 'Sailing' },
+  { key: 'Booked',      label: 'Booked',       filter: r => r.shipsgo_status === 'BOOKED' },
+  { key: 'Loaded',      label: 'Loaded',       filter: r => r.shipsgo_status === 'LOADED' },
+  { key: 'Arrived',     label: 'Arrived',      filter: r => r.shipsgo_status === 'ARRIVED'    || r.shipsgo_status === 'DISCHARGED' || r.sailing_status === 'Arrived' },
+  { key: 'Untracked',   label: 'Untracked',    filter: r => r.shipsgo_status === 'UNTRACKED' },
+  { key: 'SyncError',   label: 'Sync Error',   filter: r => r.shipsgo_status === 'SYNC_ERROR' },
+  { key: 'Inprogress',  label: 'In Progress',  filter: r => r.shipsgo_status === 'NEW' || r.shipsgo_status === 'INPROGRESS' },
+  { key: 'NoTracking',  label: 'Not Tracked',  filter: r => !r.shipsgo_id },
+];
+
+function buildTabs() {
+  const bar = document.getElementById('tab-bar');
+  bar.innerHTML = TAB_DEFS.map(tab => {
+    const count = ALL_ROWS.filter(tab.filter).length;
+    if (tab.key !== 'All' && count === 0) return ''; // hide empty tabs
+    return '<button class="tab' + (activeTab === tab.key ? ' active' : '') +
+      '" data-tab="' + tab.key + '">' +
+      tab.label +
+      '<span class="tab-count">' + count + '</span>' +
+      '</button>';
+  }).join('');
+
+  bar.querySelectorAll('.tab').forEach(btn => {
+    btn.onclick = () => {
+      activeTab = btn.dataset.tab;
+      bar.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTable();
+    };
+  });
+}
+
+// ─── Table render ─────────────────────────────────────────────────────────────
+
+function getFilteredRows() {
+  const tab = TAB_DEFS.find(t => t.key === activeTab);
+  const rows = tab ? ALL_ROWS.filter(tab.filter) : ALL_ROWS;
+  return sortRows(rows);
+}
+
+function sortRows(rows) {
+  return rows.slice().sort((a, b) => {
+    let av = a[sortCol] || '';
+    let bv = b[sortCol] || '';
+    // Date fields
+    if (sortCol === 'created_at' || sortCol === 'shipsgo_etd' || sortCol === 'shipsgo_eta') {
+      av = av ? new Date(av).getTime() : 0;
+      bv = bv ? new Date(bv).getTime() : 0;
+    } else {
+      av = String(av).toLowerCase();
+      bv = String(bv).toLowerCase();
+    }
+    if (av < bv) return sortDir === 'asc' ? -1 :  1;
+    if (av > bv) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+}
+
+// Sort on header click
+document.querySelectorAll('thead th[data-sort]').forEach(th => {
+  th.onclick = () => {
+    const col = th.dataset.sort;
+    if (sortCol === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = col;
+      sortDir = col === 'created_at' ? 'desc' : 'asc';
+    }
+    document.querySelectorAll('thead th').forEach(h => h.classList.remove('sorted'));
+    th.classList.add('sorted');
+    th.querySelector('.sort-arrow').textContent =
+      sortDir === 'asc' ? '\u2191' : '\u2193';
+    renderTable();
+  };
+});
+
+function renderTable() {
+  const rows = getFilteredRows();
+  const tbody = document.getElementById('status-body');
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No shipments in this category.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => renderRow(r)).join('');
+}
+
+function renderRow(r) {
+  const hasTracking = !!r.shipsgo_id;
+  const sgStatus    = r.shipsgo_status || '';
+  const today       = Date.now();
+
+  // ── Col 1: Shipment ID + date ────────────────────────────────────────────
+  const shipmentCell =
+    '<div class="cell-id">' + esc(r.container_number || '—') + '</div>' +
+    '<div class="cell-sub">' + fmtDate(r.created_at) + '</div>';
+
+  // ── Col 2: BL + tracking ref ─────────────────────────────────────────────
+  const blCell =
+    '<div class="cell-mono">' + esc(r.bill_of_lading || '—') + '</div>' +
+    (r.shipsgo_id ? '<div class="cell-sub">ShipsGo: ' + esc(String(r.shipsgo_id)) + '</div>' : '<div class="cell-sub" style="color:var(--muted)">Not registered</div>');
+
+  // ── Col 3: Status badges ──────────────────────────────────────────────────
+  const sailBadge = buildSailingBadge(r.sailing_status);
+  const sgBadge   = hasTracking ? buildShipsGoBadge(sgStatus) : '';
+  const statusCell = sailBadge + (sgBadge ? '<br><span style="margin-top:0.25rem;display:inline-block">' + sgBadge + '</span>' : '');
+
+  // ── Col 4: From (origin) ──────────────────────────────────────────────────
+  const fromFlag = r.pol_code ? countryFlag(r.pol_code) : '';
+  const etd      = r.shipsgo_etd || r.etd || '';
+  const fromCell = r.pol_name
+    ? '<div class="route-port">' +
+        '<span class="cell-flag">' + fromFlag + '</span> ' +
+        '<span class="port-name">' + esc(r.pol_name) + '</span>' +
+        (etd ? '<div class="port-date">ETD ' + fmtDate(etd) + '</div>' : '') +
+      '</div>'
+    : '<span style="color:var(--muted)">—</span>';
+
+  // ── Col 5: Carrier ────────────────────────────────────────────────────────
+  const carrierName = r.carrier_name || r.carrier_scac || r.carrier_scac_sg || '';
+  const tsCount     = r.ts_count || 0;
+  const carrierCell = carrierName
+    ? '<span class="carrier-badge">' + esc(carrierName) +
+      (tsCount > 0 ? ' <span class="ts-badge" title="' + tsCount + ' transshipment' + (tsCount > 1 ? 's' : '') + '">' + tsCount + '</span>' : '') +
+      '</span>'
+    : '<span style="color:var(--muted)">—</span>';
+
+  // ── Col 6: To (destination) ───────────────────────────────────────────────
+  const toFlag = r.pod_code ? countryFlag(r.pod_code) : '';
+  // ETA — check for conflict between our manual ETA and ShipsGo ETA
+  const ourEta  = r.eta || '';
+  const sgEta   = r.shipsgo_eta || '';
+  const useEta  = sgEta || ourEta;
+  const etaConflict = sgEta && ourEta && sgEta !== ourEta &&
+    Math.abs(new Date(sgEta) - new Date(ourEta)) / 86400000 >= 1;
+  const etaDisplay = etaConflict
+    ? '<span class="eta-conflict" title="Our ETA: ' + esc(fmtDate(ourEta)) + '">' + fmtDate(sgEta) + ' *</span>'
+    : (useEta ? fmtDate(useEta) : '');
+  const toCell = r.pod_name
+    ? '<div class="route-port">' +
+        '<span class="cell-flag">' + toFlag + '</span> ' +
+        '<span class="port-name">' + esc(r.pod_name) + '</span>' +
+        (etaDisplay ? '<div class="port-date">ETA ' + etaDisplay + '</div>' : '') +
+      '</div>'
+    : '<span style="color:var(--muted)">—</span>';
+
+  // ── Col 7: Progress bar ───────────────────────────────────────────────────
+  const progressCell = buildProgressBar(etd, useEta, r.actual_arrival_date, r.sailing_status, etaConflict);
+
+  // ── Col 8: Last synced ────────────────────────────────────────────────────
+  const syncedCell = r.last_synced_at
+    ? '<div class="sync-info">' + fmtDateTime(r.last_synced_at) + '</div>' +
+      '<div class="sync-info" style="margin-top:0.1rem">' + esc(r.sync_source || '') + '</div>'
+    : '<span style="color:var(--muted);font-size:0.7rem">—</span>';
+
+  return '<tr>' +
+    '<td>' + shipmentCell  + '</td>' +
+    '<td>' + blCell        + '</td>' +
+    '<td>' + statusCell    + '</td>' +
+    '<td>' + fromCell      + '</td>' +
+    '<td>' + carrierCell   + '</td>' +
+    '<td>' + toCell        + '</td>' +
+    '<td>' + progressCell  + '</td>' +
+    '<td>' + syncedCell    + '</td>' +
+  '</tr>';
+}
+
+// ─── Badge builders ───────────────────────────────────────────────────────────
+
+function buildSailingBadge(status) {
+  const map = {
+    'Pending': 'pending', 'Sailing': 'sailing',
+    'Arrived': 'arrived', 'Delayed': 'syncerror'
+  };
+  const cls = map[status] || 'none';
+  return '<span class="badge badge-' + cls + '">' + esc(status || 'Pending') + '</span>';
+}
+
+function buildShipsGoBadge(status) {
+  const map = {
+    'NEW':         'new',
+    'INPROGRESS':  'inprogress',
+    'BOOKED':      'booked',
+    'LOADED':      'loaded',
+    'SAILING':     'sailing',
+    'ARRIVED':     'arrived',
+    'DISCHARGED':  'discharged',
+    'UNTRACKED':   'untracked',
+    'SYNC_ERROR':  'syncerror',
+  };
+  if (!status) return '';
+  const cls   = map[status] || 'none';
+  const label = status.replace('_', ' ');
+  return '<span class="badge badge-' + cls + '">' + esc(label) + '</span>';
+}
+
+// ─── Progress bar ─────────────────────────────────────────────────────────────
+
+function buildProgressBar(etd, eta, actualArrival, sailingStatus, etaConflict) {
+  if (!etd || !eta) {
+    return '<div style="color:var(--muted);font-size:0.7rem">—</div>';
+  }
+
+  // v1.2: Require BOTH actual_arrival_date AND sailing_status=Arrived.
+  // v1.3: Also require actual_arrival_date is today or in the past.
+  //   ShipsGo writes actual_arrival_date from shipsgo_eta (discharge date) which can
+  //   be a future date when the carrier has confirmed the schedule but not yet arrived.
+  //   A future date + Arrived status = premature 100% complete — guard against it.
+  const arrivalTime   = actualArrival ? new Date(actualArrival).getTime() : 0;
+  const todayEnd      = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+  const arrivalIsPast = arrivalTime > 0 && arrivalTime <= todayEnd.getTime();
+  const isCompleted   = actualArrival && sailingStatus === 'Arrived' && arrivalIsPast;
+  if (isCompleted) {
+    return '<div class="progress-wrap"><div class="progress-fill progress-green" style="width:100%"></div></div>' +
+      '<div class="progress-label" style="margin-top:0.2rem">Completed</div>';
+  }
+
+  const start   = new Date(etd).getTime();
+  const end     = new Date(eta).getTime();
+  const now     = Date.now();
+  const total   = end - start;
+  if (total <= 0) return '<div style="color:var(--muted);font-size:0.7rem">—</div>';
+
+  const elapsed = now - start;
+  const pct     = Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+  const colour  = etaConflict ? 'progress-amber' : pct >= 100 ? 'progress-amber' : 'progress-green';
+
+  const daysLeft = Math.ceil((end - now) / 86400000);
+  const daysLabel = daysLeft > 0
+    ? daysLeft + 'd remaining'
+    : daysLeft === 0 ? 'Due today' : Math.abs(daysLeft) + 'd overdue';
+  const labelColour = daysLeft < 0 ? 'color:var(--error)' : daysLeft <= 3 ? 'color:var(--warning)' : '';
+
+  return '<div class="progress-wrap">' +
+    '<div class="progress-fill ' + colour + '" style="width:' + pct + '%"></div>' +
+    '</div>' +
+    '<div class="progress-label" style="margin-top:0.2rem;' + labelColour + '">' + pct + '% &middot; ' + daysLabel + '</div>' +
+    (etaConflict ? '<div class="progress-label" style="color:var(--warning)">ETA conflict</div>' : '');
+}
+
+// ─── Country flag from UNLOCODE ───────────────────────────────────────────────
+// First 2 chars of UNLOCODE = ISO 3166-1 alpha-2 country code
+// Emoji regional indicator letters: A=0x1F1E6 ... Z=0x1F1FF
+
+function countryFlag(unlocode) {
+  if (!unlocode || unlocode.length < 2) return '';
+  try {
+    const cc = unlocode.slice(0, 2).toUpperCase();
+    return cc.split('').map(c => {
+      const code = c.charCodeAt(0) - 65;
+      return code >= 0 && code < 26
+        ? String.fromCodePoint(0x1F1E6 + code)
+        : '';
+    }).join('');
+  } catch (e) {
+    return '';
+  }
+}
+
+// ─── Date / time formatter ────────────────────────────────────────────────────
+
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso).slice(0, 16);
+    return d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', year: '2-digit' }) +
+      ' ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  } catch (e) {
+    return String(iso).slice(0, 16);
+  }
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showToast(msg, type) {
+  const t       = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (type ? ' ' + type : '');
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), type === 'error' ? 8000 : 3000);
+}
+</script>
+</body>
+</html>
