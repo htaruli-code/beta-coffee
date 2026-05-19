@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.3.2 | shipments.html -->
+<!-- Version 2.3.4 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -25,14 +25,6 @@
     .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
     .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
     .nav-user:hover { color: var(--accent); }
-    .nav-dropdown { position: relative; display: inline-flex; align-items: center; }
-    .nav-dropdown > a { display: inline-flex; align-items: center; gap: 0.25rem; }
-    .nav-dropdown > a::after { content: "\25BE"; font-size: 0.6rem; opacity: 0.6; }
-    .nav-dropdown-menu { display: none; position: absolute; top: calc(100% + 4px); left: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); min-width: 140px; z-index: 200; overflow: hidden; }
-    .nav-dropdown:hover .nav-dropdown-menu { display: block; }
-    .nav-dropdown-menu a { display: block; font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.5rem 0.875rem; transition: background var(--transition), color var(--transition); border-radius: 0; }
-    .nav-dropdown-menu a:hover { background: var(--surface); color: var(--text); }
-    .nav-dropdown-menu a.active { color: var(--accent); font-weight: 500; background: var(--surface); }
     .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
@@ -96,13 +88,7 @@
   <div class="nav-links">
     <a href="all-samples.html" id="nav-all-samples">All Samples</a>
     <a href="purchase-orders.html" id="nav-po">Purchase Orders</a>
-    <div class="nav-dropdown">
-      <a href="shipments.html" id="nav-shipments" class="active">Shipments</a>
-      <div class="nav-dropdown-menu">
-        <a href="shipments.html">Manage</a>
-        <a href="shipment-status.html">Live Status</a>
-      </div>
-    </div>
+    <a href="shipments.html" id="nav-shipments" class="active">Shipments</a>
     <a href="inventory.html" id="nav-inventory">Inventory</a>
     <a href="inventory-locations.html" id="nav-locations">Locations</a>
     <a href="product-skus.html" id="nav-skus">SKU</a>
@@ -117,7 +103,7 @@
   <div class="page-header">
     <div>
       <div class="page-title">Shipments</div>
-      <div class="page-sub">Track containers, ETD/ETA and ShipsGo live status</div>
+      <div class="page-sub">Track containers, ETD/ETA and ShipsGo live status &nbsp;&middot;&nbsp; <a href="shipment-status.html" style="color:var(--accent);text-decoration:none;font-weight:500">Live Status &rarr;</a></div>
     </div>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="btn-refresh-carriers" title="Refresh ShipsGo carrier list">Refresh Carriers</button>
