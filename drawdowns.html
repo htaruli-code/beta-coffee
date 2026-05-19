@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!-- Version 2.1.4 | drawdowns.html -->
-<!-- v2.0.5: Contract line dropdown now correctly populated from con.lines[] (requires DataService_Contracts v2.0.2).
-             Line dropdown shows sample name + available bags.
-             Selecting a line updates bags input max and shows available count.
-             Submit validates bags do not exceed available.
-   v2.0.4: Added "+ New Drawdown" button and modal for staff to create drawdowns on behalf of buyers.
-             Buyer name displayed in modal header and info block so staff knows whose order they're creating. -->
+<!-- v2.1.4: Toolbar buyer filter — replaced dropdown with search input + results list (client-side, no extra API call).
+             New Drawdown modal — contract dropdown replaced with search input + results list.
+             Selected contract_id stored in hidden new-dd-contract-id; buyer info auto-shown on selection.
+             Shared initSearch() helper wires both search controls.
+   v2.0.5: Contract line dropdown now correctly populated from con.lines[].
+   v2.0.4: Added "+ New Drawdown" button and modal. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -96,6 +96,33 @@
     .sub-list-row:last-child { border-bottom: none; }
     .sub-list-row .sub-bags { color: var(--text); font-weight: 600; }
     .sub-list-row .sub-del { background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.8rem; padding: 0; margin-left: auto; }
+    /* ── Generic search-with-dropdown (v2.1.4) ──────────────────────────────── */
+    .srch-wrap { position: relative; }
+    .srch-wrap input { width: 180px; }
+    .srch-drop {
+      position: absolute; z-index: 300; top: calc(100% + 2px); left: 0;
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+      min-width: 240px; max-height: 220px; overflow-y: auto; display: none;
+    }
+    .srch-drop.open { display: block; }
+    .srch-item {
+      padding: 0.4rem 0.75rem; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono); font-size: 0.75rem; color: var(--text);
+    }
+    .srch-item:last-child { border-bottom: none; }
+    .srch-item:hover, .srch-item.srch-active { background: var(--surface); }
+    .srch-item .srch-sub { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+    .srch-clear { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 0.85rem; padding: 0; line-height: 1; display: none; }
+    .srch-clear.show { display: block; }
+    /* full-width variant for modals */
+    .srch-wrap.srch-full { display: block; }
+    .srch-wrap.srch-full input { width: 100%; }
+    .srch-wrap.srch-full .srch-drop { min-width: 100%; }
+
   </style>
 </head>
 <body>
@@ -127,7 +154,12 @@
   </div>
   <div class="toolbar">
     <select id="filter-status" style="width:auto"><option value="">All Statuses</option></select>
-    <select id="filter-buyer"  style="width:auto"><option value="">All Buyers</option></select>
+    <div class="srch-wrap" id="filter-buyer-wrap">
+      <input type="text" id="filter-buyer-input" placeholder="Filter by buyer…" autocomplete="off" />
+      <button type="button" class="srch-clear" id="filter-buyer-clear" title="Clear">✕</button>
+      <div class="srch-drop" id="filter-buyer-drop"></div>
+    </div>
+    <input type="hidden" id="filter-buyer" value="" />
   </div>
   <div id="dd-wrap"><div class="loading">Loading drawdowns…</div></div>
 </div>
@@ -187,10 +219,12 @@
 
     <div class="field-row">
       <div class="field">
-        <label for="new-dd-contract">Contract <span style="color:var(--error)">*</span></label>
-        <select id="new-dd-contract">
-          <option value="">— Select contract —</option>
-        </select>
+        <label for="new-dd-contract-input">Contract <span style="color:var(--error)">*</span></label>
+        <div class="srch-wrap srch-full" id="new-dd-contract-wrap">
+          <input type="text" id="new-dd-contract-input" placeholder="Search by buyer or contract number…" autocomplete="off" />
+          <div class="srch-drop" id="new-dd-contract-drop"></div>
+        </div>
+        <input type="hidden" id="new-dd-contract-id" />
       </div>
       <div class="field">
         <label for="new-dd-line">Contract Line <span style="color:var(--error)">*</span></label>
@@ -227,7 +261,10 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.1.3 | drawdowns.html
+// Version 2.1.4 | drawdowns.html
+// v2.1.4: Toolbar buyer filter — replaced dropdown with search input + results list (client-side, no extra API call).
+//          New Drawdown modal — contract dropdown replaced with search input + results list.
+//          Shared initSearch() helper; selectContract() extracted to handle buyer info + line population.
 // v2.1.3: isNaN guards on bags fields. dates via UI.formatDate. page-width 1300px.
 const fmtDate = v => UI.formatDate(v);
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
@@ -256,19 +293,109 @@ function populateFilters() {
   PAGE_DATA.drawdown_statuses.forEach(s => {
     const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
   });
-  const fb = document.getElementById('filter-buyer');
-  const buyerIds = new Set();
+  fs.onchange = renderTable;
+
+  // Build buyer list from buyers who actually have drawdowns
+  const activeBuyerIds = new Set();
   PAGE_DATA.drawdowns.forEach(d => {
     const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(d.contract_id));
-    if (con && !buyerIds.has(String(con.buyer_id))) {
-      buyerIds.add(String(con.buyer_id));
-      const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id));
-      if (buyer) {
-        const o = document.createElement('option'); o.value = buyer.buyer_id; o.textContent = buyer.company_name; fb.appendChild(o);
-      }
+    if (con) activeBuyerIds.add(String(con.buyer_id));
+  });
+  const buyerList = PAGE_DATA.buyers.filter(b => activeBuyerIds.has(String(b.buyer_id)));
+
+  initSearch({
+    inputId:  'filter-buyer-input',
+    dropId:   'filter-buyer-drop',
+    hiddenId: 'filter-buyer',
+    clearId:  'filter-buyer-clear',
+    items:    () => buyerList,
+    label:    b => b.company_name,
+    value:    b => String(b.buyer_id),
+    onSelect: renderTable,
+    onClear:  renderTable
+  });
+}
+
+// ── Shared search-with-dropdown helper (v2.1.4) ───────────────────────────────
+// opts: { inputId, dropId, hiddenId, clearId?, items(), label(), value(), subLabel?(), onSelect, onClear }
+// items() called lazily so PAGE_DATA is always fresh.
+function initSearch(opts) {
+  const input    = document.getElementById(opts.inputId);
+  const drop     = document.getElementById(opts.dropId);
+  const hidden   = document.getElementById(opts.hiddenId);
+  const clearBtn = opts.clearId ? document.getElementById(opts.clearId) : null;
+
+  function renderDrop(list) {
+    if (!list.length) { drop.classList.remove('open'); return; }
+    drop.innerHTML = list.map(item =>
+      '<div class="srch-item" data-val="' + esc(opts.value(item)) + '">' +
+        esc(opts.label(item)) +
+        (opts.subLabel ? '<div class="srch-sub">' + esc(opts.subLabel(item)) + '</div>' : '') +
+      '</div>'
+    ).join('');
+    drop.classList.add('open');
+    drop.querySelectorAll('.srch-item').forEach(el => {
+      el.onmousedown = e => {
+        e.preventDefault();
+        selectItem(el.dataset.val, el.querySelector('.srch-item > :first-child')
+          ? el.firstChild.textContent.trim()
+          : el.textContent.trim());
+      };
+    });
+  }
+
+  function selectItem(val, label) {
+    hidden.value = val;
+    input.value  = label;
+    drop.classList.remove('open');
+    if (clearBtn) clearBtn.classList.add('show');
+    if (opts.onSelect) opts.onSelect(val);
+  }
+
+  function clearItem() {
+    hidden.value = '';
+    input.value  = '';
+    drop.classList.remove('open');
+    if (clearBtn) clearBtn.classList.remove('show');
+    if (opts.onClear) opts.onClear();
+  }
+
+  input.addEventListener('input', () => {
+    hidden.value = '';
+    if (clearBtn) clearBtn.classList.remove('show');
+    const q = input.value.trim().toLowerCase();
+    if (!q) { drop.classList.remove('open'); if (opts.onClear) opts.onClear(); return; }
+    const matches = opts.items().filter(item => opts.label(item).toLowerCase().includes(q)).slice(0, 12);
+    renderDrop(matches);
+  });
+
+  input.addEventListener('keydown', e => {
+    const items  = drop.querySelectorAll('.srch-item');
+    const active = drop.querySelector('.srch-active');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? (active.nextElementSibling || items[0]) : items[0];
+      if (active) active.classList.remove('srch-active');
+      if (next)   next.classList.add('srch-active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active ? (active.previousElementSibling || items[items.length - 1]) : items[items.length - 1];
+      if (active) active.classList.remove('srch-active');
+      if (prev)   prev.classList.add('srch-active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active) selectItem(active.dataset.val, active.textContent.trim());
+    } else if (e.key === 'Escape') {
+      drop.classList.remove('open');
     }
   });
-  fs.onchange = fb.onchange = renderTable;
+
+  input.addEventListener('blur', () => { setTimeout(() => drop.classList.remove('open'), 150); });
+  if (clearBtn) clearBtn.onclick = clearItem;
+
+  // Expose for programmatic pre-fill
+  input._selectItem = selectItem;
+  input._clearItem  = clearItem;
 }
 
 function renderTable() {
@@ -612,7 +739,7 @@ function mergeLot(updatedLot) {
   if (idx >= 0) PAGE_DATA.inventory_lots[idx] = updatedLot;
 }
 
-// ── New Drawdown Modal (v2.0.4) — staff creates on behalf of buyer ────────────
+// ── New Drawdown Modal (v2.1.4) — contract search replaces dropdown ───────────
 
 document.getElementById('btn-new-drawdown').onclick = function() {
   clearModalError('modal-new-dd');
@@ -621,37 +748,48 @@ document.getElementById('btn-new-drawdown').onclick = function() {
   document.getElementById('new-dd-date').value  = '';
   document.getElementById('new-dd-notes').value = '';
 
-  // Populate contract dropdown (active/partially drawn contracts only)
-  const sel = document.getElementById('new-dd-contract');
-  sel.innerHTML = '<option value="">— Select contract —</option>';
-  const activeContracts = PAGE_DATA.contracts.filter(c =>
-    c.status === 'Active' || c.status === 'Partially Drawn'
-  );
-  activeContracts.forEach(c => {
-    const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(c.buyer_id));
-    const label = (buyer ? buyer.company_name + ' · ' : '') + esc(c.contract_number);
-    const o = document.createElement('option'); o.value = c.contract_id; o.textContent = label;
-    sel.appendChild(o);
-  });
-
   // Reset line dropdown
   const lineSel = document.getElementById('new-dd-line');
   lineSel.innerHTML = '<option value="">— Select contract first —</option>';
   lineSel.disabled  = true;
 
+  // Active contracts available for drawdown
+  const activeContracts = PAGE_DATA.contracts.filter(c =>
+    c.status === 'Active' || c.status === 'Partially Drawn'
+  );
+
+  // Init contract search (re-init each open to reset state)
+  initSearch({
+    inputId:   'new-dd-contract-input',
+    dropId:    'new-dd-contract-drop',
+    hiddenId:  'new-dd-contract-id',
+    items:     () => activeContracts,
+    label:     c => {
+      const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(c.buyer_id));
+      return (buyer ? buyer.company_name + ' · ' : '') + c.contract_number;
+    },
+    value:     c => String(c.contract_id),
+    subLabel:  c => 'Status: ' + c.status,
+    onSelect:  contractId => selectContract(contractId),
+    onClear:   () => selectContract(null)
+  });
+
+  // Reset contract input
+  const contractInput = document.getElementById('new-dd-contract-input');
+  if (contractInput._clearItem) contractInput._clearItem();
+
   document.getElementById('modal-new-dd').classList.add('open');
 };
 
-// When contract changes — populate lines and show buyer info
-document.getElementById('new-dd-contract').onchange = function() {
-  const contractId = this.value;
-  const lineSel    = document.getElementById('new-dd-line');
-  const buyerInfo  = document.getElementById('new-dd-buyer-info');
-  const bagsHint   = document.getElementById('new-dd-bags-hint');
-  const bagsInput  = document.getElementById('new-dd-bags');
+// Called when a contract is chosen in the search (or cleared)
+function selectContract(contractId) {
+  const lineSel   = document.getElementById('new-dd-line');
+  const buyerInfo = document.getElementById('new-dd-buyer-info');
+  const bagsHint  = document.getElementById('new-dd-bags-hint');
+  const bagsInput = document.getElementById('new-dd-bags');
 
   lineSel.innerHTML = '<option value="">— Select line —</option>';
-  lineSel.disabled  = !contractId;
+  lineSel.disabled  = true;
   buyerInfo.classList.remove('show');
   bagsHint.textContent = '';
   bagsInput.value = '';
@@ -671,11 +809,10 @@ document.getElementById('new-dd-contract').onchange = function() {
     buyerInfo.classList.add('show');
   }
 
-  // Lines[] now always present on con — populated by DataService_Contracts v2.0.2
   const lines = con && con.lines ? con.lines : [];
   lines.forEach(l => {
     const available = (l.contracted_bags || 0) - (l.drawn_bags || 0);
-    if (available <= 0) return; // skip fully drawn lines
+    if (available <= 0) return;
     const o = document.createElement('option');
     o.value = l.contract_line_id;
     o.dataset.available = available;
@@ -688,8 +825,10 @@ document.getElementById('new-dd-contract').onchange = function() {
   if (lineSel.options.length === 1) {
     lineSel.innerHTML = '<option value="">No lines with available bags</option>';
     lineSel.disabled  = true;
+  } else {
+    lineSel.disabled = false;
   }
-};
+}
 
 // When line changes — update bags max + hint
 document.getElementById('new-dd-line').onchange = function() {
@@ -718,7 +857,7 @@ document.getElementById('btn-new-dd-cancel').onclick = () => {
 
 document.getElementById('btn-new-dd-save').onclick = async function() {
   const btn        = this;
-  const contractId = document.getElementById('new-dd-contract').value;
+  const contractId = document.getElementById('new-dd-contract-id').value;
   const lineId     = document.getElementById('new-dd-line').value;
   const bags       = parseInt(document.getElementById('new-dd-bags').value);  // v2.1.3: no || 0
   const lineSel    = document.getElementById('new-dd-line');
