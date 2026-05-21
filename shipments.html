@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.3.4 | shipments.html -->
+<!-- Version 2.5.6 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -48,6 +48,8 @@
     .card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
     .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 2px; }
     .badge-pending   { background: #f0f0f0; color: #666; }
+    .badge-booked    { background: #f0f0f0; color: #666; }
+    .badge-confirmed { background: #e0f0ff; color: #0055a4; }
     .badge-sailing   { background: #eef4fd; color: #1a5ca8; }
     .badge-arrived   { background: #edf7f0; color: #1e6640; }
     .badge-delayed   { background: #fdecea; color: #b00020; }
@@ -103,7 +105,7 @@
   <div class="page-header">
     <div>
       <div class="page-title">Shipments</div>
-      <div class="page-sub">Track containers, ETD/ETA and ShipsGo live status &nbsp;&middot;&nbsp; <a href="shipment-status.html" style="color:var(--accent);text-decoration:none;font-weight:500">Live Status &rarr;</a></div>
+      <div class="page-sub">Track containers, ETD/ETA and ShipsGo live status &nbsp;&middot;&nbsp; <a href="shipment-status.html" style="color:var(--accent);text-decoration:none;font-weight:500">Live Status &rarr;</a> &nbsp;&middot;&nbsp; <a href="shipping-parties.html" style="color:var(--accent);text-decoration:none;font-weight:500">Shipping Parties &rarr;</a></div>
     </div>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="btn-refresh-carriers" title="Refresh ShipsGo carrier list">Refresh Carriers</button>
@@ -136,7 +138,11 @@
 
     <div class="field-row">
       <div class="field">
-        <label>Container Number <span style="color:var(--error)">*</span></label>
+        <label>Booking Number</label>
+        <input type="text" id="s-booking" placeholder="268724965" />
+      </div>
+      <div class="field">
+        <label>Container Number <span id="s-container-hint" style="font-weight:400;color:var(--muted);font-size:0.68rem">available N-5 to N-2</span></label>
         <input type="text" id="s-container" placeholder="TCKU1234567" />
       </div>
       <div class="field">
@@ -265,6 +271,178 @@
   </div>
 </div>
 
+<!-- Shipment-level SI Modal (v3.3) -->
+<div class="modal-overlay" id="modal-si">
+  <div class="modal" style="max-width:884px">
+    <div class="modal-title" id="modal-si-title">Issue Shipping Instructions</div>
+    <div class="modal-error" id="modal-si-error"></div>
+
+    <!-- Sent status banner — shown when a previous SI exists -->
+    <div id="si-sent-banner" style="display:none;font-family:var(--font-mono);font-size:0.75rem;padding:0.6rem 0.85rem;border-radius:var(--radius);border:1px solid;margin-bottom:0.85rem;line-height:1.5"></div>
+
+    <input type="hidden" id="si-shipment-id" />
+    <input type="hidden" id="si-instruction-id" />
+
+    <!-- Supplier selector (shown when multiple suppliers on shipment) -->
+    <div id="si-supplier-row" class="field-row" style="display:none;margin-bottom:0.75rem">
+      <div class="field">
+        <label>Supplier <span style="color:var(--error)">*</span></label>
+        <select id="si-supplier-id"></select>
+      </div>
+    </div>
+
+    <!-- Read-only summary -->
+    <div id="si-context-block" style="font-family:var(--font-mono);font-size:0.75rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem;margin-bottom:1rem;line-height:1.8"></div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Issued Date</label>
+        <input type="date" id="si-issued-date" />
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:0.5rem">
+      <label>Instructions <span style="color:var(--error)">*</span></label>
+      <textarea id="si-text" style="min-height:100px" placeholder="Packing, marking, sailing details..."></textarea>
+    </div>
+    <div class="field" style="margin-top:0.75rem">
+      <label>Special Notes</label>
+      <textarea id="si-special" style="min-height:60px" placeholder="Optional: fumigation, HS code notes, freight terms..."></textarea>
+    </div>
+
+    <!-- Required Documents checklist -->
+    <div class="modal-section">Required Documents</div>
+    <div id="si-doc-checks" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.35rem"></div>
+
+    <!-- Linked PO lines (read-only) -->
+    <div class="modal-section">Order Items</div>
+    <div id="si-lines-table" style="font-size:0.78rem"></div>
+
+    <!-- Preview panel — collapsed by default -->
+    <div id="si-preview-wrap" style="display:none;margin-top:0.75rem">
+      <div class="modal-section">Preview</div>
+      <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
+        <!-- Left: plain text summary -->
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.7rem;font-family:var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.35rem">Summary</div>
+          <div id="si-preview-body" style="font-family:var(--font-mono);font-size:0.72rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem;white-space:pre-wrap;line-height:1.7;max-height:320px;overflow-y:auto"></div>
+        </div>
+        <!-- Right: PDF-accurate HTML render in iframe -->
+        <div style="flex:1.4;min-width:0">
+          <div style="font-size:0.7rem;font-family:var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.35rem">PDF Preview</div>
+          <iframe id="si-preview-iframe" style="width:100%;height:320px;border:1px solid var(--border);border-radius:var(--radius);background:#fff" src="about:blank"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-si-cancel">Cancel</button>
+      <button class="btn btn-ghost" id="btn-si-preview">Preview</button>
+      <button class="btn btn-ghost" id="btn-si-save">Save Draft</button>
+      <button class="btn" id="btn-si-send" style="background:var(--success)">Save &amp; Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Documents Modal (v3.5) -->
+<div class="modal-overlay" id="modal-docs">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-title" id="modal-docs-title">Documents</div>
+    <div class="modal-error" id="modal-docs-error"></div>
+    <input type="hidden" id="docs-shipment-id" />
+
+    <!-- Send Link section -->
+    <div id="docs-send-section">
+      <div class="modal-section">Request Documents from Supplier</div>
+      <div class="field-row" style="margin-bottom:0.5rem">
+        <div class="field">
+          <label>Supplier</label>
+          <select id="docs-supplier-sel"></select>
+        </div>
+        <div class="field">
+          <label>Recipient Email <span style="font-size:0.68rem;font-weight:400;color:var(--muted)">(required to send)</span></label>
+          <input type="email" id="docs-email" placeholder="supplier@example.com" />
+        </div>
+      </div>
+      <div id="docs-link-row" style="display:none;margin-bottom:0.75rem">
+        <label style="font-size:0.75rem;color:var(--muted);font-family:var(--font-mono);display:block;margin-bottom:0.3rem">Upload Link</label>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <input type="text" id="docs-link-val" readonly style="font-family:var(--font-mono);font-size:0.72rem;background:var(--surface)" />
+          <button class="btn btn-ghost" id="btn-docs-copy" style="flex-shrink:0">Copy</button>
+        </div>
+        <div id="docs-copy-confirm" style="display:none;font-size:0.72rem;color:var(--success);margin-top:0.2rem">✓ Copied</div>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+        <button class="btn" id="btn-docs-send">Generate &amp; Send Link</button>
+        <button class="btn btn-ghost" id="btn-docs-generate-only">Generate Link Only</button>
+      </div>
+    </div>
+
+    <!-- Slots status section -->
+    <div id="docs-slots-section" style="margin-top:1rem">
+      <div class="modal-section">Document Status</div>
+      <div id="docs-slots-list" style="font-size:0.8rem;min-height:40px"></div>
+    </div>
+
+    <!-- Extraction result panel -->
+    <div id="docs-extract-result" style="display:none;margin-top:0.75rem"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-docs-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shipment Parties Modal (v3.3) -->
+<div class="modal-overlay" id="modal-parties">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">Manage Parties</div>
+    <div class="modal-error" id="modal-parties-error"></div>
+    <input type="hidden" id="parties-shipment-id" />
+
+    <!-- Current assignments -->
+    <div class="modal-section">Assigned Parties</div>
+    <div id="parties-assigned-list" style="margin-bottom:0.75rem;font-size:0.78rem;min-height:40px"></div>
+
+    <!-- Add party form -->
+    <div class="modal-section">Add Party</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Party</label>
+        <select id="parties-party-select">
+          <option value="">— Select Party —</option>
+        </select>
+      </div>
+      <div class="field" style="max-width:160px">
+        <label>Role</label>
+        <select id="parties-role-select"></select>
+      </div>
+      <div class="field" style="max-width:80px">
+        <label>Order</label>
+        <input type="number" id="parties-sort-order" value="1" min="1" max="99" />
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:0.5rem">
+      <button class="btn btn-sm" id="btn-parties-add">Add</button>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-parties-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Slot File Viewer Modal (v3.5) -->
+<div class="modal-overlay" id="modal-slot-view">
+  <div class="modal" style="max-width:860px">
+    <div class="modal-title">View — <span id="slotv-label" style="color:var(--accent)"></span></div>
+    <div id="slotv-body" style="min-height:120px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-slotv-close">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="js/config.js"></script>
@@ -272,7 +450,27 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.2.9 | shipments.html
+// Version 2.4.6 | shipments.html
+// v2.4.6: badge-booked + badge-confirmed CSS added (dependency check fix).
+//         Container number no longer required — min one of Booking or Container.
+//         Card title uses container_number OR booking_number as identifier.
+//         Booking No shown on card sub-line and in SI context block.
+//         lifecycle_stages added to PAGE_DATA — stage hint shown under badge.
+//         Default sailing_status changed from Pending to Booked.
+//         PDF-accurate styled HTML render in iframe (right). Iframe uses
+//         Blob URL for instant client-side render — no API call required.
+//         Blob URL revoked on each re-open to prevent memory leak.
+//         _fillSIModal issued_date now uses toInputDate() — ISO datetime string
+//         no longer causes blank date input field.
+// v2.4.2: Issued date is now compulsory — validated before save.
+//         _fillSIModal accepts shipmentId — when no shipment-level SI exists,
+//         auto-populates instructions from per-PO SIs (deduplicated, labelled by PO number).
+//         _getPoSITextForShipment helper collects latest per-PO instruction text.
+//         _getExistingSI + _fillSIModal helpers added.
+//         si-sent-banner shows "Previously sent on [date]" or "Draft" warning.
+//         Card shows "✓ SI sent [date]" or "📝 SI draft" inline.
+//         Issue SI button label changes to "Re-issue SI" / "Edit SI (Draft)".
+//         Preview button shows plain-text preview of SI before sending.
 // v2.3.0: BUG FIX — openShipmentModal date fields empty on edit.
 //   Added toInputDate() helper — normalises any date format to YYYY-MM-DD
 //   (the only format input[type=date] accepts). Without this, dates from the
@@ -327,7 +525,9 @@ function toInputDate(v) {
 let PAGE_DATA = {
   shipments: [], purchase_orders: [], suppliers: [], po_lines: [],
   junctions: [], instructions: [], carriers: [],
-  sailing_statuses: [], si_statuses: [], _junctionMap: {}
+  sailing_statuses: [], si_statuses: [], _junctionMap: {},
+  shipping_parties: [], shipment_parties: [], party_roles: [], doc_types: [],
+  lifecycle_stages: {}, doc_requests: {}
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -409,16 +609,40 @@ function renderShipments() {
     const etaHtml    = buildEtaDisplay(s, t);
     const trackInfo  = buildTrackingInfo(s, t);
     const actions    = buildCardActions(s, t);
-    const statusCls  = (s.sailing_status || 'pending').toLowerCase().replace(/\s+/g, '-');
+    const statusCls  = (s.sailing_status || 'booked').toLowerCase().replace(/\s+/g, '-');
+
+    // v3.4: lifecycle stage hint
+    const lifecycle  = (PAGE_DATA.lifecycle_stages || {})[s.sailing_status] || {};
+    const stageHint  = lifecycle.hint ? ' <span style="font-size:0.68rem;color:var(--muted)">' + esc(lifecycle.hint) + '</span>' : '';
+
+    // v3.4: booking number line
+    const bookingHtml = s.booking_number
+      ? '<span style="font-family:var(--font-mono);font-size:0.72rem"> &middot; Booking: ' + esc(s.booking_number) + '</span>'
+      : '';
+
+    // v3.3: SI sent status line
+    const siForCard  = _getExistingSI(s.shipment_id, '');
+    const siHtml     = siForCard
+      ? '<div style="font-size:0.72rem;margin-top:0.35rem;color:' +
+          (siForCard.status === 'Sent' ? 'var(--success)' : 'var(--muted)') + '">' +
+          (siForCard.status === 'Sent'
+            ? '✓ SI sent' + (siForCard.sent_at ? ' ' + fmtDate(siForCard.sent_at) : '')
+            : '📝 SI draft') +
+        '</div>'
+      : '';
 
     return '<div class="card" id="card-' + s.shipment_id + '">' +
       '<div class="card-header">' +
         '<div>' +
-          '<div class="card-title">' + esc(s.container_number) +
-            ' <span class="badge badge-' + esc(statusCls) + '">' + esc(s.sailing_status || 'Pending') + '</span>' + sgBadge + '</div>' +
-          '<div class="card-sub">BL: ' + esc(s.bill_of_lading || '—') + ' &middot; ' + etaHtml +
+          '<div class="card-title">' +
+            esc(s.container_number || s.booking_number || 'Shipment #' + s.shipment_id) +
+            ' <span class="badge badge-' + esc(statusCls) + '">' + esc(s.sailing_status || 'Booked') + '</span>' + sgBadge +
+          '</div>' +
+          '<div class="card-sub">BL: ' + esc(s.bill_of_lading || '—') + bookingHtml + ' &middot; ' + etaHtml +
             (s.actual_arrival_date ? ' &middot; Arrived: ' + fmtDate(s.actual_arrival_date) : '') + '</div>' +
+          stageHint +
           trackInfo +
+          siHtml +
         '</div>' +
         '<div class="card-actions">' + actions + '</div>' +
       '</div>' +
@@ -478,6 +702,17 @@ function buildCardActions(s, t) {
     html += '<button class="btn btn-ghost btn-sm" onclick="openShipmentModal(' + s.shipment_id + ')">Re-register</button>';
     html += '<button class="btn btn-ghost btn-sm" style="color:var(--error)" onclick="markUntrackable(' + s.shipment_id + ')">Mark Untrackable</button>';
   }
+  // v3.5: Documents button
+  html += '<button class="btn btn-ghost btn-sm" onclick="openDocsPanel(' + s.shipment_id + ')">Docs</button>';
+  const existingSI  = _getExistingSI(s.shipment_id, '');
+  const siLabel     = existingSI
+    ? (existingSI.status === 'Sent' ? 'Re-issue SI' : 'Edit SI (Draft)')
+    : 'Issue SI';
+  const siBtnStyle  = existingSI && existingSI.status === 'Sent'
+    ? 'color:var(--success);font-weight:600'
+    : '';
+  html += '<button class="btn btn-ghost btn-sm" style="' + siBtnStyle + '" onclick="openSIModal(' + s.shipment_id + ')">' + siLabel + '</button>';
+  html += '<button class="btn btn-ghost btn-sm" onclick="openPartiesModal(' + s.shipment_id + ')">Parties</button>';
   html += '<button class="btn btn-ghost btn-sm" onclick="openSailingModal(' + s.shipment_id + ')">Status</button>';
   html += '<button class="btn btn-ghost btn-sm" onclick="openShipmentModal(' + s.shipment_id + ')">Edit</button>';
   return html;
@@ -490,6 +725,7 @@ function openShipmentModal(shipmentId) {
   const t = (s && s.tracking) || {};
   document.getElementById('modal-shipment-title').textContent = s ? 'Edit Shipment' : 'New Shipment';
   document.getElementById('s-id').value        = s ? s.shipment_id : '';
+  document.getElementById('s-booking').value   = s ? (s.booking_number        || '') : '';
   document.getElementById('s-container').value = s ? (s.container_number      || '') : '';
   document.getElementById('s-bl').value        = s ? (s.bill_of_lading        || '') : '';
   document.getElementById('s-planned').value   = s ? toInputDate(s.planned_shipping_date) : '';
@@ -807,12 +1043,18 @@ document.getElementById('btn-s-cancel').onclick = () => {
 
 document.getElementById('btn-s-save').onclick = async () => {
   const container = document.getElementById('s-container').value.trim();
-  if (!container) { showModalError('modal-shipment', 'Container number is required.'); return; }
+  // Container not required at creation — may not be known until N-5 to N-2
+  const booking   = document.getElementById('s-booking').value.trim();
+  if (!booking && !container) {
+    showModalError('modal-shipment', 'Booking Number or Container Number is required.');
+    return;
+  }
   const btn = document.getElementById('btn-s-save');
   btn.disabled = true;
 
   const payload = {
     action:                'saveShipment',
+    booking_number:        document.getElementById('s-booking').value.trim(),
     shipment_id:           document.getElementById('s-id').value || null,
     container_number:      container,
     bill_of_lading:        document.getElementById('s-bl').value.trim(),
@@ -1062,6 +1304,907 @@ function clearShipsGoError() {
     banner.textContent   = '';
     banner.style.display = 'none';
   }
+}
+
+// ─── Shipment-level SI Modal (v3.3) ──────────────────────────────────────────
+
+function openSIModal(shipmentId) {
+  const s = (PAGE_DATA.shipments || []).find(x => String(x.shipment_id) === String(shipmentId));
+  if (!s) return;
+
+  document.getElementById('si-shipment-id').value = shipmentId;
+
+  // Determine unique suppliers linked to this shipment
+  const links       = PAGE_DATA._junctionMap[String(shipmentId)] || [];
+  const supplierIds = [];
+  links.forEach(j => {
+    const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === String(j.po_id));
+    if (po && po.supplier_id && !supplierIds.includes(String(po.supplier_id))) {
+      supplierIds.push(String(po.supplier_id));
+    }
+  });
+
+  const supplierRow = document.getElementById('si-supplier-row');
+  const supplierSel = document.getElementById('si-supplier-id');
+  if (supplierIds.length > 1) {
+    supplierSel.innerHTML = supplierIds.map(sid => {
+      const sup = (PAGE_DATA.suppliers || []).find(x => String(x.supplier_id) === String(sid));
+      return '<option value="' + esc(sid) + '">' + esc(sup ? sup.supplier_name : sid) + '</option>';
+    }).join('');
+    supplierRow.style.display = '';
+  } else {
+    supplierSel.innerHTML = supplierIds.length
+      ? '<option value="' + esc(supplierIds[0]) + '">' + esc(getSupplierName(supplierIds[0])) + '</option>'
+      : '<option value="">No supplier linked</option>';
+    supplierRow.style.display = 'none';
+  }
+
+  // Pre-fill from existing SI for this shipment + supplier
+  const existingSI = _getExistingSI(shipmentId, supplierIds[0] || '');
+  _fillSIModal(existingSI, shipmentId);
+
+  // Supplier change: refresh context, lines, and pre-fill for that supplier's SI
+  supplierSel.onchange = () => {
+    _refreshSIContext(shipmentId, supplierSel.value);
+    const si = _getExistingSI(shipmentId, supplierSel.value);
+    _fillSIModal(si, shipmentId);
+  };
+
+  _refreshSIContext(shipmentId, supplierIds[0] || '');
+
+  // Build doc type checkboxes
+  const docChecks = document.getElementById('si-doc-checks');
+  docChecks.innerHTML = (PAGE_DATA.doc_types || []).map(dt =>
+    '<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;font-family:var(--font-mono);cursor:pointer">' +
+      '<input type="checkbox" class="si-doc-check" value="' + esc(dt.key) + '"' +
+        (existingSI
+          ? (existingSI.required_docs.includes(dt.key) ? ' checked' : '')
+          : (dt.category === 'receiving' ? ' checked' : '')) +
+        ' style="width:auto;cursor:pointer" />' +
+      esc(dt.label) +
+    '</label>'
+  ).join('');
+
+  clearModalError('modal-si');
+  document.getElementById('modal-si').classList.add('open');
+}
+
+// Returns the most recent SI for this shipment+supplier, or null
+function _getExistingSI(shipmentId, supplierId) {
+  const all = (PAGE_DATA.instructions || [])
+    .filter(i =>
+      String(i.shipment_id) === String(shipmentId) &&
+      (!supplierId || String(i.supplier_id) === String(supplierId))
+    )
+    .sort((a, b) => (b.instruction_id || 0) - (a.instruction_id || 0));
+  return all.length ? all[0] : null;
+}
+
+// Pre-fills SI modal fields from an existing instruction (or clears for new)
+// When si is null, auto-populates instructions from per-PO SIs on this shipment
+function _fillSIModal(si, shipmentId) {
+  document.getElementById('si-instruction-id').value = si ? si.instruction_id : '';
+  document.getElementById('si-issued-date').value    = si
+    ? (toInputDate(si.issued_date) || new Date().toISOString().slice(0, 10))
+    : new Date().toISOString().slice(0, 10);
+
+  if (si) {
+    document.getElementById('si-text').value    = si.instructions_text || '';
+    document.getElementById('si-special').value = si.special_handling   || '';
+  } else {
+    // No shipment-level SI yet — pull instructions from per-PO SIs on this shipment
+    const poInstructions = _getPoSITextForShipment(shipmentId || '');
+    document.getElementById('si-text').value    = poInstructions.instructions_text;
+    document.getElementById('si-special').value = poInstructions.special_handling;
+  }
+
+  // Update modal title + sent status banner
+  const titleEl  = document.getElementById('modal-si-title');
+  const bannerEl = document.getElementById('si-sent-banner');
+
+  if (si) {
+    const isSent = si.status === 'Sent';
+    titleEl.textContent = isSent ? 'Re-issue Shipping Instructions' : 'Edit Shipping Instructions (Draft)';
+    if (bannerEl) {
+      bannerEl.style.display = '';
+      bannerEl.innerHTML = isSent
+        ? '⚠ Previously sent ' + (si.sent_at ? 'on ' + fmtDate(si.sent_at) : '') + '. Saving will create an updated version.'
+        : '📝 Draft — not yet sent to supplier.';
+      bannerEl.style.background  = isSent ? 'rgba(196,122,43,0.1)' : 'rgba(46,125,82,0.08)';
+      bannerEl.style.borderColor = isSent ? 'var(--accent)' : 'var(--success)';
+      bannerEl.style.color       = isSent ? 'var(--accent)' : 'var(--success)';
+    }
+  } else {
+    titleEl.textContent = 'Issue Shipping Instructions';
+    if (bannerEl) bannerEl.style.display = 'none';
+  }
+}
+
+// Collects instructions_text + special_handling from all per-PO SIs on this shipment
+// Deduplicates identical text blocks. Returns { instructions_text, special_handling }
+function _getPoSITextForShipment(shipmentId) {
+  const links  = PAGE_DATA._junctionMap[String(shipmentId)] || [];
+  const poIds  = [...new Set(links.map(j => String(j.po_id)))];
+  const seenText = new Set();
+  const seenSpecial = new Set();
+  const textParts    = [];
+  const specialParts = [];
+
+  poIds.forEach(pid => {
+    // Per-PO SIs have po_id set and shipment_id matching this shipment
+    const poSIs = (PAGE_DATA.instructions || [])
+      .filter(i => String(i.po_id) === pid)
+      .sort((a, b) => (b.instruction_id || 0) - (a.instruction_id || 0));
+
+    const latest = poSIs[0];
+    if (!latest) return;
+
+    const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === pid);
+    const poLabel = po ? po.po_number : 'PO ' + pid;
+
+    if (latest.instructions_text && !seenText.has(latest.instructions_text.trim())) {
+      seenText.add(latest.instructions_text.trim());
+      textParts.push('[' + poLabel + ']\n' + latest.instructions_text.trim());
+    }
+    if (latest.special_handling && !seenSpecial.has(latest.special_handling.trim())) {
+      seenSpecial.add(latest.special_handling.trim());
+      specialParts.push('[' + poLabel + ']\n' + latest.special_handling.trim());
+    }
+  });
+
+  return {
+    instructions_text: textParts.join('\n\n'),
+    special_handling:  specialParts.join('\n\n')
+  };
+}
+
+function _refreshSIContext(shipmentId, supplierId) {
+  const s     = (PAGE_DATA.shipments || []).find(x => String(x.shipment_id) === String(shipmentId));
+  const links = PAGE_DATA._junctionMap[String(shipmentId)] || [];
+
+  // Collect PO numbers for this supplier
+  const supplierPoIds = [];
+  links.forEach(j => {
+    const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === String(j.po_id));
+    if (po && (!supplierId || String(po.supplier_id) === String(supplierId))) {
+      if (!supplierPoIds.includes(String(j.po_id))) supplierPoIds.push(String(j.po_id));
+    }
+  });
+
+  const poNumbers = supplierPoIds.map(pid => {
+    const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === String(pid));
+    return po ? po.po_number : pid;
+  }).join(' / ');
+
+  const ctx = document.getElementById('si-context-block');
+  ctx.innerHTML =
+    '<strong>Consignee Ref:</strong> ' + esc(poNumbers || '—') + '<br>' +
+    (s && s.booking_number   ? '<strong>Booking No:</strong> '  + esc(s.booking_number)   + ' &nbsp;' : '') +
+    (s && s.container_number ? '<strong>Container:</strong> '   + esc(s.container_number) + ' &nbsp;' : '') +
+    (s && s.bill_of_lading   ? '<strong>BL:</strong> '          + esc(s.bill_of_lading)   + ' &nbsp;' : '') +
+    '<strong>ETD:</strong> '  + esc(s ? (fmtDate(s.etd) || '—') : '—');
+
+  // Collect lines for this supplier's POs on this shipment
+  const allLines = [];
+  supplierPoIds.forEach(pid => {
+    (PAGE_DATA.po_lines || [])
+      .filter(l => String(l.po_id) === String(pid))
+      .forEach(l => allLines.push(l));
+  });
+
+  const linesTable = document.getElementById('si-lines-table');
+  if (!allLines.length) {
+    linesTable.innerHTML = '<div style="color:var(--muted);font-size:0.75rem">No PO lines linked for this supplier.</div>';
+    return;
+  }
+  linesTable.innerHTML =
+    '<table style="width:100%;border-collapse:collapse;font-size:0.75rem">' +
+    '<thead><tr style="background:var(--surface)">' +
+      '<th style="padding:4px 6px;text-align:left;border-bottom:1px solid var(--border)">Sample</th>' +
+      '<th style="padding:4px 6px;text-align:left;border-bottom:1px solid var(--border)">Origin Code</th>' +
+      '<th style="padding:4px 6px;text-align:right;border-bottom:1px solid var(--border)">Qty</th>' +
+    '</tr></thead><tbody>' +
+    allLines.map(l =>
+      '<tr>' +
+        '<td style="padding:4px 6px;border-bottom:1px solid var(--border)">' + esc(l.sample_name || '') + '</td>' +
+        '<td style="padding:4px 6px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.7rem">' + esc(l.origin_sample_code || '—') + '</td>' +
+        '<td style="padding:4px 6px;border-bottom:1px solid var(--border);text-align:right;font-family:var(--font-mono)">' + l.qty_bags + ' × ' + l.bag_size + ' ' + esc(l.bag_size_unit || 'kg') + '</td>' +
+      '</tr>'
+    ).join('') +
+    '</tbody></table>';
+}
+
+function getSupplierName(supplierId) {
+  const s = (PAGE_DATA.suppliers || []).find(x => String(x.supplier_id) === String(supplierId));
+  return s ? s.supplier_name : String(supplierId);
+}
+
+document.getElementById('btn-si-cancel').onclick = () =>
+  document.getElementById('modal-si').classList.remove('open');
+
+document.getElementById('btn-si-preview').onclick = () => {
+  const wrap    = document.getElementById('si-preview-wrap');
+  const visible = wrap.style.display !== 'none';
+  if (visible) {
+    wrap.style.display = 'none';
+    document.getElementById('btn-si-preview').textContent = 'Preview';
+    return;
+  }
+
+  // ── Gather current modal values ──────────────────────────────────────────
+  const shipmentId  = document.getElementById('si-shipment-id').value;
+  const supplierId  = document.getElementById('si-supplier-id').value;
+  const instrText   = document.getElementById('si-text').value    || '—';
+  const special     = document.getElementById('si-special').value || '';
+  const issuedDate  = document.getElementById('si-issued-date').value || '';
+  const selectedDocs = Array.from(document.querySelectorAll('.si-doc-check:checked')).map(cb => cb.value);
+
+  const s       = (PAGE_DATA.shipments || []).find(x => String(x.shipment_id) === String(shipmentId)) || {};
+  const supplier = (PAGE_DATA.suppliers || []).find(x => String(x.supplier_id) === String(supplierId));
+  const links   = PAGE_DATA._junctionMap[String(shipmentId)] || [];
+  const supplierPoIds = [...new Set(
+    links.map(j => {
+      const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === String(j.po_id));
+      return po && String(po.supplier_id) === String(supplierId) ? String(j.po_id) : null;
+    }).filter(Boolean)
+  )];
+  const poNumbers = supplierPoIds
+    .map(pid => { const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === pid); return po ? po.po_number : ''; })
+    .filter(Boolean).join(' / ');
+  const poLines = [];
+  supplierPoIds.forEach(pid =>
+    (PAGE_DATA.po_lines || []).filter(l => String(l.po_id) === pid).forEach(l => poLines.push(l))
+  );
+
+  // Parties for this shipment
+  const rawParties = (PAGE_DATA.shipment_parties || [])
+    .filter(sp => String(sp.shipment_id) === String(shipmentId))
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    .map(sp => {
+      const p = (PAGE_DATA.shipping_parties || []).find(x => String(x.party_id) === String(sp.party_id)) || {};
+      return Object.assign({ role: sp.role }, p);
+    });
+
+  const docTypes  = PAGE_DATA.doc_types || [];
+  const docLabels = docTypes.filter(d => selectedDocs.includes(d.key)).map(d => d.label);
+
+  // ── Plain-text summary (left pane) ───────────────────────────────────────
+  const consignees   = rawParties.filter(p => p.role === 'Consignee');
+  const notifyList   = rawParties.filter(p => p.role === 'Notify' || p.role === 'AlsoNotify');
+  const partiesText  = [...consignees.map(p => 'Consignee: ' + (p.party_name || '')),
+                        ...notifyList.map((p, i) => 'Notify #' + (i+1) + ': ' + (p.party_name || ''))].join('\n');
+
+  document.getElementById('si-preview-body').textContent =
+    'SHIPPING INSTRUCTIONS\n' +
+    '─────────────────────────────────\n' +
+    'Ref: '       + (poNumbers || '—') + '\n' +
+    'Container: ' + (s.container_number || '—') + '\n' +
+    'BL: '        + (s.bill_of_lading   || '—') + '\n' +
+    'ETD: '       + (fmtDate(s.etd)     || '—') + '\n' +
+    'Issued: '    + (fmtDate(issuedDate) || '—') + '\n' +
+    (partiesText ? partiesText + '\n' : '') +
+    '\nINSTRUCTIONS\n' + instrText +
+    (special ? '\n\nSPECIAL NOTES\n' + special : '') +
+    '\n\nREQUIRED DOCUMENTS\n' + (docLabels.map(l => '  • ' + l).join('\n') || '  (none selected)');
+
+  // ── PDF-accurate HTML render (right pane iframe) ─────────────────────────
+  function he(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  const linesRows = poLines.map(l =>
+    '<tr><td style="padding:5px 8px;border:1px solid #ddd">' + he(l.sample_name || '') + '</td>' +
+    '<td style="padding:5px 8px;border:1px solid #ddd;font-family:monospace;font-size:11px">' + he(l.origin_sample_code || '—') + '</td>' +
+    '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right">' + (l.qty_bags||0) + ' × ' + (l.bag_size||0) + ' ' + he(l.bag_size_unit||'kg') + '</td></tr>'
+  ).join('');
+
+  const docListHtml = docLabels.map(l => '<li style="padding:2px 0">' + he(l) + '</li>').join('')
+    || '<li style="color:#888">No documents specified</li>';
+
+  function partyBlockHtml(p, label) {
+    return '<div style="margin-bottom:10px">' +
+      '<div style="font-size:9px;text-transform:uppercase;color:#888;margin-bottom:3px">' + he(label) + '</div>' +
+      '<div style="font-size:11px;font-weight:bold">' + he(p.party_name || '') + '</div>' +
+      (p.address_line1 ? '<div style="font-size:11px">' + he(p.address_line1) + '</div>' : '') +
+      (p.address_line2 ? '<div style="font-size:11px">' + he(p.address_line2) + '</div>' : '') +
+      (p.country       ? '<div style="font-size:11px">' + he(p.country)       + '</div>' : '') +
+      (p.email         ? '<div style="font-size:10px;color:#555">' + he(p.email) + '</div>' : '') +
+    '</div>';
+  }
+
+  let partiesHtml = '';
+  if (consignees.length || notifyList.length) {
+    partiesHtml = '<div class="section">Consignee &amp; Notify Parties</div>' +
+      '<table style="width:100%;border-collapse:collapse;border:1px solid #e0e0e0;margin-bottom:14px"><tr valign="top">';
+    if (consignees.length)
+      partiesHtml += '<td style="width:50%;padding:10px 12px;border-right:1px solid #e0e0e0">' + partyBlockHtml(consignees[0], 'Consignee') + '</td>';
+    if (notifyList.length)
+      partiesHtml += '<td style="width:50%;padding:10px 12px">' + notifyList.map((p, i) => partyBlockHtml(p, 'Notify Party' + (notifyList.length > 1 ? ' #' + (i+1) : ''))).join('') + '</td>';
+    partiesHtml += '</tr></table>';
+  }
+
+  const pdfHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
+    'body{font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;padding:24px;margin:0}' +
+    'h1{font-size:18px;color:#c47a2b;border-bottom:2px solid #c47a2b;padding-bottom:6px;margin-bottom:3px}' +
+    '.subtitle{font-size:11px;color:#666;margin-bottom:18px}' +
+    '.section{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#8a7060;margin:16px 0 6px;padding-bottom:3px;border-bottom:1px solid #e0e0e0}' +
+    'table.info{width:100%;border-collapse:collapse;margin-bottom:12px}' +
+    'table.info td{padding:4px 8px;font-size:11px}' +
+    'table.info td:first-child{color:#888;width:120px;text-transform:uppercase;font-size:9px;letter-spacing:.06em}' +
+    'table.lines{width:100%;border-collapse:collapse;font-size:11px;margin:6px 0 12px}' +
+    'table.lines th{background:#c47a2b;color:#fff;padding:6px 8px;text-align:left;font-size:10px}' +
+    '.notes{font-size:11px;line-height:1.6;white-space:pre-wrap;padding:8px;background:#fdf8f2;border:1px solid #f0e8da;border-radius:3px}' +
+    'ul{margin:0 0 12px 18px;padding:0;font-size:11px}' +
+    '</style></head><body>' +
+    '<h1>Shipping Instructions</h1>' +
+    '<div class="subtitle">' + he(poNumbers) + ' &middot; ' + he(supplier ? supplier.supplier_name : '') + '</div>' +
+    '<div class="section">Shipment Details</div>' +
+    '<table class="info">' +
+      '<tr><td>Consignee Ref</td><td><strong>' + he(poNumbers || '—') + '</strong></td></tr>' +
+      (s.container_number ? '<tr><td>Container</td><td>' + he(s.container_number) + '</td></tr>' : '') +
+      (s.bill_of_lading   ? '<tr><td>Bill of Lading</td><td>' + he(s.bill_of_lading) + '</td></tr>' : '') +
+      (s.etd              ? '<tr><td>ETD</td><td>' + he(fmtDate(s.etd)) + '</td></tr>' : '') +
+      '<tr><td>Issued Date</td><td>' + he(fmtDate(issuedDate) || '—') + '</td></tr>' +
+    '</table>' +
+    partiesHtml +
+    '<div class="section">Order Items</div>' +
+    (poLines.length
+      ? '<table class="lines"><thead><tr><th>Sample Name</th><th>Origin Code</th><th style="text-align:right">Qty × Bag Size</th></tr></thead><tbody>' + linesRows + '</tbody></table>'
+      : '<p style="color:#888;font-size:11px">No PO lines linked.</p>') +
+    '<div class="section">Required Documents</div>' +
+    '<ul>' + docListHtml + '</ul>' +
+    '<div class="section">Shipping Instructions</div>' +
+    '<div class="notes">' + he(instrText) + '</div>' +
+    (special ? '<div class="section">Special Notes</div><div class="notes">' + he(special) + '</div>' : '') +
+    '<div style="margin-top:32px;padding-top:8px;border-top:1px solid #e0e0e0;font-size:9px;color:#888;text-align:center">Preview generated ' + he(fmtDate(new Date().toISOString().slice(0,10))) + '</div>' +
+    '</body></html>';
+
+  const iframe = document.getElementById('si-preview-iframe');
+  const blob   = new Blob([pdfHtml], { type: 'text/html' });
+  const url    = URL.createObjectURL(blob);
+  // Revoke previous blob URL to avoid memory leak
+  if (iframe._blobUrl) URL.revokeObjectURL(iframe._blobUrl);
+  iframe._blobUrl = url;
+  iframe.src = url;
+
+  wrap.style.display = '';
+  document.getElementById('btn-si-preview').textContent = 'Hide Preview';
+};
+
+async function _saveSI(send) {
+  const shipmentId  = document.getElementById('si-shipment-id').value;
+  const supplierId  = document.getElementById('si-supplier-id').value;
+  const issuedDate  = (document.getElementById('si-issued-date').value || '').trim();
+  const instrText   = (document.getElementById('si-text').value || '').trim();
+
+  if (!issuedDate)  { showModalError('modal-si', 'Issued date is required.');   return; }
+  if (!instrText)   { showModalError('modal-si', 'Instructions are required.'); return; }
+  if (!supplierId)  { showModalError('modal-si', 'No supplier linked to this shipment.'); return; }
+
+  const selectedDocs = Array.from(document.querySelectorAll('.si-doc-check:checked')).map(cb => cb.value);
+  const btn = document.getElementById(send ? 'btn-si-send' : 'btn-si-save');
+  btn.disabled = true;
+
+  try {
+    const payload = {
+      action:            send ? 'saveAndSendShipmentSI' : 'saveShipmentSI',
+      shipment_id:       shipmentId,
+      supplier_id:       supplierId,
+      instruction_id:    document.getElementById('si-instruction-id').value || undefined,
+      issued_date:       document.getElementById('si-issued-date').value,
+      instructions_text: instrText,
+      special_handling:  document.getElementById('si-special').value,
+      required_docs:     selectedDocs,
+      status:            send ? 'Sent' : 'Draft'
+    };
+    const data = await API.post(payload);
+    if (data.instructions) {
+      // Update local instructions cache
+      PAGE_DATA.instructions = (PAGE_DATA.instructions || [])
+        .filter(i => String(i.shipment_id) !== String(shipmentId))
+        .concat(data.instructions);
+    }
+    document.getElementById('modal-si').classList.remove('open');
+    showToast(send ? 'SI sent to supplier.' : 'SI saved as draft.', 'success');
+  } catch (e) {
+    showModalError('modal-si', e.message || 'Save failed.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('btn-si-save').onclick = () => _saveSI(false);
+document.getElementById('btn-si-send').onclick = () => _saveSI(true);
+
+// ─── Shipment Parties Modal (v3.3) ────────────────────────────────────────────
+
+function openPartiesModal(shipmentId) {
+  document.getElementById('parties-shipment-id').value = shipmentId;
+
+  // Populate party dropdown (active only)
+  const partySel = document.getElementById('parties-party-select');
+  const active   = (PAGE_DATA.shipping_parties || []).filter(p => p.is_active !== false);
+  partySel.innerHTML = '<option value="">— Select Party —</option>' +
+    active.map(p => '<option value="' + esc(String(p.party_id)) + '">' + esc(p.party_name) + '</option>').join('');
+
+  // Populate role dropdown
+  const roleSel = document.getElementById('parties-role-select');
+  roleSel.innerHTML = (PAGE_DATA.party_roles || [])
+    .map(r => '<option value="' + esc(r) + '">' + esc(r) + '</option>').join('');
+
+  // Auto-select defaults when party changes
+  partySel.onchange = () => {
+    const pid   = partySel.value;
+    const party = (PAGE_DATA.shipping_parties || []).find(p => String(p.party_id) === String(pid));
+    if (party && party.party_type_defaults && party.party_type_defaults.length) {
+      const firstDefault = party.party_type_defaults[0];
+      const opt = Array.from(roleSel.options).find(o => o.value === firstDefault);
+      if (opt) roleSel.value = firstDefault;
+    }
+  };
+
+  _renderAssignedParties(shipmentId);
+  clearModalError('modal-parties');
+  document.getElementById('modal-parties').classList.add('open');
+}
+
+function _renderAssignedParties(shipmentId) {
+  const list = document.getElementById('parties-assigned-list');
+  const assigned = (PAGE_DATA.shipment_parties || [])
+    .filter(sp => String(sp.shipment_id) === String(shipmentId))
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+  if (!assigned.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem">No parties assigned yet.</div>';
+    return;
+  }
+
+  list.innerHTML = assigned.map(sp => {
+    const party = (PAGE_DATA.shipping_parties || []).find(p => String(p.party_id) === String(sp.party_id));
+    const name  = party ? party.party_name : 'Party #' + sp.party_id;
+    const addr  = party ? [party.address_line1, party.address_line2, party.country].filter(Boolean).join(', ') : '';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
+      '<div>' +
+        '<span class="badge badge-role">' + esc(sp.role) + '</span> ' +
+        '<strong style="font-size:0.78rem">' + esc(name) + '</strong>' +
+        (addr ? '<div style="font-size:0.72rem;color:var(--muted)">' + esc(addr) + '</div>' : '') +
+        (party && party.email ? '<div style="font-size:0.72rem;color:var(--muted);font-family:var(--font-mono)">' + esc(party.email) + '</div>' : '') +
+      '</div>' +
+      '<button class="btn btn-ghost btn-sm" style="color:var(--error)" ' +
+        'onclick="removeParty(' + sp.shipment_party_id + ',' + shipmentId + ')">Remove</button>' +
+    '</div>';
+  }).join('');
+}
+
+document.getElementById('btn-parties-add').onclick = async () => {
+  const shipmentId = document.getElementById('parties-shipment-id').value;
+  const partyId    = document.getElementById('parties-party-select').value;
+  const role       = document.getElementById('parties-role-select').value;
+  const sortOrder  = parseInt(document.getElementById('parties-sort-order').value) || 1;
+
+  if (!partyId) { showModalError('modal-parties', 'Select a party.'); return; }
+  if (!role)    { showModalError('modal-parties', 'Select a role.');  return; }
+
+  const btn = document.getElementById('btn-parties-add');
+  btn.disabled = true;
+  try {
+    const data = await API.post({
+      action:    'saveShipmentParty',
+      shipment_id: shipmentId,
+      party_id:    partyId,
+      role:        role,
+      sort_order:  sortOrder
+    });
+    PAGE_DATA.shipment_parties = (PAGE_DATA.shipment_parties || [])
+      .filter(sp => String(sp.shipment_id) !== String(shipmentId))
+      .concat(data.shipment_parties || []);
+    _renderAssignedParties(shipmentId);
+    clearModalError('modal-parties');
+    showToast('Party added.', 'success');
+  } catch (e) {
+    showModalError('modal-parties', e.message || 'Add failed.');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+async function removeParty(shipmentPartyId, shipmentId) {
+  if (!confirm('Remove this party from the shipment?')) return;
+  try {
+    const data = await API.post({
+      action:             'removeShipmentParty',
+      shipment_party_id:  shipmentPartyId,
+      shipment_id:        shipmentId
+    });
+    PAGE_DATA.shipment_parties = (PAGE_DATA.shipment_parties || [])
+      .filter(sp => String(sp.shipment_id) !== String(shipmentId))
+      .concat(data.shipment_parties || []);
+    _renderAssignedParties(shipmentId);
+    showToast('Party removed.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Remove failed.', 'error');
+  }
+}
+
+document.getElementById('btn-parties-close').onclick = () =>
+  document.getElementById('modal-parties').classList.remove('open');
+
+// ─── Documents Modal (v3.5) ───────────────────────────────────────────────────
+
+function openDocsPanel(shipmentId) {
+  document.getElementById('docs-shipment-id').value = shipmentId;
+  clearModalError('modal-docs');
+  document.getElementById('docs-link-row').style.display    = 'none';
+  document.getElementById('docs-copy-confirm').style.display = 'none';
+  const extractEl = document.getElementById('docs-extract-result');
+  if (extractEl) { extractEl.style.display = 'none'; extractEl.innerHTML = ''; }
+
+  // Populate supplier dropdown from linked POs
+  const links       = PAGE_DATA._junctionMap[String(shipmentId)] || [];
+  const supplierIds = [...new Set(links.map(j => {
+    const po = (PAGE_DATA.purchase_orders || []).find(p => String(p.po_id) === String(j.po_id));
+    return po ? String(po.supplier_id) : null;
+  }).filter(Boolean))];
+
+  const sel = document.getElementById('docs-supplier-sel');
+  sel.innerHTML = supplierIds.map(sid => {
+    const sup = (PAGE_DATA.suppliers || []).find(x => String(x.supplier_id) === String(sid));
+    return '<option value="' + esc(sid) + '">' + esc(sup ? sup.supplier_name : sid) + '</option>';
+  }).join('') || '<option value="">No supplier linked</option>';
+
+  // Default email from first supplier
+  if (supplierIds.length) {
+    const sup = (PAGE_DATA.suppliers || []).find(x => String(x.supplier_id) === String(supplierIds[0]));
+    document.getElementById('docs-email').value = sup ? (sup.email || '') : '';
+  }
+
+  sel.onchange = () => {
+    const sup = (PAGE_DATA.suppliers || []).find(x => String(x.supplier_id) === String(sel.value));
+    if (sup) document.getElementById('docs-email').value = sup.email || '';
+  };
+
+  // Load existing slot status if already requested
+  _loadDocSlots(shipmentId);
+
+  document.getElementById('modal-docs').classList.add('open');
+}
+
+async function _loadDocSlots(shipmentId) {
+  const list = document.getElementById('docs-slots-list');
+  list.innerHTML = '<span style="color:var(--muted);font-size:0.75rem">Loading...</span>';
+  try {
+    const data = await API.post({ action: 'getShipmentDocSlots', shipment_id: shipmentId });
+    PAGE_DATA.doc_requests[String(shipmentId)] = data;
+    _renderDocSlots(data);
+
+    // Show existing link if active request exists — no need to generate again
+    const req = data.doc_request;
+    if (req && req.status !== 'Closed' && data.link) {
+      document.getElementById('docs-link-val').value = data.link;
+      document.getElementById('docs-link-row').style.display = '';
+    }
+  } catch (e) {
+    list.innerHTML = '<span style="color:var(--muted);font-size:0.75rem">No documents requested yet.</span>';
+  }
+}
+
+function _renderDocSlots(data) {
+  const list      = document.getElementById('docs-slots-list');
+  const req       = data.doc_request;
+  const slots     = data.slots || [];
+  const shipmentId = document.getElementById('docs-shipment-id').value;
+
+  if (!req || !slots.length) {
+    list.innerHTML = '<span style="color:var(--muted);font-size:0.75rem">No document request sent yet.</span>';
+    return;
+  }
+
+  const statusColors = { Pending:'var(--muted)', Uploaded:'var(--accent)', Accepted:'var(--success)', Rejected:'var(--error)' };
+
+  const slotsHtml = slots.map(s => {
+    const col   = statusColors[s.status] || 'var(--muted)';
+    const hasFiles = s.files && s.files.length > 0;
+
+    // Plain filename list — no Drive links (staff uses View button instead)
+    const filesHtml = hasFiles
+      ? (s.files || []).map(f =>
+          '<div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted);margin-top:0.2rem">' +
+            '📄 ' + esc(f.name) +
+          '</div>'
+        ).join('')
+      : '';
+
+    // Actions row: View + Accept/Reject + Extract
+    let actionsHtml = '';
+    if (hasFiles) {
+      const viewBtn = '<button class="btn btn-ghost btn-sm" ' +
+        'onclick="openSlotViewer(' + s.slot_id + ',\'' + esc(shipmentId) + '\',\'' + esc(s.label || s.doc_type) + '\')">' +
+        '👁 View</button>';
+
+      const acceptRejectBtns = s.status === 'Uploaded'
+        ? '<button class="btn btn-sm" style="background:var(--success)" onclick="doAcceptSlot(' + s.slot_id + ')">Accept</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:var(--error)" onclick="doRejectSlot(' + s.slot_id + ')">Reject</button>'
+        : '';
+
+      const extractBtn = s.extracts && hasFiles
+        ? '<button class="btn btn-ghost btn-sm" style="color:var(--info,#1a5ca8)" ' +
+            'onclick="doExtractSlots(' + s.slot_id + ')" title="Extract ICO codes and lot data from this document">' +
+            '⚡ Extract' +
+          '</button>'
+        : '';
+
+      actionsHtml = '<div style="display:flex;gap:0.35rem;margin-top:0.4rem;flex-wrap:wrap">' +
+        viewBtn + acceptRejectBtns + extractBtn +
+      '</div>';
+    } else if (s.status === 'Rejected' && s.rejection_note) {
+      actionsHtml = '<div style="font-size:0.7rem;color:var(--error);margin-top:0.25rem">⚠ ' + esc(s.rejection_note) + '</div>';
+    }
+
+    return '<div style="padding:0.6rem 0;border-bottom:1px solid var(--border)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span style="font-weight:500">' + esc(s.label || s.doc_type) +
+          (s.required ? ' <span style="font-size:0.65rem;color:var(--accent);font-family:var(--font-mono)">req</span>' : '') +
+        '</span>' +
+        '<span style="font-family:var(--font-mono);font-size:0.65rem;font-weight:600;color:' + col + '">' + esc(s.status) + '</span>' +
+      '</div>' +
+      filesHtml + actionsHtml +
+    '</div>';
+  }).join('');
+
+  // Extract all extractable uploaded slots in one shot
+  const extractableUploaded = slots.filter(s =>
+    s.extracts && (s.status === 'Uploaded' || s.status === 'Accepted') && s.files && s.files.length
+  );
+  const extractAllBtn = extractableUploaded.length > 1
+    ? '<div style="margin-top:0.5rem">' +
+        '<button class="btn btn-sm" style="background:var(--info,#1a5ca8)" ' +
+        'onclick="doExtractAll()">' +
+        '⚡ Extract All (' + extractableUploaded.length + ' docs)</button>' +
+      '</div>'
+    : '';
+
+  const overallBadge = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">' +
+    '<span style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted)">Status: <strong>' + esc(req.status) + '</strong></span>' +
+    extractAllBtn +
+  '</div>';
+
+  list.innerHTML = overallBadge + slotsHtml;
+}
+
+// Store current shipment_id for extract functions
+function _currentDocsShipmentId() {
+  return document.getElementById('docs-shipment-id').value;
+}
+
+function doExtractSlots(slotId) {
+  _runExtraction([slotId]);
+}
+
+function doExtractAll() {
+  const shipmentId = _currentDocsShipmentId();
+  const data = PAGE_DATA.doc_requests[String(shipmentId)] || {};
+  const ids  = (data.slots || [])
+    .filter(s => s.extracts && (s.status === 'Uploaded' || s.status === 'Accepted') && s.files && s.files.length)
+    .map(s => s.slot_id);
+  if (!ids.length) { showToast('No extractable documents uploaded yet.', 'error'); return; }
+  _runExtraction(ids);
+}
+
+async function _runExtraction(slotIds) {
+  const shipmentId = _currentDocsShipmentId();
+  const extractEl  = document.getElementById('docs-extract-result');
+  if (!extractEl) return;
+
+  extractEl.style.display = '';
+  extractEl.innerHTML = '<div style="color:var(--muted);font-size:0.75rem">⚡ Extracting data from documents...</div>';
+
+  try {
+    const data = await API.post({
+      action:      'extractShipmentDocs',
+      shipment_id: shipmentId,
+      slot_ids:    slotIds
+    });
+    _renderExtractionResult(data, shipmentId);
+  } catch (e) {
+    extractEl.innerHTML = '<div style="color:var(--error);font-size:0.75rem">Extraction failed: ' + esc(e.message || 'Unknown error') + '</div>';
+  }
+}
+
+function _renderExtractionResult(data, shipmentId) {
+  const el = document.getElementById('docs-extract-result');
+  if (!el) return;
+
+  const result = data.extraction || {};
+  const lots   = result.lots || [];
+
+  const matchRows = [
+    result.bl_number       ? '<div style="font-size:0.75rem"><strong>B/L:</strong> ' + esc(result.bl_number) + '</div>' : '',
+    result.container_number ? '<div style="font-size:0.75rem"><strong>Container:</strong> ' + esc(result.container_number) + '</div>' : '',
+    result.gross_weight    ? '<div style="font-size:0.75rem"><strong>Gross Weight:</strong> ' + esc(result.gross_weight) + '</div>' : ''
+  ].filter(Boolean).join('');
+
+  const lotsHtml = lots.length
+    ? '<table style="width:100%;border-collapse:collapse;font-size:0.73rem;margin-top:0.5rem">' +
+        '<thead><tr style="background:var(--surface)">' +
+          '<th style="padding:4px 6px;text-align:left;border-bottom:1px solid var(--border);font-family:var(--font-mono)">ICO / Lot Code</th>' +
+          '<th style="padding:4px 6px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--font-mono)">Bags</th>' +
+          '<th style="padding:4px 6px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--font-mono)">Bag kg</th>' +
+          '<th style="padding:4px 6px;text-align:left;border-bottom:1px solid var(--border);font-family:var(--font-mono)">Description</th>' +
+        '</tr></thead><tbody>' +
+        lots.map(l =>
+          '<tr>' +
+            '<td style="padding:4px 6px;border-bottom:1px solid var(--border);font-family:var(--font-mono)">' + esc(l.lot_code || '—') + '</td>' +
+            '<td style="padding:4px 6px;border-bottom:1px solid var(--border);text-align:right;font-family:var(--font-mono)">' + esc(String(l.qty_bags || '—')) + '</td>' +
+            '<td style="padding:4px 6px;border-bottom:1px solid var(--border);text-align:right;font-family:var(--font-mono)">' + esc(String(l.bag_size || '—')) + '</td>' +
+            '<td style="padding:4px 6px;border-bottom:1px solid var(--border)">' + esc(l.description || '') + '</td>' +
+          '</tr>'
+        ).join('') +
+        '</tbody></table>'
+    : '<div style="font-size:0.75rem;color:var(--muted)">No lot codes extracted.</div>';
+
+  el.innerHTML =
+    '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem;background:var(--surface)">' +
+      '<div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem">Extraction Result</div>' +
+      matchRows +
+      lotsHtml +
+      (result.notes ? '<div style="font-size:0.72rem;color:var(--muted);margin-top:0.5rem">' + esc(result.notes) + '</div>' : '') +
+    '</div>';
+}
+
+async function _sendOrGenerateDocsLink(sendEmail) {
+  const shipmentId = document.getElementById('docs-shipment-id').value;
+  const supplierId = document.getElementById('docs-supplier-sel').value;
+  const email      = document.getElementById('docs-email').value.trim();
+
+  if (!supplierId) { showModalError('modal-docs', 'Select a supplier.'); return; }
+  if (sendEmail && !email) { showModalError('modal-docs', 'Recipient email is required to send.'); return; }
+
+  const btn = document.getElementById(sendEmail ? 'btn-docs-send' : 'btn-docs-generate-only');
+  btn.disabled = true;
+  clearModalError('modal-docs');
+
+  try {
+    const data = await API.post({
+      action:         'sendShipmentDocsRequest',
+      shipment_id:    shipmentId,
+      supplier_id:    supplierId,
+      supplier_email: email || '',
+      _send_email:    sendEmail
+    });
+    const linkRow = document.getElementById('docs-link-row');
+    const linkVal = document.getElementById('docs-link-val');
+    if (data.link) {
+      linkVal.value = data.link;
+      linkRow.style.display = '';
+    } else if (data.token) {
+      // Base URL not configured — show token so staff can construct link manually
+      linkVal.value = '⚠ URL not configured. Token: ' + data.token;
+      linkRow.style.display = '';
+    }
+    if (data.warning) {
+      showModalError('modal-docs', data.warning);
+    } else if (sendEmail && data.sent_to) {
+      showToast('Link sent to ' + data.sent_to, 'success');
+    } else if (!sendEmail) {
+      showToast('Link generated. Copy it above.', 'success');
+    }
+    _loadDocSlots(shipmentId);
+  } catch (e) {
+    showModalError('modal-docs', e.message || 'Failed.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('btn-docs-send').onclick          = () => _sendOrGenerateDocsLink(true);
+document.getElementById('btn-docs-generate-only').onclick = () => _sendOrGenerateDocsLink(false);
+document.getElementById('btn-docs-close').onclick         = () => document.getElementById('modal-docs').classList.remove('open');
+
+document.getElementById('btn-docs-copy').onclick = () => {
+  const val = document.getElementById('docs-link-val').value;
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const el = document.getElementById('docs-copy-confirm');
+    el.style.display = '';
+    setTimeout(() => { el.style.display = 'none'; }, 2000);
+  });
+};
+
+async function doAcceptSlot(slotId) {
+  const shipmentId = document.getElementById('docs-shipment-id').value;
+  try {
+    const data = await API.post({ action: 'acceptSlot', slot_id: slotId, shipment_id: shipmentId });
+    _renderDocSlots(data);
+    showToast('Document accepted.', 'success');
+  } catch (e) { showToast(e.message || 'Failed.', 'error'); }
+}
+
+async function doRejectSlot(slotId) {
+  const note = prompt('Reason for rejection (shown to supplier):');
+  if (note === null) return; // cancelled
+  const shipmentId = document.getElementById('docs-shipment-id').value;
+  try {
+    const data = await API.post({ action: 'rejectSlot', slot_id: slotId, shipment_id: shipmentId, rejection_note: note });
+    _renderDocSlots(data);
+    showToast('Document rejected. Supplier will be notified.', 'success');
+  } catch (e) { showToast(e.message || 'Failed.', 'error'); }
+}
+
+// ─── Slot File Viewer (v3.5) ──────────────────────────────────────────────────
+// Opens files for a single slot served as base64 via GAS — no Drive access needed.
+// Same pattern as submission viewer in samples.html.
+
+document.getElementById('btn-slotv-close').onclick = () =>
+  document.getElementById('modal-slot-view').classList.remove('open');
+
+async function openSlotViewer(slotId, shipmentId, label) {
+  document.getElementById('slotv-label').textContent = label || 'Document';
+  document.getElementById('slotv-body').innerHTML =
+    '<div style="text-align:center;padding:2rem;color:var(--muted);font-family:var(--font-mono);font-size:0.8rem">Loading files...</div>';
+  document.getElementById('modal-slot-view').classList.add('open');
+
+  try {
+    const data = await API.post({ action: 'getSlotFiles', slot_id: slotId, shipment_id: shipmentId });
+    _renderSlotFiles(data);
+  } catch (e) {
+    document.getElementById('slotv-body').innerHTML =
+      '<div style="color:var(--error);font-size:0.82rem;padding:1rem">' + esc(e.message || 'Failed to load files.') + '</div>';
+  }
+}
+
+function _renderSlotFiles(data) {
+  const body  = document.getElementById('slotv-body');
+  const files = data.files || [];
+
+  let html = '';
+
+  if (data.supplier_notes) {
+    html += '<div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.4rem">Supplier Notes</div>';
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 1rem;font-size:0.82rem;white-space:pre-wrap;margin-bottom:1.25rem">' + esc(data.supplier_notes) + '</div>';
+  }
+
+  html += '<div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem">Files (' + files.length + ')</div>';
+
+  if (!files.length) {
+    html += '<p style="font-size:0.82rem;color:var(--muted);font-style:italic">No files uploaded.</p>';
+  } else {
+    files.forEach(function(f) {
+      html += '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 1rem;margin-bottom:0.75rem">';
+      html += '<div style="font-family:var(--font-mono);font-size:0.78rem;margin-bottom:0.3rem">📎 ' + esc(f.name) + '</div>';
+      html += '<div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.5rem">' +
+        esc(f.mime_type || '') + ' · ' + (f.size_bytes ? (f.size_bytes / 1024).toFixed(1) + ' KB' : '—') +
+        (f.uploaded_at ? ' · ' + fmtDate(f.uploaded_at) : '') +
+        '</div>';
+
+      if (f.drive_error) {
+        html += '<div style="font-size:0.75rem;color:var(--error)">Could not access this file. It may have been moved or permissions changed.</div>';
+      } else if (f.too_large) {
+        html += '<div style="font-size:0.75rem;color:var(--muted)">File too large to preview (' + (f.size_bytes / (1024*1024)).toFixed(1) + ' MB). Download to view.</div>';
+      } else if (f.data_base64) {
+        if (f.mime_type === 'application/pdf') {
+          // Store b64 in data attr — iframe created after innerHTML set to avoid blob URL timing
+          html += '<div class="slot-pdf-preview" data-b64="' + f.data_base64 + '" data-mime="application/pdf" style="border:1px solid var(--border);border-radius:3px;margin-top:0.5rem"></div>';
+        } else if (f.mime_type && f.mime_type.startsWith('image/')) {
+          html += '<img src="data:' + esc(f.mime_type) + ';base64,' + f.data_base64 + '" alt="' + esc(f.name) + '" style="max-width:100%;max-height:480px;object-fit:contain;margin-top:0.5rem;display:block" />';
+        } else {
+          html += '<a href="data:' + esc(f.mime_type || 'application/octet-stream') + ';base64,' + f.data_base64 + '" download="' + esc(f.name) + '" style="font-size:0.75rem;color:var(--accent);font-family:var(--font-mono)">Download ' + esc(f.name) + '</a>';
+        }
+      }
+
+      html += '</div>';
+    });
+  }
+
+  body.innerHTML = html;
+
+  // Render PDF iframes now that containers are in the DOM
+  body.querySelectorAll('.slot-pdf-preview').forEach(function(div) {
+    const bytes = Uint8Array.from(atob(div.dataset.b64), function(c) { return c.charCodeAt(0); });
+    const blob  = new Blob([bytes], { type: 'application/pdf' });
+    const url   = URL.createObjectURL(blob);
+    div.innerHTML = '<iframe src="' + url + '" style="width:100%;height:480px;border:none"></iframe>';
+    div.removeAttribute('data-b64'); // free memory
+  });
 }
 </script>
 </body>

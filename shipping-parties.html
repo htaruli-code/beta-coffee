@@ -1,0 +1,331 @@
+<!-- Version 1.1 | shipping-parties.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shipping Parties — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
+    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
+    .nav-links a:hover { background: var(--surface); color: var(--text); }
+    .nav-links a.active { color: var(--accent); font-weight: 500; }
+    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; }
+    .nav-user:hover { color: var(--accent); }
+    .page { max-width: 960px; margin: 0 auto; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+    input, select, textarea { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 60px; }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
+    .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 0.75rem; }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+    .card-title { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; }
+    .card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 2px; }
+    .badge-active   { background: #edf7f0; color: #1e6640; }
+    .badge-inactive { background: #f0f0f0; color: #888; }
+    .badge-role     { background: #eef4fd; color: #1a5ca8; margin-right: 0.25rem; }
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 560px; margin: auto; }
+    .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+    .modal-error { display: none; background: rgba(192,57,43,0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
+    .modal-error.show { display: block; }
+    .modal-section { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    .check-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.3rem; }
+    .check-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; font-family: var(--font-mono); cursor: pointer; }
+    .check-item input[type=checkbox] { width: auto; cursor: pointer; }
+    input:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="all-samples.html" id="nav-all-samples">All Samples</a>
+    <a href="purchase-orders.html" id="nav-po">Purchase Orders</a>
+    <a href="shipments.html" id="nav-shipments">Shipments</a>
+    <a href="inventory.html" id="nav-inventory">Inventory</a>
+    <a href="inventory-locations.html" id="nav-locations">Locations</a>
+    <a href="product-skus.html" id="nav-skus">SKU</a>
+    <a href="suppliers.html" id="nav-suppliers">Suppliers</a>
+    <a href="contracts.html" id="nav-contracts">Contracts</a>
+    <a href="drawdowns.html" id="nav-drawdowns">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-sub" style="margin-bottom:0.35rem"><a href="shipments.html" style="color:var(--accent);text-decoration:none;font-weight:500">&larr; Shipments</a></div>
+      <div class="page-title">Shipping Parties</div>
+      <div class="page-sub">Consignees, notify parties and freight forwarders reused across shipment SIs</div>
+    </div>
+    <button class="btn" id="btn-new-party">+ New Party</button>
+  </div>
+  <div id="party-list"><div class="loading">Loading...</div></div>
+</div>
+
+<!-- Party Modal -->
+<div class="modal-overlay" id="modal-party">
+  <div class="modal">
+    <div class="modal-title" id="modal-party-title">New Shipping Party</div>
+    <div class="modal-error" id="modal-party-error"></div>
+    <input type="hidden" id="p-id" />
+
+    <div class="field-row">
+      <div class="field">
+        <label>Party Name <span style="color:var(--error)">*</span></label>
+        <input type="text" id="p-name" placeholder="Opal Coffee Inc." />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Address Line 1</label>
+        <input type="text" id="p-addr1" placeholder="Unit C 9 5625 Firestone Blvd" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Address Line 2</label>
+        <input type="text" id="p-addr2" placeholder="South Gate CA 90280" />
+      </div>
+      <div class="field" style="max-width:160px">
+        <label>Country</label>
+        <input type="text" id="p-country" placeholder="USA" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Contact Person</label>
+        <input type="text" id="p-contact" placeholder="Hendra Taruli" />
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input type="text" id="p-phone" placeholder="+1 562 650 1007" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Email(s) <span style="font-weight:400;color:var(--muted);font-size:0.7rem">comma-separated</span></label>
+        <input type="text" id="p-email" placeholder="hendra@opalcoffee.us, maricon@opalcoffee.us" />
+      </div>
+    </div>
+
+    <div class="modal-section">Default Roles</div>
+    <div style="font-size:0.72rem;color:var(--muted);margin-bottom:0.5rem">Pre-selected when assigning this party to a shipment</div>
+    <div class="check-group" id="p-role-checks"></div>
+
+    <div class="field" style="margin-top:0.75rem">
+      <label>Internal Notes</label>
+      <textarea id="p-notes" placeholder="Optional notes..."></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-p-cancel">Cancel</button>
+      <button class="btn" id="btn-p-save">Save Party</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// Version 1.2 | shipping-parties.html
+// v1.2: Shows clear actionable message when SHEET_MISSING error returned
+//       (migrate_v3_2 not yet run in GAS).
+// v1.1: Fixed Auth.requireAuth guard. Fixed showToast/esc to use UI directly.
+//       Removed duplicate toast CSS and div.
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API  === 'undefined') throw new Error('api.js not loaded');
+if (typeof UI   === 'undefined') throw new Error('ui.js not loaded');
+if (!Auth.requireAuth()) { /* requireAuth redirects — stop execution */ }
+
+let PAGE_DATA = { parties: [], party_roles: [] };
+
+function esc(v) { return UI.esc(v); }
+function showToast(msg, type) { UI.toast(msg, type); }
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  const user    = Auth.getUser();
+  const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick      = () => Auth.logout();
+  try {
+    const data = await API.post({ action: 'getShippingPartiesPage' });
+    PAGE_DATA  = Object.assign(PAGE_DATA, data);
+    renderParties();
+  } catch (e) {
+    const el = document.getElementById('party-list');
+    if (e.code === 'SHEET_MISSING') {
+      el.innerHTML = '<div class="empty" style="color:var(--error)">' +
+        '⚠ Setup required: run <strong>migrate_v3_2()</strong> in GAS editor to create the shipping_parties sheet, then reload this page.' +
+        '</div>';
+    } else {
+      el.innerHTML = '<div class="empty" style="color:var(--error)">Failed to load: ' + UI.esc(e.message || 'error') + '</div>';
+    }
+    showToast((e.code === 'SHEET_MISSING' ? 'Run migrate_v3_2() in GAS first.' : (e.message || 'Load failed')), 'error');
+  }
+})();
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderParties() {
+  const el   = document.getElementById('party-list');
+  const list = PAGE_DATA.parties || [];
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">No shipping parties yet. Add your consignees and notify parties.</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const roleBadges = (p.party_type_defaults || [])
+      .map(r => '<span class="badge badge-role">' + esc(r) + '</span>')
+      .join('');
+    const statusBadge = p.is_active
+      ? '<span class="badge badge-active">Active</span>'
+      : '<span class="badge badge-inactive">Inactive</span>';
+    const subParts = [];
+    if (p.address_line1) subParts.push(esc(p.address_line1));
+    if (p.address_line2) subParts.push(esc(p.address_line2));
+    if (p.country)       subParts.push(esc(p.country));
+    const addrHtml = subParts.join(', ');
+    const emailHtml = p.email ? ' &middot; ' + esc(p.email) : '';
+    return '<div class="card">' +
+      '<div class="card-header">' +
+        '<div>' +
+          '<div class="card-title">' + esc(p.party_name) + ' ' + statusBadge + '</div>' +
+          (addrHtml ? '<div class="card-sub">' + addrHtml + emailHtml + '</div>' : '') +
+          (roleBadges ? '<div style="margin-top:0.4rem">' + roleBadges + '</div>' : '') +
+        '</div>' +
+        '<div class="card-actions">' +
+          '<button class="btn btn-ghost btn-sm" onclick="openPartyModal(' + p.party_id + ')">Edit</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:' + (p.is_active ? 'var(--error)' : 'var(--success)') + '" ' +
+            'onclick="toggleActive(' + p.party_id + ',' + !p.is_active + ')">' +
+            (p.is_active ? 'Deactivate' : 'Activate') +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      (p.notes ? '<div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">' + esc(p.notes) + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function buildRoleChecks(selected) {
+  const roles = PAGE_DATA.party_roles || [];
+  return roles.map(r =>
+    '<label class="check-item">' +
+      '<input type="checkbox" class="role-check" value="' + esc(r) + '"' +
+        ((selected || []).includes(r) ? ' checked' : '') + ' />' +
+      esc(r) +
+    '</label>'
+  ).join('');
+}
+
+function openPartyModal(partyId) {
+  const p = partyId ? (PAGE_DATA.parties || []).find(x => String(x.party_id) === String(partyId)) : null;
+  document.getElementById('modal-party-title').textContent = p ? 'Edit Party' : 'New Shipping Party';
+  document.getElementById('p-id').value      = p ? p.party_id : '';
+  document.getElementById('p-name').value    = p ? (p.party_name    || '') : '';
+  document.getElementById('p-addr1').value   = p ? (p.address_line1 || '') : '';
+  document.getElementById('p-addr2').value   = p ? (p.address_line2 || '') : '';
+  document.getElementById('p-country').value = p ? (p.country       || '') : '';
+  document.getElementById('p-contact').value = p ? (p.contact_person|| '') : '';
+  document.getElementById('p-phone').value   = p ? (p.phone         || '') : '';
+  document.getElementById('p-email').value   = p ? (p.email         || '') : '';
+  document.getElementById('p-notes').value   = p ? (p.notes         || '') : '';
+  document.getElementById('p-role-checks').innerHTML = buildRoleChecks(p ? p.party_type_defaults : []);
+
+  const errEl = document.getElementById('modal-party-error');
+  errEl.classList.remove('show'); errEl.textContent = '';
+  document.getElementById('modal-party').classList.add('open');
+  document.getElementById('p-name').focus();
+}
+
+document.getElementById('btn-new-party').onclick  = () => openPartyModal(null);
+document.getElementById('btn-p-cancel').onclick   = () => document.getElementById('modal-party').classList.remove('open');
+
+document.getElementById('btn-p-save').onclick = async () => {
+  const name = (document.getElementById('p-name').value || '').trim();
+  if (!name) {
+    const e = document.getElementById('modal-party-error');
+    e.textContent = 'Party name is required.'; e.classList.add('show'); return;
+  }
+  const selectedRoles = Array.from(document.querySelectorAll('.role-check:checked')).map(cb => cb.value);
+  const btn = document.getElementById('btn-p-save');
+  btn.disabled = true;
+  try {
+    const data = await API.post({
+      action:               'saveShippingParty',
+      party_id:             document.getElementById('p-id').value || undefined,
+      party_name:           name,
+      address_line1:        document.getElementById('p-addr1').value,
+      address_line2:        document.getElementById('p-addr2').value,
+      country:              document.getElementById('p-country').value,
+      contact_person:       document.getElementById('p-contact').value,
+      phone:                document.getElementById('p-phone').value,
+      email:                document.getElementById('p-email').value,
+      notes:                document.getElementById('p-notes').value,
+      party_type_defaults:  selectedRoles,
+      is_active:            true
+    });
+    PAGE_DATA.parties = data.parties;
+    renderParties();
+    document.getElementById('modal-party').classList.remove('open');
+    showToast('Party saved.', 'success');
+  } catch (e) {
+    const errEl = document.getElementById('modal-party-error');
+    errEl.textContent = e.code === 'SHEET_MISSING'
+      ? '⚠ Run migrate_v3_2() in GAS editor first, then reload.'
+      : (e.message || 'Save failed.');
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+async function toggleActive(partyId, newActive) {
+  try {
+    const data = await API.post({ action: 'toggleShippingPartyActive', party_id: partyId, is_active: newActive });
+    PAGE_DATA.parties = data.parties;
+    renderParties();
+    showToast(newActive ? 'Party activated.' : 'Party deactivated.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed.', 'error');
+  }
+}
+</script>
+</body>
+</html>

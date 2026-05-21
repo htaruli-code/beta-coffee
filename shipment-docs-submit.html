@@ -1,0 +1,279 @@
+<!-- Version 1.0 | shipment-docs-submit.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Upload — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1rem; }
+    .header-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .header-title { font-size: 0.9rem; color: var(--muted); }
+    .page { max-width: 680px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card-title { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; margin-bottom: 0.75rem; }
+    .info-row { display: flex; gap: 1rem; margin-bottom: 0.4rem; font-size: 0.8rem; flex-wrap: wrap; }
+    .info-label { color: var(--muted); font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; min-width: 100px; }
+    .info-val { font-family: var(--font-mono); }
+    .section-label { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1.25rem 0 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .slot { display: flex; align-items: flex-start; justify-content: space-between; padding: 0.9rem 0; border-bottom: 1px solid var(--border); gap: 1rem; }
+    .slot:last-child { border-bottom: none; }
+    .slot-left { flex: 1; min-width: 0; }
+    .slot-name { font-size: 0.88rem; font-weight: 500; margin-bottom: 0.2rem; }
+    .slot-req  { font-size: 0.68rem; font-family: var(--font-mono); color: var(--accent); margin-left: 0.4rem; }
+    .slot-files { margin-top: 0.3rem; }
+    .slot-file-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; font-family: var(--font-mono); color: var(--success); margin-bottom: 0.15rem; }
+    .slot-file-item .f-remove { cursor: pointer; color: var(--muted); font-size: 0.8rem; padding: 0 0.2rem; line-height: 1; }
+    .slot-file-item .f-remove:hover { color: var(--error); }
+    .slot-rejection { font-size: 0.75rem; color: var(--error); background: rgba(192,57,43,0.06); border: 1px solid rgba(192,57,43,0.2); border-radius: var(--radius); padding: 0.4rem 0.6rem; margin-top: 0.4rem; }
+    .slot-notes { margin-top: 0.35rem; }
+    .slot-notes textarea { width: 100%; font-size: 0.75rem; font-family: var(--font-mono); padding: 0.4rem 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); resize: vertical; min-height: 48px; color: var(--text); }
+    .slot-notes textarea:focus { outline: none; border-color: var(--accent); }
+    .slot-right { display: flex; flex-direction: column; gap: 0.35rem; flex-shrink: 0; }
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2px; }
+    .badge-pending  { background: #f0f0f0; color: #666; }
+    .badge-uploaded { background: #edf7f0; color: #1e6640; }
+    .badge-accepted { background: #d1fae5; color: #065f46; }
+    .badge-rejected { background: #fdecea; color: var(--error); }
+    .btn { display: inline-flex; align-items: center; gap: 0.35rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.45rem 0.85rem; cursor: pointer; border-radius: var(--radius); transition: opacity 0.15s; white-space: nowrap; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: transparent; color: var(--error); border: 1px solid rgba(192,57,43,0.3); font-size: 0.68rem; padding: 0.3rem 0.6rem; }
+    .btn-danger:hover:not(:disabled) { border-color: var(--error); }
+    .file-input { display: none; }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .alert { border-radius: var(--radius); padding: 0.85rem 1rem; font-size: 0.82rem; margin-bottom: 1rem; }
+    .alert-error   { background: rgba(192,57,43,0.08); border: 1px solid var(--error); color: var(--error); }
+    .alert-success { background: rgba(46,125,82,0.08); border: 1px solid var(--success); color: var(--success); }
+    .alert-info    { background: rgba(26,92,168,0.06); border: 1px solid #b3c8e8; color: #1a4a80; }
+    .empty { text-align: center; padding: 3rem 1rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    .loading { text-align: center; padding: 4rem 1rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-brand" id="hdr-brand">Sample Tracker</span>
+  <span class="header-title">Document Upload</span>
+</div>
+
+<div class="page">
+  <div id="page-content"><div class="loading">Loading...</div></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script>
+// Version 1.0 | shipment-docs-submit.html
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+if (typeof API === 'undefined') throw new Error('api.js not loaded');
+
+let PAGE_DATA = { doc_id: null, slots: [], status: 'Pending' };
+let TOKEN     = '';
+
+function esc(v) {
+  return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  const qs = new URLSearchParams(window.location.search);
+  TOKEN     = qs.get('t') || '';
+  if (!TOKEN) { renderError('This link is invalid. Please contact your buyer.'); return; }
+  try {
+    const data = await API.post({ action: 'getShipmentDocsPage', token: TOKEN });
+    PAGE_DATA  = Object.assign(PAGE_DATA, data);
+    render();
+  } catch (e) {
+    if (e.code === 'EXPIRED')        renderError('This upload link has expired. Please contact your buyer to send a new one.');
+    else if (e.code === 'INVALID_TOKEN') renderError('This link is invalid or has already been used.');
+    else renderError('Failed to load: ' + (e.message || 'Unknown error'));
+  }
+})();
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  const d = PAGE_DATA;
+
+  if (d.status === 'Closed') {
+    document.getElementById('page-content').innerHTML =
+      '<div class="alert alert-success" style="text-align:center;margin-top:2rem">' +
+      '✓ This document submission has been closed. All documents have been received. Thank you.' +
+      '</div>';
+    return;
+  }
+
+  document.getElementById('hdr-brand').textContent = d.supplier_name || 'Sample Tracker';
+
+  const shipmentLine = [
+    d.shipment_ref   ? 'Shipment: <strong>' + esc(d.shipment_ref)   + '</strong>' : '',
+    d.booking_number ? 'Booking: <strong>'  + esc(d.booking_number) + '</strong>' : '',
+    d.bill_of_lading ? 'BL: <strong>'       + esc(d.bill_of_lading) + '</strong>' : ''
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+  const slotsHtml = (d.slots || []).map(buildSlotHtml).join('');
+
+  document.getElementById('page-content').innerHTML =
+    '<div class="card">' +
+      '<div class="card-title">Shipment Details</div>' +
+      '<div style="font-size:0.82rem;line-height:1.8">' + (shipmentLine || '—') + '</div>' +
+      (d.supplier_name ? '<div style="font-size:0.8rem;color:var(--muted);margin-top:0.25rem">' + esc(d.supplier_name) + '</div>' : '') +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-title">Upload Documents</div>' +
+      '<div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.5rem">' +
+        'Upload each document when ready. You can return to this link at any time to add more.' +
+      '</div>' +
+      '<div id="slots-list">' + (slotsHtml || '<div class="empty">No documents required.</div>') + '</div>' +
+    '</div>';
+}
+
+function buildSlotHtml(slot) {
+  const badgeClass = { Pending:'pending', Uploaded:'uploaded', Accepted:'accepted', Rejected:'rejected' }[slot.status] || 'pending';
+  const isAccepted = slot.status === 'Accepted';
+  const isRejected = slot.status === 'Rejected';
+  const hasFiles   = slot.file_names && slot.file_names.length > 0;
+
+  const filesHtml = hasFiles
+    ? slot.file_names.map(function(name, i) {
+        return '<div class="slot-file-item">📄 ' + esc(name) +
+          (!isAccepted ? ' <span class="f-remove" onclick="clearSlot(' + slot.slot_id + ')" title="Clear all files">✕</span>' : '') +
+          '</div>';
+      }).join('')
+    : '';
+
+  const rejectionHtml = isRejected && slot.rejection_note
+    ? '<div class="slot-rejection">⚠ ' + esc(slot.rejection_note) + '</div>'
+    : '';
+
+  const uploadBtn = !isAccepted
+    ? '<label class="btn ' + (isRejected ? '' : 'btn-ghost') + '" style="' + (isRejected ? '' : 'background:transparent;color:var(--accent);border:1px solid var(--border)') + ';cursor:pointer">' +
+        '<input type="file" class="file-input" onchange="uploadFile(this,' + slot.slot_id + ')" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />' +
+        (hasFiles ? '+ Add File' : 'Choose File') +
+      '</label>'
+    : '';
+
+  const clearBtn = hasFiles && !isAccepted
+    ? '<button class="btn btn-danger" onclick="clearSlot(' + slot.slot_id + ')">Clear All</button>'
+    : '';
+
+  return '<div class="slot" id="slot-' + slot.slot_id + '">' +
+    '<div class="slot-left">' +
+      '<div class="slot-name">' +
+        esc(slot.label || slot.doc_type) +
+        (slot.required ? '<span class="slot-req">required</span>' : '') +
+        ' <span class="badge badge-' + badgeClass + '">' + esc(slot.status) + '</span>' +
+      '</div>' +
+      (filesHtml   ? '<div class="slot-files">' + filesHtml + '</div>' : '') +
+      (rejectionHtml) +
+      (!isAccepted ? '<div class="slot-notes"><textarea id="notes-' + slot.slot_id + '" placeholder="Optional notes..." rows="2">' +
+        esc(slot.supplier_notes || '') + '</textarea></div>' : '') +
+    '</div>' +
+    '<div class="slot-right">' + uploadBtn + clearBtn + '</div>' +
+  '</div>';
+}
+
+// ─── Upload ───────────────────────────────────────────────────────────────────
+async function uploadFile(input, slotId) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  input.value = ''; // reset so same file can be re-selected
+
+  const MAX_MB = 6;
+  if (file.size > MAX_MB * 1024 * 1024) {
+    showAlert('File too large. Maximum size is ' + MAX_MB + ' MB.', 'error');
+    return;
+  }
+
+  const notes = (document.getElementById('notes-' + slotId) || {}).value || '';
+
+  // Encode to base64
+  const base64 = await new Promise(function(res, rej) {
+    const reader = new FileReader();
+    reader.onload  = function() { res(reader.result.split(',')[1]); };
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+
+  // Show spinner
+  const slotEl = document.getElementById('slot-' + slotId);
+  if (slotEl) slotEl.style.opacity = '0.6';
+  showAlert('Uploading ' + file.name + '…', 'info');
+
+  try {
+    const data = await API.post({
+      action:         'uploadSlotFile',
+      token:          TOKEN,
+      slot_id:        slotId,
+      supplier_notes: notes,
+      file: {
+        name:        file.name,
+        mime_type:   file.type || 'application/octet-stream',
+        data_base64: base64
+      }
+    });
+    PAGE_DATA.slots  = data.slots  || PAGE_DATA.slots;
+    PAGE_DATA.status = data.doc_status || PAGE_DATA.status;
+    clearAlert();
+    rerenderSlots();
+  } catch (e) {
+    showAlert(e.message || 'Upload failed. Please try again.', 'error');
+    if (slotEl) slotEl.style.opacity = '1';
+  }
+}
+
+// ─── Clear ────────────────────────────────────────────────────────────────────
+async function clearSlot(slotId) {
+  if (!confirm('Remove all files from this slot so you can re-upload?')) return;
+  try {
+    const data = await API.post({ action: 'clearSlotFiles', token: TOKEN, slot_id: slotId });
+    PAGE_DATA.slots = data.slots || PAGE_DATA.slots;
+    rerenderSlots();
+  } catch (e) {
+    showAlert(e.message || 'Could not clear files.', 'error');
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function rerenderSlots() {
+  const list = document.getElementById('slots-list');
+  if (!list) return;
+  list.innerHTML = (PAGE_DATA.slots || []).map(buildSlotHtml).join('') ||
+    '<div class="empty">No documents required.</div>';
+}
+
+function renderError(msg) {
+  document.getElementById('page-content').innerHTML =
+    '<div class="alert alert-error" style="margin-top:2rem">' + esc(msg) + '</div>';
+}
+
+function showAlert(msg, type) {
+  let el = document.getElementById('page-alert');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'page-alert';
+    document.querySelector('.page').insertBefore(el, document.getElementById('page-content'));
+  }
+  el.className = 'alert alert-' + (type || 'info');
+  el.textContent = msg;
+}
+
+function clearAlert() {
+  const el = document.getElementById('page-alert');
+  if (el) el.remove();
+}
+</script>
+</body>
+</html>
