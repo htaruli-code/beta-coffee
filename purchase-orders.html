@@ -1,4 +1,4 @@
-<!-- Version 2.3.1 | purchase-orders.html -->
+<!-- Version 2.3.2 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -583,7 +583,7 @@
         <input type="text" id="recv-sample-name" placeholder="Sample name" />
       </div>
       <div class="field" style="max-width:140px">
-        <label>Lot Number</label>
+        <label>Lot Number <span id="recv-lot-prefill-hint" style="display:none;font-size:0.65rem;color:var(--success);font-weight:400">⚡ pre-filled</span></label>
         <input type="text" id="recv-lot-number" placeholder="Internal ref" />
       </div>
     </div>
@@ -866,7 +866,7 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.3.1 | purchase-orders.html
+// Version 2.3.2 | purchase-orders.html
 // v2.3.1: BUG FIX — PO date blank on Edit modal.
 //          Added toInputDate() helper — normalises any date format (ISO string, Date
 //          serialised, locale string) to YYYY-MM-DD, the only format input[type=date]
@@ -1645,7 +1645,11 @@ async function openReceiveModal(poLineId, poId) {
   document.getElementById('recv-lot-id').value        = '';
   document.getElementById('recv-sku-code').value      = line.sku_code     || '';
   document.getElementById('recv-sample-name').value   = line.sample_name  || '';
-  document.getElementById('recv-lot-number').value    = '';
+  // v2.3.2: pre-fill lot number from lot_code (ICO code) pumped in Phase 1
+  // If lot_code is empty, field stays blank for manual entry
+  document.getElementById('recv-lot-number').value    = line.lot_code     || '';
+  const prefillHint = document.getElementById('recv-lot-prefill-hint');
+  if (prefillHint) prefillHint.style.display = line.lot_code ? '' : 'none';
   document.getElementById('recv-date').value           = new Date().toISOString().slice(0, 10);
   document.getElementById('recv-bag-size').value       = line.bag_size     || '';
   document.getElementById('recv-cost').value           = line.cost_price   || '';

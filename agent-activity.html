@@ -1,0 +1,422 @@
+<!-- Version 1.2 | agent-activity.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Activity — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --border: #f0e8da;
+      --accent: #c47a2b; --text: #1a1a1a; --muted: #8a7060;
+      --error: #c0392b; --success: #2e7d52; --info: #1a5ca8;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+    .header-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .header-title { font-size: 0.9rem; color: var(--muted); }
+    .header-nav { display: flex; gap: 0.5rem; align-items: center; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+    /* List mode */
+    .page-title { font-family: var(--font-mono); font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .filter-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+    .filter-row select, .filter-row input { font-size: 0.78rem; padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); font-family: var(--font-sans); }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .log-table th { padding: 0.5rem 0.75rem; text-align: left; font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; background: var(--surface); border-bottom: 2px solid var(--border); cursor: pointer; white-space: nowrap; }
+    .log-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .log-table tr:hover td { background: var(--surface); cursor: pointer; }
+    .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 2px; white-space: nowrap; }
+    .badge-high     { background: #d4edda; color: #1e6640; }
+    .badge-medium   { background: rgba(196,122,43,0.12); color: var(--accent); border: 1px solid rgba(196,122,43,0.25); }
+    .badge-low, .badge-pending_review { background: #fdecea; color: var(--error); border: 1px solid rgba(192,57,43,0.2); }
+    .badge-pumped, .badge-computed, .badge-staff_confirmed { background: #d4edda; color: #1e6640; }
+    .badge-paused, .badge-flagged { background: #fdecea; color: var(--error); }
+    .badge-staff_overridden { background: rgba(26,92,168,0.1); color: var(--info); }
+    /* Detail mode */
+    .detail-panel { display: none; }
+    .detail-panel.open { display: block; }
+    .detail-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+    .btn-back { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); background: none; border: 1px solid var(--border); padding: 0.35rem 0.75rem; border-radius: var(--radius); cursor: pointer; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .detail-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; }
+    .section-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; margin: 1rem 0 0.6rem; }
+    /* Match table in detail */
+    .match-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .match-table th { padding: 0.4rem 0.75rem; font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .match-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .match-table select { font-family: var(--font-mono); font-size: 0.7rem; padding: 0.25rem 0.4rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); width: 100%; }
+    .ai-reason { font-size: 0.68rem; color: var(--muted); font-family: var(--font-mono); margin-top: 0.2rem; }
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 0.35rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.45rem 0.85rem; cursor: pointer; border-radius: var(--radius); transition: opacity 0.15s; white-space: nowrap; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-success { background: var(--success); }
+    .btn-danger { background: var(--error); }
+    .empty { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    .loading { text-align: center; padding: 4rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.6rem 1.2rem; border-radius: var(--radius); opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 300; }
+    .toast.show { opacity: 1; }
+    .info-grid { display: grid; grid-template-columns: 140px 1fr; gap: 0.3rem 0.75rem; font-size: 0.78rem; margin-bottom: 0.5rem; }
+    .info-grid .lbl { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; align-self: center; }
+    .info-grid .val { font-family: var(--font-mono); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-brand" id="hdr-brand">Sample Tracker</div>
+    <div class="header-title">Agent Activity Log</div>
+  </div>
+  <div class="header-nav">
+    <span style="font-size:0.78rem;color:var(--muted);cursor:pointer" id="nav-user"></span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="page">
+
+  <!-- LIST MODE -->
+  <div id="list-panel">
+    <div class="page-title" id="list-title">All Agent Actions</div>
+    <div class="filter-row">
+      <select id="filter-conf">
+        <option value="">All Confidence</option>
+        <option value="pending_review">⚠ Review Required</option>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+      <select id="filter-outcome">
+        <option value="">All Outcomes</option>
+        <option value="paused">Paused</option>
+        <option value="pumped">Pumped</option>
+        <option value="staff_confirmed">Staff Confirmed</option>
+        <option value="staff_overridden">Staff Overridden</option>
+      </select>
+    </div>
+    <div id="log-wrap"><div class="loading">Loading…</div></div>
+  </div>
+
+  <!-- DETAIL MODE -->
+  <div id="detail-panel" class="detail-panel">
+    <div class="detail-header">
+      <button class="btn-back" id="btn-back">← Back</button>
+      <div class="detail-title" id="detail-title">Match Detail</div>
+    </div>
+    <div id="detail-body"></div>
+  </div>
+
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script>
+// Version 1.2 | agent-activity.html
+// v1.2: Match table restructured to 5 columns: Lot Code | BL Description | PO Line | Confidence | Method.
+//       BL Description (lot_desc + lot_qty) from extraction visible alongside PO Line name for comparison.
+//       AI reason shown under PO Line. Page widened to 1100px.
+// v1.1: isEditable no longer requires low/pending_review confidence.
+// Standalone audit page for agent + AI-assisted matching actions.
+// List mode: filterable log table. Detail mode: editable match table + Confirm/Override.
+// No nav menu — accessed via direct URL or from shipments.html card badge.
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth      === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API       === 'undefined') throw new Error('api.js not loaded');
+
+var PAGE_DATA = { logs: [], shipments: [] };
+var _shipmentFilter = null; // set from URL param
+
+function esc(v) {
+  return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(async function() {
+  var session = Auth.getSession();
+  if (!session) { Auth.logout(); return; }
+
+  document.getElementById('hdr-brand').textContent = (session.company && session.company.company_name) || 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = session.user ? session.user.name : '';
+  document.getElementById('nav-user').onclick = function() { Auth.logout(); };
+
+  // Check URL param for shipment filter
+  var qs = new URLSearchParams(window.location.search);
+  _shipmentFilter = qs.get('shipment_id') || null;
+
+  if (_shipmentFilter) {
+    document.getElementById('list-title').textContent = 'Agent Actions — Shipment ' + _shipmentFilter;
+  }
+
+  try {
+    var data = await API.post({
+      action:      'getAgentActivityPage',
+      shipment_id: _shipmentFilter || ''
+    });
+    PAGE_DATA.logs      = data.logs      || [];
+    PAGE_DATA.shipments = data.shipments || [];
+    renderList();
+  } catch (e) {
+    document.getElementById('log-wrap').innerHTML =
+      '<div class="empty" style="color:var(--error)">Failed to load: ' + esc(e.message || 'error') + '</div>';
+  }
+})();
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmtDate(v) {
+  if (!v) return '—';
+  try { return new Date(v).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
+  catch (_) { return String(v); }
+}
+
+function getShipmentRef(shipmentId) {
+  var s = PAGE_DATA.shipments.find(function(x) { return String(x.shipment_id) === String(shipmentId); });
+  if (!s) return 'Shipment #' + shipmentId;
+  return s.container_number || s.booking_number || s.bill_of_lading || 'Shipment #' + shipmentId;
+}
+
+function confBadge(conf) {
+  var labels = { high:'✓ High', medium:'~ Medium', low:'⚠ Low', pending_review:'⚠ Review Required' };
+  return '<span class="badge badge-' + esc(conf || '') + '">' + esc(labels[conf] || conf || '—') + '</span>';
+}
+
+function outcomeBadge(outcome) {
+  return '<span class="badge badge-' + esc(outcome || '') + '">' + esc(outcome || '—') + '</span>';
+}
+
+// ─── List mode ────────────────────────────────────────────────────────────────
+function renderList() {
+  var confFilter    = document.getElementById('filter-conf').value;
+  var outcomeFilter = document.getElementById('filter-outcome').value;
+  var logs = PAGE_DATA.logs.filter(function(l) {
+    if (confFilter    && l.overall_confidence !== confFilter)    return false;
+    if (outcomeFilter && l.outcome            !== outcomeFilter) return false;
+    return true;
+  });
+
+  if (!logs.length) {
+    document.getElementById('log-wrap').innerHTML = '<div class="empty">No activity logged yet.</div>';
+    return;
+  }
+
+  var rows = logs.map(function(l) {
+    return '<tr data-log-id="' + l.log_id + '">' +
+      '<td style="font-family:var(--font-mono);font-size:0.72rem">' + esc(fmtDate(l.created_at)) + '</td>' +
+      '<td style="font-weight:500">' + esc(getShipmentRef(l.shipment_id)) + '</td>' +
+      '<td style="font-family:var(--font-mono)">' + esc(l.action || '—') + '</td>' +
+      '<td>' + confBadge(l.overall_confidence) + '</td>' +
+      '<td>' + outcomeBadge(l.outcome) + '</td>' +
+      '<td style="font-family:var(--font-mono);font-size:0.7rem">' + esc(l.triggered_by || '—') + '</td>' +
+      '<td style="font-size:0.7rem;color:var(--muted)">' + (l.staff_reviewed_at ? esc(fmtDate(l.staff_reviewed_at)) : '—') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('log-wrap').innerHTML =
+    '<table class="log-table">' +
+      '<thead><tr>' +
+        '<th>Date</th><th>Shipment</th><th>Action</th>' +
+        '<th>Confidence</th><th>Outcome</th><th>Triggered By</th><th>Reviewed At</th>' +
+      '</tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+    '</table>';
+}
+
+document.getElementById('filter-conf').onchange    = renderList;
+document.getElementById('filter-outcome').onchange = renderList;
+
+// Row click → detail mode
+document.addEventListener('click', function(e) {
+  var row = e.target.closest('tr[data-log-id]');
+  if (!row) return;
+  var logId = row.getAttribute('data-log-id');
+  var log   = PAGE_DATA.logs.find(function(l) { return String(l.log_id) === String(logId); });
+  if (log) openDetail(log);
+});
+
+// ─── Detail mode ─────────────────────────────────────────────────────────────
+var _currentLog = null;
+
+function openDetail(log) {
+  _currentLog = log;
+  document.getElementById('list-panel').style.display   = 'none';
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('detail-title').textContent =
+    getShipmentRef(log.shipment_id) + ' — ' + (log.action || '');
+  renderDetailBody(log);
+}
+
+document.getElementById('btn-back').onclick = function() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('list-panel').style.display = '';
+  _currentLog = null;
+};
+
+function renderDetailBody(log) {
+  var body = document.getElementById('detail-body');
+
+  // Editable = staff can still pump. Any computed/paused/flagged outcome — regardless of confidence.
+  // Already pumped outcomes (staff_confirmed, staff_overridden, pumped) are read-only.
+  var isEditable = log.outcome === 'paused'   ||
+                   log.outcome === 'computed'  ||
+                   log.outcome === 'flagged';
+  var isPendingReview = log.overall_confidence === 'pending_review' || log.overall_confidence === 'low';
+  var btnLabel = isPendingReview ? 'Review &amp; Pump' : 'Pump Matches';
+
+  // Meta info
+  var meta =
+    '<div class="info-grid">' +
+      '<span class="lbl">Shipment</span><span class="val">' + esc(getShipmentRef(log.shipment_id)) + '</span>' +
+      '<span class="lbl">Action</span><span class="val">' + esc(log.action) + '</span>' +
+      '<span class="lbl">Triggered by</span><span class="val">' + esc(log.triggered_by) + '</span>' +
+      '<span class="lbl">Overall Conf.</span><span class="val">' + confBadge(log.overall_confidence) + '</span>' +
+      '<span class="lbl">Outcome</span><span class="val">' + outcomeBadge(log.outcome) + '</span>' +
+      '<span class="lbl">Date</span><span class="val">' + esc(fmtDate(log.created_at)) + '</span>' +
+      (log.staff_reviewed_at ? '<span class="lbl">Reviewed</span><span class="val">' + esc(fmtDate(log.staff_reviewed_at)) + '</span>' : '') +
+    '</div>';
+
+  // Match table
+  var matches  = Array.isArray(log.matches) ? log.matches : [];
+  var matchHtml = '';
+  if (matches.length) {
+    var confLabels = { high:'✓ High', medium:'~ Medium', low:'⚠ Low', pending_review:'⚠ Review' };
+    var rowsHtml = matches.map(function(m, midx) {
+      var confBadgeHtml = '<span class="badge badge-' + esc(m.confidence || '') + '">' +
+        esc(confLabels[m.confidence] || m.confidence || '') + '</span>' +
+        (m.score ? ' <span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--muted)">' + (m.score * 100).toFixed(0) + '%</span>' : '');
+
+      // Col 1: Lot code — editable input or read-only
+      var lotCell = isEditable
+        ? '<input type="text" class="match-override-input" data-po-line-id="' + m.po_line_id + '" data-midx="' + midx + '" ' +
+            'value="' + esc(m.lot_code || '') + '" ' +
+            'style="font-family:var(--font-mono);font-size:0.7rem;padding:0.25rem 0.4rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);width:100%;min-width:130px" ' +
+            'placeholder="ICO lot code" />'
+        : '<span style="font-family:var(--font-mono);font-size:0.72rem">' + esc(m.lot_code || '—') + '</span>';
+
+      // Col 2: BL Description — from extraction (lot_desc field)
+      var descCell = '<div style="font-size:0.75rem">' + esc(m.lot_desc || '—') + '</div>' +
+        '<div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--muted)">' + (m.lot_qty || '?') + ' bags</div>';
+
+      // Col 3: PO Line name + bags
+      var poCell = '<div style="font-weight:500;font-size:0.78rem">' + esc(m.sample_name || '—') + '</div>' +
+        '<div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--muted)">' + (m.qty_bags || '?') + ' bags</div>' +
+        (m.ai_reason ? '<div class="ai-reason">AI: ' + esc(m.ai_reason) + '</div>' : '');
+
+      return '<tr>' +
+        '<td>' + lotCell + '</td>' +
+        '<td>' + descCell + '</td>' +
+        '<td>' + poCell + '</td>' +
+        '<td>' + confBadgeHtml + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted)">' + esc(m.method || '') + '</td>' +
+      '</tr>';
+    }).join('');
+
+    matchHtml =
+      '<div class="section-label">Matches</div>' +
+      '<table class="match-table">' +
+        '<thead><tr>' +
+          '<th>Lot Code</th>' +
+          '<th>BL Description</th>' +
+          '<th>PO Line</th>' +
+          '<th>Confidence</th>' +
+          '<th>Method</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rowsHtml + '</tbody>' +
+      '</table>';
+  }
+
+  // Action buttons for editable (pending review) entries
+  var actionHtml = '';
+  if (isEditable) {
+    actionHtml =
+      '<div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">' +
+        '<button class="btn btn-success" id="btn-confirm-matches">' + btnLabel + '</button>' +
+        '<span style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted)" id="confirm-result"></span>' +
+      '</div>';
+  }
+
+  body.innerHTML = meta + matchHtml + actionHtml;
+
+  if (isEditable) {
+    document.getElementById('btn-confirm-matches').onclick = function() {
+      _doStaffConfirm(log);
+    };
+  }
+}
+
+// ─── Staff confirm / override ─────────────────────────────────────────────────
+async function _doStaffConfirm(log) {
+  var btn    = document.getElementById('btn-confirm-matches');
+  var result = document.getElementById('confirm-result');
+  if (!btn) return;
+
+  // Read current lot code values from inputs
+  var inputs  = document.querySelectorAll('.match-override-input');
+  var matches = [];
+  var origMatchMap = {};
+
+  // Build original match map for staff_changed detection
+  (Array.isArray(log.matches) ? log.matches : []).forEach(function(m) {
+    origMatchMap[String(m.po_line_id)] = m.lot_code || '';
+  });
+
+  inputs.forEach(function(inp) {
+    var poLineId     = inp.getAttribute('data-po-line-id');
+    var lotCode      = inp.value.trim();
+    var staffChanged = lotCode !== (origMatchMap[String(poLineId)] || '');
+    matches.push({
+      po_line_id:    poLineId,
+      lot_code:      lotCode,
+      staff_changed: staffChanged
+    });
+  });
+
+  if (!matches.length) {
+    if (result) { result.textContent = '⚠ No matches found.'; result.style.color = 'var(--error)'; }
+    return;
+  }
+
+  var orig = btn.textContent;
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    await API.post({
+      action:      'staffConfirmMatches',
+      log_id:      log.log_id,
+      shipment_id: log.shipment_id,
+      matches:     matches
+    });
+    if (result) { result.textContent = '✓ Confirmed. Lot codes pumped.'; result.style.color = 'var(--success)'; }
+    btn.textContent = '✓ Done';
+    // Refresh log data
+    var updLog = PAGE_DATA.logs.find(function(l) { return String(l.log_id) === String(log.log_id); });
+    if (updLog) {
+      updLog.outcome            = matches.some(function(m) { return m.staff_changed; }) ? 'staff_overridden' : 'staff_confirmed';
+      updLog.staff_reviewed_at  = new Date().toISOString();
+    }
+    showToast('Matches confirmed and pumped.', 'success');
+  } catch (e) {
+    if (result) { result.textContent = '⚠ ' + (e.message || 'Failed.'); result.style.color = 'var(--error)'; }
+    btn.disabled    = false;
+    btn.textContent = orig;
+  }
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent    = msg;
+  el.style.background = type === 'error' ? 'var(--error)' : '#1a1a1a';
+  el.classList.add('show');
+  setTimeout(function() { el.classList.remove('show'); }, 2500);
+}
+</script>
+</body>
+</html>

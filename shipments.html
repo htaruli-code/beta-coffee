@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.5.6 | shipments.html -->
+<!-- Version 2.6.4 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -346,46 +346,79 @@
 
 <!-- Documents Modal (v3.5) -->
 <div class="modal-overlay" id="modal-docs">
-  <div class="modal" style="max-width:620px">
-    <div class="modal-title" id="modal-docs-title">Documents</div>
+  <div class="modal" style="max-width:960px">
+    <div class="modal-title" id="modal-docs-title">Documents
+      <a id="link-manage-doc-types" href="shipment-doc-types.html" target="_blank"
+         style="font-size:0.68rem;font-weight:400;font-family:var(--font-mono);color:var(--muted);margin-left:0.75rem;text-decoration:underline">Manage Doc Types ↗</a>
+    </div>
     <div class="modal-error" id="modal-docs-error"></div>
     <input type="hidden" id="docs-shipment-id" />
 
-    <!-- Send Link section -->
-    <div id="docs-send-section">
-      <div class="modal-section">Request Documents from Supplier</div>
-      <div class="field-row" style="margin-bottom:0.5rem">
-        <div class="field">
-          <label>Supplier</label>
-          <select id="docs-supplier-sel"></select>
-        </div>
-        <div class="field">
-          <label>Recipient Email <span style="font-size:0.68rem;font-weight:400;color:var(--muted)">(required to send)</span></label>
-          <input type="email" id="docs-email" placeholder="supplier@example.com" />
-        </div>
-      </div>
-      <div id="docs-link-row" style="display:none;margin-bottom:0.75rem">
-        <label style="font-size:0.75rem;color:var(--muted);font-family:var(--font-mono);display:block;margin-bottom:0.3rem">Upload Link</label>
-        <div style="display:flex;gap:0.5rem;align-items:center">
-          <input type="text" id="docs-link-val" readonly style="font-family:var(--font-mono);font-size:0.72rem;background:var(--surface)" />
-          <button class="btn btn-ghost" id="btn-docs-copy" style="flex-shrink:0">Copy</button>
-        </div>
-        <div id="docs-copy-confirm" style="display:none;font-size:0.72rem;color:var(--success);margin-top:0.2rem">✓ Copied</div>
-      </div>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-        <button class="btn" id="btn-docs-send">Generate &amp; Send Link</button>
-        <button class="btn btn-ghost" id="btn-docs-generate-only">Generate Link Only</button>
-      </div>
-    </div>
+    <!-- v2.6.3: Two-column layout — left: send + slots, right: extraction result -->
+    <div style="display:flex;gap:1.25rem;align-items:flex-start">
 
-    <!-- Slots status section -->
-    <div id="docs-slots-section" style="margin-top:1rem">
-      <div class="modal-section">Document Status</div>
-      <div id="docs-slots-list" style="font-size:0.8rem;min-height:40px"></div>
-    </div>
+      <!-- LEFT COLUMN -->
+      <div style="flex:1;min-width:0">
 
-    <!-- Extraction result panel -->
-    <div id="docs-extract-result" style="display:none;margin-top:0.75rem"></div>
+        <!-- Send Link section -->
+        <div id="docs-send-section">
+          <div class="modal-section">Request Documents from Supplier</div>
+          <div class="field-row" style="margin-bottom:0.5rem">
+            <div class="field">
+              <label>Supplier</label>
+              <select id="docs-supplier-sel"></select>
+            </div>
+            <div class="field">
+              <label>Recipient Email <span style="font-size:0.68rem;font-weight:400;color:var(--muted)">(required to send)</span></label>
+              <input type="email" id="docs-email" placeholder="supplier@example.com" />
+            </div>
+          </div>
+
+          <!-- Doc type checklist -->
+          <div style="margin-bottom:0.75rem">
+            <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">
+              Documents to request
+              <span style="font-size:0.65rem;color:var(--muted);text-transform:none;letter-spacing:0"> — tick to include, toggle Required/Optional</span>
+            </div>
+            <div id="docs-type-checklist" style="display:flex;flex-direction:column;gap:0.3rem;max-height:180px;overflow-y:auto;padding-right:0.25rem"></div>
+            <div id="docs-type-empty" style="display:none;font-size:0.75rem;font-family:var(--font-mono);color:var(--error)">
+              No active doc types found. <a href="shipment-doc-types.html" target="_blank" style="color:var(--accent)">Add doc types ↗</a>
+            </div>
+            <div id="docs-update-row" style="display:none;margin-top:0.5rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" id="btn-docs-update-list">Update Doc List</button>
+              <span style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted)">Updates slots without re-sending the link</span>
+            </div>
+          </div>
+
+          <div id="docs-link-row" style="display:none;margin-bottom:0.75rem">
+            <label style="font-size:0.75rem;color:var(--muted);font-family:var(--font-mono);display:block;margin-bottom:0.3rem">Upload Link</label>
+            <div style="display:flex;gap:0.5rem;align-items:center">
+              <input type="text" id="docs-link-val" readonly style="font-family:var(--font-mono);font-size:0.72rem;background:var(--surface)" />
+              <button class="btn btn-ghost" id="btn-docs-copy" style="flex-shrink:0">Copy</button>
+            </div>
+            <div id="docs-copy-confirm" style="display:none;font-size:0.72rem;color:var(--success);margin-top:0.2rem">✓ Copied</div>
+          </div>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="btn" id="btn-docs-send">Generate &amp; Send Link</button>
+            <button class="btn btn-ghost" id="btn-docs-generate-only">Generate Link Only</button>
+          </div>
+        </div>
+
+        <!-- Slots status section -->
+        <div id="docs-slots-section" style="margin-top:1rem">
+          <div class="modal-section">Document Status</div>
+          <div id="docs-slots-list" style="font-size:0.8rem;min-height:40px"></div>
+        </div>
+
+      </div><!-- /LEFT COLUMN -->
+
+      <!-- RIGHT COLUMN — Extraction result (hidden until extraction runs) -->
+      <div id="docs-extract-col" style="display:none;width:420px;flex-shrink:0;border-left:1px solid var(--border);padding-left:1.25rem">
+        <div class="modal-section" style="margin-top:0">Extraction &amp; Matching</div>
+        <div id="docs-extract-result" style="overflow-y:auto;max-height:calc(80vh - 120px)"></div>
+      </div>
+
+    </div><!-- /two-column -->
 
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-docs-close">Close</button>
@@ -527,7 +560,7 @@ let PAGE_DATA = {
   junctions: [], instructions: [], carriers: [],
   sailing_statuses: [], si_statuses: [], _junctionMap: {},
   shipping_parties: [], shipment_parties: [], party_roles: [], doc_types: [],
-  lifecycle_stages: {}, doc_requests: {}
+  lifecycle_stages: {}, doc_requests: {}, doc_status_summary: {}
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -631,6 +664,30 @@ function renderShipments() {
         '</div>'
       : '';
 
+    // v2.6.2: doc status badge + agent matching review badge
+    const docSum  = (PAGE_DATA.doc_status_summary || {})[String(s.shipment_id)];
+    const docHtml = docSum ? (function() {
+      var st  = docSum.status || 'Pending';
+      var col = st === 'Complete' || st === 'Closed' || st === 'Accepted' ? 'var(--success)'
+              : st === 'Partial'                                          ? 'var(--accent)'
+              :                                                             'var(--muted)';
+      var countPart = st === 'Partial'
+        ? ' (' + docSum.uploaded_count + ' of ' + docSum.total_count + ' uploaded)'
+        : '';
+      return '<div style="font-size:0.72rem;margin-top:0.2rem;color:' + col + '">📄 Docs: ' + esc(st) + countPart + '</div>';
+    })() : '';
+
+    // Agent matching review badge — shown when pending_review or low confidence
+    const matchConf    = s.matching_confidence || '';
+    const matchReview  = (matchConf === 'pending_review' || matchConf === 'low')
+      ? '<div style="font-size:0.72rem;margin-top:0.2rem">' +
+          '<a href="agent-activity.html?shipment_id=' + s.shipment_id + '" target="_blank" ' +
+          'style="color:var(--error);text-decoration:none;font-family:var(--font-mono)">⚠ Match Review Required ↗</a>' +
+        '</div>'
+      : (matchConf === 'medium' || matchConf === 'high')
+        ? '<div style="font-size:0.72rem;margin-top:0.2rem;color:var(--muted);font-family:var(--font-mono)">🔗 Lots matched · ' + esc(matchConf) + ' confidence</div>'
+        : '';
+
     return '<div class="card" id="card-' + s.shipment_id + '">' +
       '<div class="card-header">' +
         '<div>' +
@@ -643,6 +700,8 @@ function renderShipments() {
           stageHint +
           trackInfo +
           siHtml +
+          docHtml +
+          matchReview +
         '</div>' +
         '<div class="card-actions">' + actions + '</div>' +
       '</div>' +
@@ -1352,14 +1411,14 @@ function openSIModal(shipmentId) {
 
   _refreshSIContext(shipmentId, supplierIds[0] || '');
 
-  // Build doc type checkboxes
+  // Build doc type checkboxes — use default_required from sheet, not hardcoded category
   const docChecks = document.getElementById('si-doc-checks');
   docChecks.innerHTML = (PAGE_DATA.doc_types || []).map(dt =>
     '<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;font-family:var(--font-mono);cursor:pointer">' +
       '<input type="checkbox" class="si-doc-check" value="' + esc(dt.key) + '"' +
         (existingSI
           ? (existingSI.required_docs.includes(dt.key) ? ' checked' : '')
-          : (dt.category === 'receiving' ? ' checked' : '')) +
+          : (dt.default_required ? ' checked' : '')) +
         ' style="width:auto;cursor:pointer" />' +
       esc(dt.label) +
     '</label>'
@@ -1864,10 +1923,64 @@ function openDocsPanel(shipmentId) {
   };
 
   // Load existing slot status if already requested
+  _buildDocTypeChecklist(shipmentId);
   _loadDocSlots(shipmentId);
 
   document.getElementById('modal-docs').classList.add('open');
 }
+
+// v2.5.9: Build doc type checklist — tick to include, toggle Required/Optional.
+// Pre-selects types from existing open doc request if one exists.
+// Falls back to default_required from the doc type sheet.
+function _buildDocTypeChecklist(shipmentId) {
+  var docTypes  = PAGE_DATA.doc_types || [];
+  var checklist = document.getElementById('docs-type-checklist');
+  var emptyEl   = document.getElementById('docs-type-empty');
+
+  if (!docTypes.length) {
+    checklist.innerHTML = '';
+    emptyEl.style.display = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  // Find existing open doc request to pre-select types + required state
+  var existingReq = (PAGE_DATA.doc_requests || {})[String(shipmentId)];
+  var existingSlots = existingReq ? (existingReq.slots || []) : [];
+
+  checklist.innerHTML = docTypes.map(function(dt) {
+    // Check if this type was in the existing request
+    var existingSlot = existingSlots.find(function(s) { return s.doc_type === dt.key; });
+    var isChecked  = existingSlot ? true  : dt.default_required;
+    var isRequired = existingSlot ? existingSlot.required : dt.default_required;
+
+    return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.25rem 0.4rem;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border)">' +
+      '<input type="checkbox" id="doc-chk-' + esc(dt.key) + '" class="docs-type-chk"' +
+        ' data-key="' + esc(dt.key) + '" style="width:auto;cursor:pointer"' +
+        (isChecked ? ' checked' : '') + ' />' +
+      '<label for="doc-chk-' + esc(dt.key) + '" style="flex:1;font-size:0.8rem;cursor:pointer">' + esc(dt.label) + '</label>' +
+      '<span id="doc-req-toggle-' + esc(dt.key) + '"' +
+        ' data-req-key="' + esc(dt.key) + '"' +
+        ' data-required="' + (isRequired ? 'true' : 'false') + '"' +
+        ' style="font-family:var(--font-mono);font-size:0.65rem;font-weight:600;cursor:pointer;padding:0.15rem 0.4rem;border-radius:2px;user-select:none;' +
+        (isRequired ? 'background:rgba(192,57,43,0.1);color:var(--error);border:1px solid rgba(192,57,43,0.25)' : 'background:#f0f0f0;color:#888;border:1px solid #ddd') + '">' +
+        (isRequired ? 'Required' : 'Optional') +
+      '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// Toggle Required/Optional badge on click
+document.addEventListener('click', function(e) {
+  var toggle = e.target.closest('[data-req-key]');
+  if (!toggle) return;
+  var isReq = toggle.getAttribute('data-required') === 'true';
+  var newReq = !isReq;
+  toggle.setAttribute('data-required', newReq ? 'true' : 'false');
+  toggle.textContent = newReq ? 'Required' : 'Optional';
+  toggle.style.cssText = 'font-family:var(--font-mono);font-size:0.65rem;font-weight:600;cursor:pointer;padding:0.15rem 0.4rem;border-radius:2px;user-select:none;' +
+    (newReq ? 'background:rgba(192,57,43,0.1);color:var(--error);border:1px solid rgba(192,57,43,0.25)' : 'background:#f0f0f0;color:#888;border:1px solid #ddd');
+});
 
 async function _loadDocSlots(shipmentId) {
   const list = document.getElementById('docs-slots-list');
@@ -1877,14 +1990,26 @@ async function _loadDocSlots(shipmentId) {
     PAGE_DATA.doc_requests[String(shipmentId)] = data;
     _renderDocSlots(data);
 
-    // Show existing link if active request exists — no need to generate again
-    const req = data.doc_request;
-    if (req && req.status !== 'Closed' && data.link) {
+    const req      = data.doc_request;
+    const hasOpen  = req && req.status !== 'Closed';
+    const updateRow = document.getElementById('docs-update-row');
+
+    // Show existing link if active request exists
+    if (hasOpen && data.link) {
       document.getElementById('docs-link-val').value = data.link;
       document.getElementById('docs-link-row').style.display = '';
     }
+
+    // Show Update Doc List button only when open request exists
+    if (updateRow) updateRow.style.display = hasOpen ? 'flex' : 'none';
+
+    // Rebuild checklist now that slot data is loaded — pre-ticks match current slots
+    _buildDocTypeChecklist(shipmentId);
+
   } catch (e) {
     list.innerHTML = '<span style="color:var(--muted);font-size:0.75rem">No documents requested yet.</span>';
+    const updateRow = document.getElementById('docs-update-row');
+    if (updateRow) updateRow.style.display = 'none';
   }
 }
 
@@ -1947,7 +2072,9 @@ function _renderDocSlots(data) {
         '</span>' +
         '<span style="font-family:var(--font-mono);font-size:0.65rem;font-weight:600;color:' + col + '">' + esc(s.status) + '</span>' +
       '</div>' +
-      filesHtml + actionsHtml +
+      filesHtml +
+      (s.supplier_notes ? '<div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.3rem 0.5rem;margin-top:0.3rem">📝 ' + esc(s.supplier_notes) + '</div>' : '') +
+      actionsHtml +
     '</div>';
   }).join('');
 
@@ -2010,17 +2137,31 @@ async function _runExtraction(slotIds) {
   }
 }
 
+// v2.6.2: Matching table now calls computeMatches GAS action instead of client-side scoring.
+// computeMatches runs Pass 1 (combined bag+name score) + Pass 2 (Anthropic for low-confidence).
+// Returns per-row confidence + AI reasoning. Matching table renders with confidence badges.
+var _lastComputedMatches     = [];
+var _lastComputeLogId        = null;
+var _lastExtractionLots      = [];
+var _lastExtractionShipment  = '';
+
 function _renderExtractionResult(data, shipmentId) {
   const el = document.getElementById('docs-extract-result');
   if (!el) return;
 
+  // Show the right column
+  const col = document.getElementById('docs-extract-col');
+  if (col) col.style.display = '';
+
   const result = data.extraction || {};
   const lots   = result.lots || [];
+  _lastExtractionLots     = lots;
+  _lastExtractionShipment = String(shipmentId);
 
   const matchRows = [
-    result.bl_number       ? '<div style="font-size:0.75rem"><strong>B/L:</strong> ' + esc(result.bl_number) + '</div>' : '',
+    result.bl_number        ? '<div style="font-size:0.75rem"><strong>B/L:</strong> ' + esc(result.bl_number) + '</div>' : '',
     result.container_number ? '<div style="font-size:0.75rem"><strong>Container:</strong> ' + esc(result.container_number) + '</div>' : '',
-    result.gross_weight    ? '<div style="font-size:0.75rem"><strong>Gross Weight:</strong> ' + esc(result.gross_weight) + '</div>' : ''
+    result.gross_weight     ? '<div style="font-size:0.75rem"><strong>Gross Weight:</strong> ' + esc(result.gross_weight) + '</div>' : ''
   ].filter(Boolean).join('');
 
   const lotsHtml = lots.length
@@ -2042,13 +2183,191 @@ function _renderExtractionResult(data, shipmentId) {
         '</tbody></table>'
     : '<div style="font-size:0.75rem;color:var(--muted)">No lot codes extracted.</div>';
 
+  // Matching section placeholder — loads async via computeMatches
+  const matchingPlaceholder = lots.length
+    ? '<div id="match-table-wrap" style="margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.6rem">' +
+        '<div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.4rem">Match to PO Lines</div>' +
+        '<div id="match-table-inner" style="font-size:0.75rem;color:var(--muted);font-family:var(--font-mono)">Computing matches…</div>' +
+      '</div>'
+    : '';
+
   el.innerHTML =
     '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem;background:var(--surface)">' +
       '<div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem">Extraction Result</div>' +
-      matchRows +
-      lotsHtml +
+      matchRows + lotsHtml +
       (result.notes ? '<div style="font-size:0.72rem;color:var(--muted);margin-top:0.5rem">' + esc(result.notes) + '</div>' : '') +
+      matchingPlaceholder +
     '</div>';
+
+  if (lots.length) {
+    _runComputeMatches(shipmentId, result);
+  }
+}
+
+async function _runComputeMatches(shipmentId, extraction) {
+  const wrap = document.getElementById('match-table-inner');
+  if (!wrap) return;
+  try {
+    const data = await API.post({
+      action:       'computeMatches',
+      shipment_id:  shipmentId,
+      extraction:   extraction,
+      triggered_by: 'staff'
+    });
+    _lastComputedMatches = data.matches || [];
+    _lastComputeLogId    = data.log_id  || null;
+    _renderMatchTable(data, shipmentId);
+  } catch (e) {
+    if (wrap) wrap.innerHTML = '<div style="color:var(--error);font-size:0.73rem">⚠ Match computation failed: ' + esc(e.message || 'error') + '</div>';
+  }
+}
+
+function _renderMatchTable(data, shipmentId) {
+  const wrap = document.getElementById('match-table-inner');
+  if (!wrap) return;
+
+  const matches  = data.matches || [];
+  const lots     = _lastExtractionLots;
+  const overallConf = data.overall_confidence || '';
+
+  // Confidence badge
+  const confBadge = {
+    high:           '<span style="font-size:0.65rem;font-family:var(--font-mono);background:#d4edda;color:#1e6640;padding:0.15rem 0.4rem;border-radius:2px">✓ High</span>',
+    medium:         '<span style="font-size:0.65rem;font-family:var(--font-mono);background:rgba(196,122,43,0.12);color:var(--accent);padding:0.15rem 0.4rem;border-radius:2px">~ Medium</span>',
+    low:            '<span style="font-size:0.65rem;font-family:var(--font-mono);background:#fdecea;color:var(--error);padding:0.15rem 0.4rem;border-radius:2px">⚠ Low</span>',
+    pending_review: '<span style="font-size:0.65rem;font-family:var(--font-mono);background:#fdecea;color:var(--error);padding:0.15rem 0.4rem;border-radius:2px">⚠ Review Required</span>'
+  };
+
+  const overallBadge = confBadge[overallConf] || '';
+  const hasPendingReview = overallConf === 'pending_review' || overallConf === 'low';
+
+  const rowsHtml = matches.map(function(m) {
+    // Build lot options dropdown
+    const lotOptions = lots.map(function(l, idx) {
+      const sel = idx === m.lot_idx ? ' selected' : '';
+      const label = (l.lot_code || '—') + ' · ' + (l.qty_bags || '?') + ' bags · ' + (l.description || '');
+      return '<option value="' + idx + '"' + sel + '>' + esc(label) + '</option>';
+    }).join('');
+    const noMatchOpt = m.lot_idx === -1 ? ' selected' : '';
+
+    const rowConf  = confBadge[m.confidence] || '';
+    const aiReason = m.ai_reason
+      ? '<div style="font-size:0.65rem;color:var(--muted);font-family:var(--font-mono);margin-top:0.2rem">AI: ' + esc(m.ai_reason) + '</div>'
+      : '';
+
+    return '<tr>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:0.75rem">' +
+        '<div style="font-weight:500">' + esc(m.sample_name || '—') + '</div>' +
+        '<div style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted)">' +
+          (m.qty_bags || '?') + ' bags ' + rowConf +
+        '</div>' +
+        aiReason +
+      '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border)">' +
+        '<select class="match-lot-sel" data-po-line-id="' + m.po_line_id + '" data-original-idx="' + m.lot_idx + '" ' +
+          'style="font-family:var(--font-mono);font-size:0.68rem;width:100%;padding:0.25rem 0.4rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg)">' +
+          '<option value="-1"' + noMatchOpt + '>— No match —</option>' + lotOptions +
+        '</select>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  const tableHtml = matches.length
+    ? '<table style="width:100%;border-collapse:collapse;font-size:0.73rem">' +
+        '<thead><tr style="background:var(--surface)">' +
+          '<th style="padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.68rem">PO Line</th>' +
+          '<th style="padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.68rem">Extracted Lot</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rowsHtml + '</tbody>' +
+      '</table>'
+    : '<div style="font-size:0.73rem;color:var(--muted)">No PO lines linked to this shipment.</div>';
+
+  const overallRow = '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">' +
+    '<span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted)">Overall confidence:</span> ' + overallBadge +
+    (hasPendingReview ? ' <span style="font-size:0.68rem;color:var(--muted);font-family:var(--font-mono)">— review in Agent Activity before pumping</span>' : '') +
+  '</div>';
+
+  const pumpBtn = !hasPendingReview
+    ? '<button class="btn" id="btn-pump-lots" style="font-size:0.72rem;margin-top:0.5rem">⬆ Pump to PO Lines</button>'
+    : '<a href="agent-activity.html?shipment_id=' + esc(String(shipmentId)) + '" target="_blank" ' +
+        'class="btn" style="font-size:0.72rem;margin-top:0.5rem;background:var(--error)">⚠ Review in Agent Activity ↗</a>';
+
+  wrap.innerHTML = overallRow + tableHtml +
+    '<div style="margin-top:0.5rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">' +
+      pumpBtn +
+      '<span style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted)" id="pump-result"></span>' +
+    '</div>';
+
+  const pumpEl = document.getElementById('btn-pump-lots');
+  if (pumpEl) pumpEl.onclick = function() { _doPumpToPoLines(shipmentId); };
+}
+
+async function _doPumpToPoLines(shipmentId) {
+  const pumpBtn    = document.getElementById('btn-pump-lots');
+  const pumpResult = document.getElementById('pump-result');
+  if (!pumpBtn || !pumpResult) return;
+
+  const sels   = document.querySelectorAll('.match-lot-sel');
+  const matches = [];
+
+  sels.forEach(function(sel) {
+    const poLineId = sel.getAttribute('data-po-line-id');
+    const lotIdx   = parseInt(sel.value, 10);
+    if (!poLineId) return;
+    const lot = (lotIdx >= 0 && _lastExtractionLots[lotIdx]) ? _lastExtractionLots[lotIdx] : null;
+    // Detect if staff changed from original AI suggestion
+    const origIdx      = parseInt(sel.getAttribute('data-original-idx') || '-1', 10);
+    const staffChanged = lotIdx !== origIdx;
+    matches.push({
+      po_line_id:   poLineId,
+      lot_code:     lot ? (lot.lot_code    || '') : '',
+      qty_bags:     lot ? (lot.qty_bags    || 0)  : 0,
+      bag_size:     lot ? (lot.bag_size    || 0)  : 0,
+      description:  lot ? (lot.description || '') : '',
+      staff_changed: staffChanged
+    });
+  });
+
+  if (!matches.length) {
+    pumpResult.textContent = '⚠ No matches to save.';
+    pumpResult.style.color = 'var(--error)';
+    return;
+  }
+
+  const orig = pumpBtn.textContent;
+  pumpBtn.disabled    = true;
+  pumpBtn.textContent = 'Saving…';
+  pumpResult.textContent = '';
+
+  try {
+    await API.post({
+      action:      'saveMatchedLots',
+      shipment_id: shipmentId,
+      matches:     matches
+    });
+    pumpResult.textContent = '✓ Lot codes saved. Phase 1 complete.';
+    pumpResult.style.color = 'var(--success)';
+    pumpBtn.textContent    = '✓ Done';
+    refreshPageData();
+  } catch (e) {
+    pumpResult.textContent = '⚠ ' + (e.message || 'Save failed.');
+    pumpResult.style.color = 'var(--error)';
+    pumpBtn.disabled    = false;
+    pumpBtn.textContent = orig;
+  }
+}
+
+// Lightweight page refresh — re-fetches shipments page data without full reload
+async function refreshPageData() {
+  try {
+    const data = await API.post({ action: 'getShipmentsPage' });
+    PAGE_DATA = Object.assign(PAGE_DATA, data);
+    buildJunctionMap();
+    buildPoLinesMap();
+    renderShipments();
+  } catch (e) {
+    // Non-critical — page data refresh failed silently
+  }
 }
 
 async function _sendOrGenerateDocsLink(sendEmail) {
@@ -2058,6 +2377,22 @@ async function _sendOrGenerateDocsLink(sendEmail) {
 
   if (!supplierId) { showModalError('modal-docs', 'Select a supplier.'); return; }
   if (sendEmail && !email) { showModalError('modal-docs', 'Recipient email is required to send.'); return; }
+
+  // v2.5.9: Read checked doc types + required flags from checklist
+  const selectedDocs  = [];
+  const requiredFlags = {};
+  document.querySelectorAll('#docs-type-checklist .docs-type-chk:checked').forEach(function(chk) {
+    var key = chk.getAttribute('data-key');
+    if (!key) return;
+    selectedDocs.push(key);
+    var toggle = document.getElementById('doc-req-toggle-' + key);
+    requiredFlags[key] = toggle ? toggle.getAttribute('data-required') === 'true' : false;
+  });
+
+  if (!selectedDocs.length) {
+    showModalError('modal-docs', 'Select at least one document type.');
+    return;
+  }
 
   const btn = document.getElementById(sendEmail ? 'btn-docs-send' : 'btn-docs-generate-only');
   btn.disabled = true;
@@ -2069,6 +2404,8 @@ async function _sendOrGenerateDocsLink(sendEmail) {
       shipment_id:    shipmentId,
       supplier_id:    supplierId,
       supplier_email: email || '',
+      required_docs:  selectedDocs,
+      required_flags: requiredFlags,
       _send_email:    sendEmail
     });
     const linkRow = document.getElementById('docs-link-row');
@@ -2077,7 +2414,6 @@ async function _sendOrGenerateDocsLink(sendEmail) {
       linkVal.value = data.link;
       linkRow.style.display = '';
     } else if (data.token) {
-      // Base URL not configured — show token so staff can construct link manually
       linkVal.value = '⚠ URL not configured. Token: ' + data.token;
       linkRow.style.display = '';
     }
@@ -2098,7 +2434,74 @@ async function _sendOrGenerateDocsLink(sendEmail) {
 
 document.getElementById('btn-docs-send').onclick          = () => _sendOrGenerateDocsLink(true);
 document.getElementById('btn-docs-generate-only').onclick = () => _sendOrGenerateDocsLink(false);
-document.getElementById('btn-docs-close').onclick         = () => document.getElementById('modal-docs').classList.remove('open');
+document.getElementById('btn-docs-close').onclick = () => {
+  document.getElementById('modal-docs').classList.remove('open');
+  // Reset right column so it doesn't show stale extraction on next open
+  var col = document.getElementById('docs-extract-col');
+  if (col) col.style.display = 'none';
+  var el = document.getElementById('docs-extract-result');
+  if (el) el.innerHTML = '';
+};
+document.getElementById('btn-docs-update-list').onclick   = () => _doUpdateDocList();
+
+// ─── Update Doc List ──────────────────────────────────────────────────────────
+// Adds/removes/updates slots on an existing open doc request without re-sending the link.
+// Cannot remove slots that are already Uploaded, Accepted, or Rejected — shows warning.
+async function _doUpdateDocList() {
+  const shipmentId = document.getElementById('docs-shipment-id').value;
+  const req        = (PAGE_DATA.doc_requests[String(shipmentId)] || {}).doc_request;
+  if (!req || req.status === 'Closed') {
+    showModalError('modal-docs', 'No open doc request to update.');
+    return;
+  }
+
+  // Read checklist
+  const selectedDocs  = [];
+  const requiredFlags = {};
+  document.querySelectorAll('#docs-type-checklist .docs-type-chk:checked').forEach(function(chk) {
+    const key = chk.getAttribute('data-key');
+    if (!key) return;
+    selectedDocs.push(key);
+    const toggle = document.getElementById('doc-req-toggle-' + key);
+    requiredFlags[key] = toggle ? toggle.getAttribute('data-required') === 'true' : false;
+  });
+
+  if (!selectedDocs.length) {
+    showModalError('modal-docs', 'Select at least one document type.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-docs-update-list');
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+  clearModalError('modal-docs');
+
+  try {
+    const data = await API.post({
+      action:         'updateDocSlots',
+      shipment_id:    shipmentId,
+      doc_id:         req.doc_id,
+      required_docs:  selectedDocs,
+      required_flags: requiredFlags,
+      session_token:  Auth.getToken()
+    });
+    // Update stored request data
+    PAGE_DATA.doc_requests[String(shipmentId)] = data;
+    _renderDocSlots(data);
+    _buildDocTypeChecklist(shipmentId);
+    if (data.warning) {
+      showModalError('modal-docs', data.warning);
+    } else {
+      showToast('Doc list updated.', 'success');
+    }
+  } catch (e) {
+    showModalError('modal-docs', e.message || 'Update failed.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
 
 document.getElementById('btn-docs-copy').onclick = () => {
   const val = document.getElementById('docs-link-val').value;
