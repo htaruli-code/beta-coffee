@@ -1,4 +1,4 @@
-<!-- Version 1.2 | agent-activity.html -->
+<!-- Version 1.3 | agent-activity.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -119,7 +119,7 @@
 <script src="js/auth.js"></script>
 <script src="js/api.js"></script>
 <script>
-// Version 1.2 | agent-activity.html
+// Version 1.3 | agent-activity.html
 // v1.2: Match table restructured to 5 columns: Lot Code | BL Description | PO Line | Confidence | Method.
 //       BL Description (lot_desc + lot_qty) from extraction visible alongside PO Line name for comparison.
 //       AI reason shown under PO Line. Page widened to 1100px.
@@ -196,6 +196,7 @@ function renderList() {
   var confFilter    = document.getElementById('filter-conf').value;
   var outcomeFilter = document.getElementById('filter-outcome').value;
   var logs = PAGE_DATA.logs.filter(function(l) {
+    if (l.outcome === 'superseded') return false;  // v1.3: hide superseded — replaced by newer extract
     if (confFilter    && l.overall_confidence !== confFilter)    return false;
     if (outcomeFilter && l.outcome            !== outcomeFilter) return false;
     return true;

@@ -1,4 +1,4 @@
-<!-- Version 1.0 | shipment-docs-submit.html -->
+<!-- Version 1.2 | shipment-docs-submit.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,33 +22,63 @@
     .page { max-width: 680px; margin: 0 auto; padding: 2rem 1.5rem; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
     .card-title { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; margin-bottom: 0.75rem; }
-    .info-row { display: flex; gap: 1rem; margin-bottom: 0.4rem; font-size: 0.8rem; flex-wrap: wrap; }
-    .info-label { color: var(--muted); font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; min-width: 100px; }
-    .info-val { font-family: var(--font-mono); }
-    .section-label { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 1.25rem 0 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
-    .slot { display: flex; align-items: flex-start; justify-content: space-between; padding: 0.9rem 0; border-bottom: 1px solid var(--border); gap: 1rem; }
+    .slot { padding: 1rem 0; border-bottom: 1px solid var(--border); }
     .slot:last-child { border-bottom: none; }
-    .slot-left { flex: 1; min-width: 0; }
-    .slot-name { font-size: 0.88rem; font-weight: 500; margin-bottom: 0.2rem; }
-    .slot-req  { font-size: 0.68rem; font-family: var(--font-mono); color: var(--accent); margin-left: 0.4rem; }
-    .slot-files { margin-top: 0.3rem; }
-    .slot-file-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; font-family: var(--font-mono); color: var(--success); margin-bottom: 0.15rem; }
-    .slot-file-item .f-remove { cursor: pointer; color: var(--muted); font-size: 0.8rem; padding: 0 0.2rem; line-height: 1; }
-    .slot-file-item .f-remove:hover { color: var(--error); }
-    .slot-rejection { font-size: 0.75rem; color: var(--error); background: rgba(192,57,43,0.06); border: 1px solid rgba(192,57,43,0.2); border-radius: var(--radius); padding: 0.4rem 0.6rem; margin-top: 0.4rem; }
-    .slot-notes { margin-top: 0.35rem; }
-    .slot-notes textarea { width: 100%; font-size: 0.75rem; font-family: var(--font-mono); padding: 0.4rem 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); resize: vertical; min-height: 48px; color: var(--text); }
+    /* slot name row */
+    .slot-name { font-size: 0.88rem; font-weight: 500; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .slot-req  { font-size: 0.68rem; font-family: var(--font-mono); color: var(--accent); }
+    /* file count pill */
+    .file-count {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600;
+      background: rgba(196,122,43,0.12); color: var(--accent);
+      border: 1px solid rgba(196,122,43,0.25); border-radius: 10px;
+      padding: 0.1rem 0.45rem; white-space: nowrap;
+    }
+    /* file list */
+    .slot-files { margin-bottom: 0.5rem; }
+    .slot-files-heading { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.3rem; }
+    .slot-file-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.75rem; font-family: var(--font-mono); color: var(--success);
+      margin-bottom: 0.2rem; background: rgba(46,125,82,0.05);
+      border: 1px solid rgba(46,125,82,0.15); border-radius: var(--radius);
+      padding: 0.3rem 0.5rem;
+    }
+    .slot-file-item .f-idx { color: var(--muted); font-size: 0.65rem; min-width: 1.2rem; }
+    .slot-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* rejection notice */
+    .slot-rejection { font-size: 0.75rem; color: var(--error); background: rgba(192,57,43,0.06); border: 1px solid rgba(192,57,43,0.2); border-radius: var(--radius); padding: 0.4rem 0.6rem; margin-bottom: 0.5rem; }
+    /* notes section — v1.2: dedicated Save Notes button, not tied to upload */
+    .slot-notes { margin-bottom: 0.5rem; }
+    .slot-notes-label {
+      font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.3rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .slot-notes-saved { font-size: 0.65rem; color: var(--success); display: none; }
+    .slot-notes textarea {
+      width: 100%; font-size: 0.75rem; font-family: var(--font-mono);
+      padding: 0.4rem 0.6rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); resize: vertical; min-height: 52px; color: var(--text);
+    }
     .slot-notes textarea:focus { outline: none; border-color: var(--accent); }
-    .slot-right { display: flex; flex-direction: column; gap: 0.35rem; flex-shrink: 0; }
+    .slot-notes-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; }
+    /* upload + clear actions */
+    .slot-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .multi-hint { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); margin-top: 0.3rem; }
+    /* badges */
     .badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2px; }
     .badge-pending  { background: #f0f0f0; color: #666; }
     .badge-uploaded { background: #edf7f0; color: #1e6640; }
     .badge-accepted { background: #d1fae5; color: #065f46; }
     .badge-rejected { background: #fdecea; color: var(--error); }
+    /* buttons */
     .btn { display: inline-flex; align-items: center; gap: 0.35rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.45rem 0.85rem; cursor: pointer; border-radius: var(--radius); transition: opacity 0.15s; white-space: nowrap; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); }
+    .btn-sm { font-size: 0.65rem; padding: 0.3rem 0.6rem; }
     .btn-danger { background: transparent; color: var(--error); border: 1px solid rgba(192,57,43,0.3); font-size: 0.68rem; padding: 0.3rem 0.6rem; }
     .btn-danger:hover:not(:disabled) { border-color: var(--error); }
     .file-input { display: none; }
@@ -76,28 +106,34 @@
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
 <script>
-// Version 1.0 | shipment-docs-submit.html
+// Version 1.2 | shipment-docs-submit.html
+// v1.2: Notes are now saved via a dedicated "Save Notes" button (saveSlotNotes action).
+//       Notes are no longer bundled silently into the upload call only.
+//       Notes typed before OR after upload are now both saved explicitly.
+//       Textarea label reads "Notes for staff" with a "Saved ✓" confirmation.
+//       uploadFile() still passes current notes to uploadSlotFile for consistency.
+//       v1.1 multi-file UX retained: file count pill, numbered file list, delegated events.
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof API === 'undefined') throw new Error('api.js not loaded');
 
-let PAGE_DATA = { doc_id: null, slots: [], status: 'Pending' };
-let TOKEN     = '';
+var PAGE_DATA = { doc_id: null, slots: [], status: 'Pending' };
+var TOKEN = '';
 
 function esc(v) {
   return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-(async () => {
-  const qs = new URLSearchParams(window.location.search);
-  TOKEN     = qs.get('t') || '';
+(async function() {
+  var qs = new URLSearchParams(window.location.search);
+  TOKEN  = qs.get('t') || '';
   if (!TOKEN) { renderError('This link is invalid. Please contact your buyer.'); return; }
   try {
-    const data = await API.post({ action: 'getShipmentDocsPage', token: TOKEN });
-    PAGE_DATA  = Object.assign(PAGE_DATA, data);
+    var data = await API.post({ action: 'getShipmentDocsPage', token: TOKEN });
+    PAGE_DATA = Object.assign(PAGE_DATA, data);
     render();
   } catch (e) {
-    if (e.code === 'EXPIRED')        renderError('This upload link has expired. Please contact your buyer to send a new one.');
+    if (e.code === 'EXPIRED')            renderError('This upload link has expired. Please contact your buyer to send a new one.');
     else if (e.code === 'INVALID_TOKEN') renderError('This link is invalid or has already been used.');
     else renderError('Failed to load: ' + (e.message || 'Unknown error'));
   }
@@ -105,7 +141,7 @@ function esc(v) {
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function render() {
-  const d = PAGE_DATA;
+  var d = PAGE_DATA;
 
   if (d.status === 'Closed') {
     document.getElementById('page-content').innerHTML =
@@ -117,13 +153,13 @@ function render() {
 
   document.getElementById('hdr-brand').textContent = d.supplier_name || 'Sample Tracker';
 
-  const shipmentLine = [
+  var shipmentLine = [
     d.shipment_ref   ? 'Shipment: <strong>' + esc(d.shipment_ref)   + '</strong>' : '',
     d.booking_number ? 'Booking: <strong>'  + esc(d.booking_number) + '</strong>' : '',
     d.bill_of_lading ? 'BL: <strong>'       + esc(d.bill_of_lading) + '</strong>' : ''
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
-  const slotsHtml = (d.slots || []).map(buildSlotHtml).join('');
+  var slotsHtml = (d.slots || []).map(buildSlotHtml).join('');
 
   document.getElementById('page-content').innerHTML =
     '<div class="card">' +
@@ -134,86 +170,188 @@ function render() {
     '<div class="card">' +
       '<div class="card-title">Upload Documents</div>' +
       '<div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.5rem">' +
-        'Upload each document when ready. You can return to this link at any time to add more.' +
+        'Upload each required document below. You can return to this link at any time to add more files.' +
       '</div>' +
       '<div id="slots-list">' + (slotsHtml || '<div class="empty">No documents required.</div>') + '</div>' +
     '</div>';
 }
 
+// ─── Build slot HTML ──────────────────────────────────────────────────────────
+// v1.2: Notes section has its own "Save Notes" button — independent of file upload.
+//       Supplier can type notes before or after uploading files and save explicitly.
+//       "Saved ✓" appears inline after save.
 function buildSlotHtml(slot) {
-  const badgeClass = { Pending:'pending', Uploaded:'uploaded', Accepted:'accepted', Rejected:'rejected' }[slot.status] || 'pending';
-  const isAccepted = slot.status === 'Accepted';
-  const isRejected = slot.status === 'Rejected';
-  const hasFiles   = slot.file_names && slot.file_names.length > 0;
+  var badgeClass = { Pending:'pending', Uploaded:'uploaded', Accepted:'accepted', Rejected:'rejected' }[slot.status] || 'pending';
+  var isAccepted = slot.status === 'Accepted';
+  var files      = slot.file_names || [];
+  var fileCount  = files.length;
 
-  const filesHtml = hasFiles
-    ? slot.file_names.map(function(name, i) {
-        return '<div class="slot-file-item">📄 ' + esc(name) +
-          (!isAccepted ? ' <span class="f-remove" onclick="clearSlot(' + slot.slot_id + ')" title="Clear all files">✕</span>' : '') +
-          '</div>';
-      }).join('')
+  // File count pill
+  var countPill = fileCount > 0
+    ? '<span class="file-count">📎 ' + fileCount + ' ' + (fileCount === 1 ? 'file' : 'files') + '</span>'
     : '';
 
-  const rejectionHtml = isRejected && slot.rejection_note
-    ? '<div class="slot-rejection">⚠ ' + esc(slot.rejection_note) + '</div>'
+  // Numbered file list
+  var filesHtml = '';
+  if (fileCount > 0) {
+    var fileItems = files.map(function(name, i) {
+      return '<div class="slot-file-item">' +
+        '<span class="f-idx">' + (i + 1) + '.</span>' +
+        '<span class="slot-file-name" title="' + esc(name) + '">📄 ' + esc(name) + '</span>' +
+      '</div>';
+    }).join('');
+    filesHtml =
+      '<div class="slot-files">' +
+        '<div class="slot-files-heading">Uploaded files</div>' +
+        fileItems +
+      '</div>';
+  }
+
+  // Rejection notice
+  var rejectionHtml = (slot.status === 'Rejected' && slot.rejection_note)
+    ? '<div class="slot-rejection">⚠ Rejected: ' + esc(slot.rejection_note) + '</div>'
     : '';
 
-  const uploadBtn = !isAccepted
-    ? '<label class="btn ' + (isRejected ? '' : 'btn-ghost') + '" style="' + (isRejected ? '' : 'background:transparent;color:var(--accent);border:1px solid var(--border)') + ';cursor:pointer">' +
-        '<input type="file" class="file-input" onchange="uploadFile(this,' + slot.slot_id + ')" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />' +
-        (hasFiles ? '+ Add File' : 'Choose File') +
+  // Notes section — shown for all non-accepted slots.
+  // v1.2: Has its own Save Notes button. Notes saved independently of upload.
+  //       Accepted slots: show notes read-only if present.
+  var notesHtml = '';
+  if (!isAccepted) {
+    notesHtml =
+      '<div class="slot-notes">' +
+        '<div class="slot-notes-label">' +
+          '<span>Notes for staff</span>' +
+          '<span class="slot-notes-saved" id="notes-saved-' + slot.slot_id + '">Saved ✓</span>' +
+        '</div>' +
+        '<textarea id="notes-' + slot.slot_id + '" placeholder="Optional — e.g. lot split, partial shipment, special packaging" rows="2">' +
+          esc(slot.supplier_notes || '') +
+        '</textarea>' +
+        '<div class="slot-notes-actions">' +
+          '<button class="btn btn-ghost btn-sm" data-save-notes="' + slot.slot_id + '">Save Notes</button>' +
+        '</div>' +
+      '</div>';
+  } else if (slot.supplier_notes) {
+    notesHtml =
+      '<div style="font-size:0.75rem;font-family:var(--font-mono);color:var(--muted);margin-bottom:0.5rem">' +
+        '📝 ' + esc(slot.supplier_notes) +
+      '</div>';
+  }
+
+  // Upload button: "Choose File" when empty, "+ Add File" when files exist
+  var uploadBtn = !isAccepted
+    ? '<label class="btn btn-ghost" style="cursor:pointer">' +
+        '<input type="file" class="file-input" data-slot-id="' + slot.slot_id + '" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />' +
+        (fileCount > 0 ? '+ Add File' : 'Choose File') +
       '</label>'
     : '';
 
-  const clearBtn = hasFiles && !isAccepted
-    ? '<button class="btn btn-danger" onclick="clearSlot(' + slot.slot_id + ')">Clear All</button>'
+  var clearBtn = fileCount > 0 && !isAccepted
+    ? '<button class="btn btn-danger" data-clear-slot="' + slot.slot_id + '">Clear All</button>'
+    : '';
+
+  var multiHint = !isAccepted
+    ? '<div class="multi-hint">Multiple files allowed per document type.</div>'
     : '';
 
   return '<div class="slot" id="slot-' + slot.slot_id + '">' +
-    '<div class="slot-left">' +
-      '<div class="slot-name">' +
-        esc(slot.label || slot.doc_type) +
-        (slot.required ? '<span class="slot-req">required</span>' : '') +
-        ' <span class="badge badge-' + badgeClass + '">' + esc(slot.status) + '</span>' +
-      '</div>' +
-      (filesHtml   ? '<div class="slot-files">' + filesHtml + '</div>' : '') +
-      (rejectionHtml) +
-      (!isAccepted ? '<div class="slot-notes"><textarea id="notes-' + slot.slot_id + '" placeholder="Optional notes..." rows="2">' +
-        esc(slot.supplier_notes || '') + '</textarea></div>' : '') +
+    '<div class="slot-name">' +
+      esc(slot.label || slot.doc_type) +
+      (slot.required ? '<span class="slot-req">required</span>' : '') +
+      ' <span class="badge badge-' + badgeClass + '">' + esc(slot.status) + '</span>' +
+      countPill +
     '</div>' +
-    '<div class="slot-right">' + uploadBtn + clearBtn + '</div>' +
+    filesHtml +
+    rejectionHtml +
+    notesHtml +
+    '<div class="slot-actions">' + uploadBtn + clearBtn + '</div>' +
+    multiHint +
   '</div>';
 }
 
-// ─── Upload ───────────────────────────────────────────────────────────────────
-async function uploadFile(input, slotId) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  input.value = ''; // reset so same file can be re-selected
+// ─── Event delegation ─────────────────────────────────────────────────────────
+document.addEventListener('change', function(e) {
+  var input = e.target;
+  if (!input.classList.contains('file-input')) return;
+  var slotId = parseInt(input.getAttribute('data-slot-id'), 10);
+  if (!slotId) return;
+  uploadFile(input, slotId);
+});
 
-  const MAX_MB = 6;
+document.addEventListener('click', function(e) {
+  var clearBtn = e.target.closest('[data-clear-slot]');
+  if (clearBtn) {
+    clearSlot(parseInt(clearBtn.getAttribute('data-clear-slot'), 10));
+    return;
+  }
+  var notesBtn = e.target.closest('[data-save-notes]');
+  if (notesBtn) {
+    saveNotes(parseInt(notesBtn.getAttribute('data-save-notes'), 10), notesBtn);
+    return;
+  }
+});
+
+// ─── Save Notes ───────────────────────────────────────────────────────────────
+// v1.2: Standalone save — does NOT require a file upload.
+//       Calls saveSlotNotes action, shows inline "Saved ✓" confirmation.
+async function saveNotes(slotId, btn) {
+  var notes = (document.getElementById('notes-' + slotId) || {}).value || '';
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    await API.post({
+      action:         'saveSlotNotes',
+      token:          TOKEN,
+      slot_id:        slotId,
+      supplier_notes: notes
+    });
+    // Show inline "Saved ✓" briefly
+    var savedEl = document.getElementById('notes-saved-' + slotId);
+    if (savedEl) {
+      savedEl.style.display = '';
+      setTimeout(function() { savedEl.style.display = 'none'; }, 2500);
+    }
+    // Update PAGE_DATA so notes survive rerenderSlots
+    (PAGE_DATA.slots || []).forEach(function(s) {
+      if (String(s.slot_id) === String(slotId)) s.supplier_notes = notes;
+    });
+  } catch (e) {
+    showAlert(e.message || 'Could not save notes. Please try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+// ─── Upload ───────────────────────────────────────────────────────────────────
+// Notes are also passed at upload time so both are always in sync.
+async function uploadFile(input, slotId) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  var MAX_MB = 6;
   if (file.size > MAX_MB * 1024 * 1024) {
     showAlert('File too large. Maximum size is ' + MAX_MB + ' MB.', 'error');
     return;
   }
 
-  const notes = (document.getElementById('notes-' + slotId) || {}).value || '';
+  // Read current notes textarea value and pass it alongside the file
+  var notes = (document.getElementById('notes-' + slotId) || {}).value || '';
 
-  // Encode to base64
-  const base64 = await new Promise(function(res, rej) {
-    const reader = new FileReader();
+  var base64 = await new Promise(function(res, rej) {
+    var reader = new FileReader();
     reader.onload  = function() { res(reader.result.split(',')[1]); };
     reader.onerror = rej;
     reader.readAsDataURL(file);
   });
 
-  // Show spinner
-  const slotEl = document.getElementById('slot-' + slotId);
+  var slotEl = document.getElementById('slot-' + slotId);
   if (slotEl) slotEl.style.opacity = '0.6';
   showAlert('Uploading ' + file.name + '…', 'info');
 
   try {
-    const data = await API.post({
+    var data = await API.post({
       action:         'uploadSlotFile',
       token:          TOKEN,
       slot_id:        slotId,
@@ -224,7 +362,7 @@ async function uploadFile(input, slotId) {
         data_base64: base64
       }
     });
-    PAGE_DATA.slots  = data.slots  || PAGE_DATA.slots;
+    PAGE_DATA.slots  = data.slots      || PAGE_DATA.slots;
     PAGE_DATA.status = data.doc_status || PAGE_DATA.status;
     clearAlert();
     rerenderSlots();
@@ -236,9 +374,14 @@ async function uploadFile(input, slotId) {
 
 // ─── Clear ────────────────────────────────────────────────────────────────────
 async function clearSlot(slotId) {
-  if (!confirm('Remove all files from this slot so you can re-upload?')) return;
+  var slot      = (PAGE_DATA.slots || []).find(function(s) { return s.slot_id === slotId; });
+  var fileCount = slot && slot.file_names ? slot.file_names.length : 0;
+  var msg = fileCount > 1
+    ? 'Remove all ' + fileCount + ' files from this slot so you can re-upload?'
+    : 'Remove the uploaded file from this slot so you can re-upload?';
+  if (!confirm(msg)) return;
   try {
-    const data = await API.post({ action: 'clearSlotFiles', token: TOKEN, slot_id: slotId });
+    var data = await API.post({ action: 'clearSlotFiles', token: TOKEN, slot_id: slotId });
     PAGE_DATA.slots = data.slots || PAGE_DATA.slots;
     rerenderSlots();
   } catch (e) {
@@ -248,7 +391,7 @@ async function clearSlot(slotId) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function rerenderSlots() {
-  const list = document.getElementById('slots-list');
+  var list = document.getElementById('slots-list');
   if (!list) return;
   list.innerHTML = (PAGE_DATA.slots || []).map(buildSlotHtml).join('') ||
     '<div class="empty">No documents required.</div>';
@@ -260,7 +403,7 @@ function renderError(msg) {
 }
 
 function showAlert(msg, type) {
-  let el = document.getElementById('page-alert');
+  var el = document.getElementById('page-alert');
   if (!el) {
     el = document.createElement('div');
     el.id = 'page-alert';
@@ -271,7 +414,7 @@ function showAlert(msg, type) {
 }
 
 function clearAlert() {
-  const el = document.getElementById('page-alert');
+  var el = document.getElementById('page-alert');
   if (el) el.remove();
 }
 </script>

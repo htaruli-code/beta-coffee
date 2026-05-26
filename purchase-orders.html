@@ -1,4 +1,4 @@
-<!-- Version 2.3.2 | purchase-orders.html -->
+<!-- Version 2.3.3 | purchase-orders.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -466,6 +466,17 @@
         <select id="po-currency"></select>
       </div>
     </div>
+    <!-- v2.3.3: Destination warehouse + location — used for agent receive routing + email -->
+    <div class="field-row">
+      <div class="field">
+        <label>Destination Warehouse</label>
+        <select id="po-warehouse" onchange="updatePoLocations()"></select>
+      </div>
+      <div class="field">
+        <label>Default Location</label>
+        <select id="po-location"></select>
+      </div>
+    </div>
     <div class="field">
       <label>Notes</label>
       <textarea id="po-notes" placeholder="Optional notes…"></textarea>
@@ -583,7 +594,7 @@
         <input type="text" id="recv-sample-name" placeholder="Sample name" />
       </div>
       <div class="field" style="max-width:140px">
-        <label>Lot Number <span id="recv-lot-prefill-hint" style="display:none;font-size:0.65rem;color:var(--success);font-weight:400">⚡ pre-filled</span></label>
+        <label>Lot Number</label>
         <input type="text" id="recv-lot-number" placeholder="Internal ref" />
       </div>
     </div>
@@ -866,7 +877,7 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.3.2 | purchase-orders.html
+// Version 2.3.3 | purchase-orders.html
 // v2.3.1: BUG FIX — PO date blank on Edit modal.
 //          Added toInputDate() helper — normalises any date format (ISO string, Date
 //          serialised, locale string) to YYYY-MM-DD, the only format input[type=date]
@@ -944,16 +955,24 @@ function renderPoList() {
   if (!pos.length) { list.innerHTML = '<div class="empty">No purchase orders found.</div>'; return; }
 
   list.innerHTML = pos.map(po => {
-    const supplier = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(po.supplier_id));
-    const lines    = po.lines || [];
-    const currency = po.currency || 'USD';
-    const total    = calcPoTotal(lines, currency);
+    const supplier  = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(po.supplier_id));
+    const lines     = po.lines || [];
+    const currency  = po.currency || 'USD';
+    const total     = calcPoTotal(lines, currency);
+    // v2.3.3: warehouse display
+    const warehouse = po.warehouse_id
+      ? (PAGE_DATA.warehouses || []).find(w => String(w.warehouse_id) === String(po.warehouse_id))
+      : null;
+    const whLine = warehouse
+      ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:0.2rem">🏭 ${esc(warehouse.warehouse_name)}</div>`
+      : '';
     return `
     <div class="card">
       <div class="card-header">
         <div>
           <div class="card-title">${esc(po.po_number)} <span class="badge badge-${po.status.toLowerCase().replace(' ','-')}">${esc(po.status)}</span></div>
           <div class="card-sub">${supplier ? esc(supplier.supplier_name) : '—'} · ${fmtDate(po.po_date)} · ${esc(currency)} · ${lines.length} line${lines.length !== 1 ? 's' : ''}</div>
+          ${whLine}
         </div>
         <div class="card-actions">
           <button class="btn btn-ghost btn-sm" onclick="openLineModal(${po.po_id})">+ Line</button>
@@ -1049,9 +1068,7 @@ function openPoModal(poId) {
     `<option value="${s}" ${po && po.status === s ? 'selected' : ''}>${s}</option>`
   ).join('');
 
-  // v2.4: Currency dropdown — populated from PAGE_DATA.currencies
-  // For EDIT: use the PO's saved currency (po.currency)
-  // For NEW: default to selected supplier's currency, fall back to first allowed
+  // v2.4: Currency dropdown
   const curr = document.getElementById('po-currency');
   const allowedCurr = (PAGE_DATA.currencies && PAGE_DATA.currencies.length)
     ? PAGE_DATA.currencies : ['USD'];
@@ -1059,8 +1076,7 @@ function openPoModal(poId) {
   if (po) {
     selectedCurr = po.currency || allowedCurr[0];
   } else {
-    // Default from currently selected supplier
-    const supId = sup.value;
+    const supId  = sup.value;
     const supObj = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(supId));
     selectedCurr = (supObj && supObj.currency) || allowedCurr[0];
   }
@@ -1068,21 +1084,44 @@ function openPoModal(poId) {
     `<option value="${c}" ${c === selectedCurr ? 'selected' : ''}>${c}</option>`
   ).join('');
 
-  // When supplier changes on a NEW PO, refresh currency to that supplier's default
-  // (only on NEW — on EDIT, keep whatever was saved)
   if (!po) {
     sup.onchange = () => {
-      const newSupId = sup.value;
-      const newSup = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(newSupId));
-      if (newSup && newSup.currency) {
-        curr.value = newSup.currency;
-      }
+      const newSup = PAGE_DATA.suppliers.find(s => String(s.supplier_id) === String(sup.value));
+      if (newSup && newSup.currency) curr.value = newSup.currency;
     };
   } else {
     sup.onchange = null;
   }
 
+  // v2.3.3: Warehouse + Location dropdowns
+  const whSel = document.getElementById('po-warehouse');
+  whSel.innerHTML = '<option value="">— Select Warehouse —</option>' +
+    (PAGE_DATA.warehouses || []).map(w =>
+      `<option value="${w.warehouse_id}" ${po && String(po.warehouse_id) === String(w.warehouse_id) ? 'selected' : ''}>${esc(w.warehouse_name)}</option>`
+    ).join('');
+
+  // Populate locations based on selected warehouse
+  updatePoLocations();
+
+  // If editing and location is set, select it after locations are populated
+  if (po && po.location_id) {
+    const locSel = document.getElementById('po-location');
+    locSel.value = po.location_id;
+  }
+
   clearModalError('modal-po'); document.getElementById('modal-po').classList.add('open');
+}
+
+function updatePoLocations() {
+  const whId  = document.getElementById('po-warehouse').value;
+  const locSel = document.getElementById('po-location');
+  const locs  = (PAGE_DATA.locations || []).filter(l =>
+    String(l.warehouse_id) === String(whId) && l.is_active !== false
+  );
+  locSel.innerHTML = '<option value="">— Select Location —</option>' +
+    locs.map(l =>
+      `<option value="${l.location_id}">${esc(l.facility_name || l.location_id)}</option>`
+    ).join('');
 }
 
 document.getElementById('btn-new-po').onclick   = () => openPoModal(null);
@@ -1093,14 +1132,16 @@ document.getElementById('btn-po-save').onclick = async () => {
   btn.disabled = true;
 
   const payload = {
-    action:      'savePurchaseOrder',
-    po_id:       document.getElementById('po-id').value      || null,
-    supplier_id: document.getElementById('po-supplier').value,
-    po_number:   document.getElementById('po-number').value,
-    po_date:     document.getElementById('po-date').value,
-    status:      document.getElementById('po-status').value,
-    notes:       document.getElementById('po-notes').value,
-    currency:    document.getElementById('po-currency').value || 'USD'  // v2.4
+    action:       'savePurchaseOrder',
+    po_id:        document.getElementById('po-id').value      || null,
+    supplier_id:  document.getElementById('po-supplier').value,
+    po_number:    document.getElementById('po-number').value,
+    po_date:      document.getElementById('po-date').value,
+    status:       document.getElementById('po-status').value,
+    notes:        document.getElementById('po-notes').value,
+    currency:     document.getElementById('po-currency').value || 'USD',
+    warehouse_id: document.getElementById('po-warehouse').value || '',  // v2.3.3
+    location_id:  document.getElementById('po-location').value  || ''   // v2.3.3
   };
 
   try {
@@ -1648,8 +1689,6 @@ async function openReceiveModal(poLineId, poId) {
   // v2.3.2: pre-fill lot number from lot_code (ICO code) pumped in Phase 1
   // If lot_code is empty, field stays blank for manual entry
   document.getElementById('recv-lot-number').value    = line.lot_code     || '';
-  const prefillHint = document.getElementById('recv-lot-prefill-hint');
-  if (prefillHint) prefillHint.style.display = line.lot_code ? '' : 'none';
   document.getElementById('recv-date').value           = new Date().toISOString().slice(0, 10);
   document.getElementById('recv-bag-size').value       = line.bag_size     || '';
   document.getElementById('recv-cost').value           = line.cost_price   || '';

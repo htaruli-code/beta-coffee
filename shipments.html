@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.6.4 | shipments.html -->
+<!-- Version 2.6.6 | shipments.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1895,8 +1895,16 @@ function openDocsPanel(shipmentId) {
   clearModalError('modal-docs');
   document.getElementById('docs-link-row').style.display    = 'none';
   document.getElementById('docs-copy-confirm').style.display = 'none';
-  const extractEl = document.getElementById('docs-extract-result');
-  if (extractEl) { extractEl.style.display = 'none'; extractEl.innerHTML = ''; }
+
+  // Reset right column
+  const extractCol = document.getElementById('docs-extract-col');
+  const extractEl  = document.getElementById('docs-extract-result');
+  if (extractCol) extractCol.style.display = 'none';
+  if (extractEl)  { extractEl.style.display = 'none'; extractEl.innerHTML = ''; }
+
+  // v3.9: Show Phase 1 complete banner if lots already matched
+  const shipment = (PAGE_DATA.shipments || []).find(s => String(s.shipment_id) === String(shipmentId));
+  _renderPhase1Banner(shipment);
 
   // Populate supplier dropdown from linked POs
   const links       = PAGE_DATA._junctionMap[String(shipmentId)] || [];
@@ -1926,7 +1934,216 @@ function openDocsPanel(shipmentId) {
   _buildDocTypeChecklist(shipmentId);
   _loadDocSlots(shipmentId);
 
+  // v2.6.6: Auto-load agent extraction result if lots not yet matched.
+  // Calls getAgentActivityPage server-side — avoids stale PAGE_DATA.
+  // Shows right column with computed matches + Pump button without re-extracting.
+  const shipmentForCheck = (PAGE_DATA.shipments || []).find(s => String(s.shipment_id) === String(shipmentId));
+  if (!shipmentForCheck || !shipmentForCheck.lots_matched_at) {
+    _autoLoadAgentResult(shipmentId);
+  }
+
   document.getElementById('modal-docs').classList.add('open');
+}
+
+// v2.6.6: Load latest non-superseded COMPUTE_MATCHES from agent_activity_log.
+// Called on modal open when Phase 1 is not yet complete.
+// If found: renders matching table in right column with "Computed by agent/staff" banner.
+// Staff can review, adjust lot codes, then pump — no re-extraction needed.
+async function _autoLoadAgentResult(shipmentId) {
+  try {
+    const data = await API.post({
+      action:      'getAgentActivityPage',
+      shipment_id: shipmentId
+    });
+    const logs = data.logs || [];
+    // Find latest COMPUTE_MATCHES that is not superseded
+    const latest = logs.find(function(l) {
+      return l.action === 'COMPUTE_MATCHES' && l.outcome !== 'superseded';
+    });
+    if (!latest || !latest.matches || !latest.matches.length) return;
+
+    // Show right column
+    const col = document.getElementById('docs-extract-col');
+    const el  = document.getElementById('docs-extract-result');
+    if (!col || !el) return;
+    col.style.display = '';
+
+    // Build banner
+    var triggeredBy = latest.triggered_by === 'agent' ? 'Agent' : 'Staff';
+    var bannerColor = latest.overall_confidence === 'high'   ? '#d4edda'
+                    : latest.overall_confidence === 'medium' ? 'rgba(196,122,43,0.1)'
+                    :                                          '#fdecea';
+    var bannerText  = latest.overall_confidence === 'high'   ? '✓ High confidence'
+                    : latest.overall_confidence === 'medium' ? '~ Medium confidence'
+                    :                                          '⚠ Low confidence — review matches';
+    var banner =
+      '<div style="background:' + bannerColor + ';border-radius:var(--radius);padding:0.5rem 0.75rem;font-size:0.72rem;font-family:var(--font-mono);margin-bottom:0.6rem">' +
+        triggeredBy + ' computed on ' + esc(fmtDate(latest.created_at)) + ' · ' + bannerText +
+      '</div>';
+
+    // Build match table from matches_json
+    // Each match: { po_line_id, sample_name, qty_bags, lot_code, lot_desc, lot_qty, confidence, method, ai_reason }
+    var confLabels = { high:'✓ High', medium:'~ Medium', low:'⚠ Low', pending_review:'⚠ Review' };
+    var confStyle  = { high:'background:#d4edda;color:#1e6640', medium:'background:rgba(196,122,43,0.12);color:var(--accent)', low:'background:#fdecea;color:var(--error)', pending_review:'background:#fdecea;color:var(--error)' };
+
+    var rows = latest.matches.map(function(m, midx) {
+      var cs  = confStyle[m.confidence]  || 'color:var(--muted)';
+      var cl  = confLabels[m.confidence] || '';
+      var ai  = m.ai_reason ? '<div style="font-size:0.65rem;color:var(--muted);font-family:var(--font-mono);margin-top:0.15rem">AI: ' + esc(m.ai_reason) + '</div>' : '';
+      return '<tr>' +
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:0.75rem">' +
+          '<div style="font-weight:500">' + esc(m.sample_name || '—') + '</div>' +
+          '<div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--muted)">' + (m.qty_bags || '?') + ' bags</div>' +
+        '</td>' +
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:0.73rem">' +
+          '<div style="font-family:var(--font-mono)">' + esc(m.lot_desc || '—') + '</div>' +
+          '<div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--muted)">' + (m.lot_qty || '?') + ' bags</div>' +
+        '</td>' +
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--border)">' +
+          '<input type="text" class="agent-match-input" data-po-line-id="' + m.po_line_id + '" ' +
+            'value="' + esc(m.lot_code || '') + '" ' +
+            'style="font-family:var(--font-mono);font-size:0.7rem;padding:0.2rem 0.4rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);width:100%;min-width:120px" />' +
+          ai +
+        '</td>' +
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--border)">' +
+          '<span style="font-size:0.65rem;font-family:var(--font-mono);padding:0.15rem 0.35rem;border-radius:2px;' + cs + '">' + esc(cl) + '</span>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    var table =
+      '<table style="width:100%;border-collapse:collapse;font-size:0.73rem">' +
+        '<thead><tr style="background:var(--surface)">' +
+          '<th style="padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.65rem">PO Line</th>' +
+          '<th style="padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.65rem">BL Description</th>' +
+          '<th style="padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.65rem">Lot Code</th>' +
+          '<th style="padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.65rem">Confidence</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>';
+
+    var pumpSection =
+      '<div style="margin-top:0.6rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">' +
+        '<button class="btn" id="btn-agent-pump" style="font-size:0.72rem">⬆ Pump to PO Lines</button>' +
+        '<span style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted)" id="agent-pump-result"></span>' +
+      '</div>';
+
+    el.innerHTML =
+      '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem;background:var(--surface)">' +
+        '<div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem">Extraction &amp; Matching</div>' +
+        banner + table + pumpSection +
+      '</div>';
+
+    // Store for pump action
+    _lastComputedMatches    = latest.matches;
+    _lastComputeLogId       = latest.log_id;
+    _lastExtractionShipment = String(shipmentId);
+
+    // Wire pump button
+    document.getElementById('btn-agent-pump').onclick = function() {
+      _doAgentPump(shipmentId, latest.log_id);
+    };
+
+  } catch (e) {
+    // Non-fatal — if activity log fetch fails, right column stays hidden
+    Logger && Logger.log && Logger.log('_autoLoadAgentResult: ' + e.message);
+  }
+}
+
+// Pump from agent-loaded match table
+async function _doAgentPump(shipmentId, logId) {
+  const btn    = document.getElementById('btn-agent-pump');
+  const result = document.getElementById('agent-pump-result');
+  if (!btn) return;
+
+  const inputs  = document.querySelectorAll('.agent-match-input');
+  const matches = [];
+  inputs.forEach(function(inp) {
+    const poLineId = inp.getAttribute('data-po-line-id');
+    if (!poLineId) return;
+    // Detect if staff changed from original computed value
+    const original     = (_lastComputedMatches || []).find(m => String(m.po_line_id) === String(poLineId));
+    const origLotCode  = original ? (original.lot_code || '') : '';
+    matches.push({
+      po_line_id:    poLineId,
+      lot_code:      inp.value.trim(),
+      staff_changed: inp.value.trim() !== origLotCode
+    });
+  });
+
+  if (!matches.length) return;
+
+  const orig = btn.textContent;
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+  if (result) result.textContent = '';
+
+  try {
+    await API.post({
+      action:      'staffConfirmMatches',
+      log_id:      logId,
+      shipment_id: shipmentId,
+      matches:     matches
+    });
+    if (result) { result.textContent = '✓ Lot codes pumped. Phase 1 complete.'; result.style.color = 'var(--success)'; }
+    btn.textContent = '✓ Done';
+    refreshPageData();
+  } catch (e) {
+    if (result) { result.textContent = '⚠ ' + (e.message || 'Failed.'); result.style.color = 'var(--error)'; }
+    btn.disabled    = false;
+    btn.textContent = orig;
+  }
+}
+
+// v3.9: Phase 1 banner — shown when lots_matched_at is set
+// Hides/shows banner and controls extract button visibility
+function _renderPhase1Banner(shipment) {
+  var existing = document.getElementById('phase1-banner');
+  if (existing) existing.remove();
+
+  if (!shipment || !shipment.lots_matched_at) return;
+
+  var banner = document.createElement('div');
+  banner.id  = 'phase1-banner';
+  banner.style.cssText = 'background:#d4edda;border:1px solid #b8dfc5;border-radius:var(--radius);padding:0.6rem 0.85rem;font-size:0.78rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap';
+  banner.innerHTML =
+    '<span style="color:#1e6640">✓ Phase 1 Complete — Lots matched on ' + esc(fmtDate(shipment.lots_matched_at)) + '</span>' +
+    '<button class="btn btn-ghost" id="btn-reset-phase1" style="font-size:0.68rem;color:var(--error);border-color:rgba(192,57,43,0.3)">Reset Phase 1</button>';
+
+  // Insert before docs-send-section
+  var sendSection = document.getElementById('docs-send-section');
+  if (sendSection) sendSection.parentNode.insertBefore(banner, sendSection);
+
+  document.getElementById('btn-reset-phase1').onclick = function() { _doResetPhase1(shipment.shipment_id); };
+}
+
+// v3.9: Reset Phase 1 — confirm then POST resetPhase1
+async function _doResetPhase1(shipmentId) {
+  if (!confirm(
+    'Reset Phase 1 for this shipment?\n\n' +
+    'This will:\n' +
+    '• Clear all matched lot codes from PO lines\n' +
+    '• Reset extraction and matching flags\n' +
+    '• Mark existing activity log entries as superseded\n\n' +
+    'The extract button will be re-enabled.\n' +
+    'This cannot be done if any PO lines have already been received.'
+  )) return;
+
+  const btn = document.getElementById('btn-reset-phase1');
+  if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
+
+  try {
+    await API.post({ action: 'resetPhase1', shipment_id: shipmentId });
+    showToast('Phase 1 reset. Extract is now available.', 'success');
+    // Refresh page data so banner disappears and card badge updates
+    await refreshPageData();
+    // Re-render banner (now cleared)
+    const updated = (PAGE_DATA.shipments || []).find(s => String(s.shipment_id) === String(shipmentId));
+    _renderPhase1Banner(updated);
+  } catch (e) {
+    showToast(e.message || 'Reset failed.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Reset Phase 1'; }
+  }
 }
 
 // v2.5.9: Build doc type checklist — tick to include, toggle Required/Optional.
@@ -2019,6 +2236,10 @@ function _renderDocSlots(data) {
   const slots     = data.slots || [];
   const shipmentId = document.getElementById('docs-shipment-id').value;
 
+  // v3.9: Check Phase 1 lock — disable extract if lots already matched
+  const shipment     = (PAGE_DATA.shipments || []).find(s => String(s.shipment_id) === String(shipmentId));
+  const phase1Locked = !!(shipment && shipment.lots_matched_at);
+
   if (!req || !slots.length) {
     list.innerHTML = '<span style="color:var(--muted);font-size:0.75rem">No document request sent yet.</span>';
     return;
@@ -2030,7 +2251,6 @@ function _renderDocSlots(data) {
     const col   = statusColors[s.status] || 'var(--muted)';
     const hasFiles = s.files && s.files.length > 0;
 
-    // Plain filename list — no Drive links (staff uses View button instead)
     const filesHtml = hasFiles
       ? (s.files || []).map(f =>
           '<div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--muted);margin-top:0.2rem">' +
@@ -2039,7 +2259,6 @@ function _renderDocSlots(data) {
         ).join('')
       : '';
 
-    // Actions row: View + Accept/Reject + Extract
     let actionsHtml = '';
     if (hasFiles) {
       const viewBtn = '<button class="btn btn-ghost btn-sm" ' +
@@ -2051,11 +2270,15 @@ function _renderDocSlots(data) {
           '<button class="btn btn-ghost btn-sm" style="color:var(--error)" onclick="doRejectSlot(' + s.slot_id + ')">Reject</button>'
         : '';
 
+      // v3.9: Extract disabled when Phase 1 is locked (lots already matched)
       const extractBtn = s.extracts && hasFiles
-        ? '<button class="btn btn-ghost btn-sm" style="color:var(--info,#1a5ca8)" ' +
-            'onclick="doExtractSlots(' + s.slot_id + ')" title="Extract ICO codes and lot data from this document">' +
-            '⚡ Extract' +
-          '</button>'
+        ? phase1Locked
+          ? '<button class="btn btn-ghost btn-sm" disabled title="Phase 1 complete — Reset Phase 1 to re-extract" ' +
+              'style="opacity:0.4;cursor:not-allowed">⚡ Extract</button>'
+          : '<button class="btn btn-ghost btn-sm" style="color:var(--info,#1a5ca8)" ' +
+              'onclick="doExtractSlots(' + s.slot_id + ')" title="Extract ICO codes and lot data from this document">' +
+              '⚡ Extract' +
+            '</button>'
         : '';
 
       actionsHtml = '<div style="display:flex;gap:0.35rem;margin-top:0.4rem;flex-wrap:wrap">' +
@@ -2078,15 +2301,15 @@ function _renderDocSlots(data) {
     '</div>';
   }).join('');
 
-  // Extract all extractable uploaded slots in one shot
+  // v3.9: Extract All button disabled when Phase 1 locked
   const extractableUploaded = slots.filter(s =>
     s.extracts && (s.status === 'Uploaded' || s.status === 'Accepted') && s.files && s.files.length
   );
   const extractAllBtn = extractableUploaded.length > 1
     ? '<div style="margin-top:0.5rem">' +
-        '<button class="btn btn-sm" style="background:var(--info,#1a5ca8)" ' +
-        'onclick="doExtractAll()">' +
-        '⚡ Extract All (' + extractableUploaded.length + ' docs)</button>' +
+        (phase1Locked
+          ? '<button class="btn btn-sm" disabled style="background:var(--info,#1a5ca8);opacity:0.4;cursor:not-allowed" title="Phase 1 complete — Reset Phase 1 to re-extract">⚡ Extract All (' + extractableUploaded.length + ' docs)</button>'
+          : '<button class="btn btn-sm" style="background:var(--info,#1a5ca8)" onclick="doExtractAll()">⚡ Extract All (' + extractableUploaded.length + ' docs)</button>') +
       '</div>'
     : '';
 
