@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.17 | buyer-reserve.html -->
+<!-- Version 1.18 | buyer-reserve.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -21,10 +21,7 @@
     body { background: var(--surface); color: var(--text); font-family: var(--font-sans); min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; }
     .card { background: #ffffff; border: 1px solid var(--border); border-radius: 10px; width: 100%; max-width: 560px; padding: 2.5rem 2rem; }
     .card-logo { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2rem; }
-
-    /* v1.16: bold + 2px larger (1.1rem ≈ 17.6px → 1.225rem ≈ 19.6px) */
     .card-title { font-family: var(--font-mono); font-size: 1.225rem; font-weight: 700; margin-bottom: 0.3rem; }
-
     .card-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 2rem; }
     .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
     .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
@@ -66,14 +63,8 @@
     .st-toast--error { border-color: var(--error); color: var(--error); }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-    /* ── v1.16: Intent selector ─────────────────────────────────────────────── */
-    .intent-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0.6rem;
-      margin-bottom: 1.75rem;
-    }
-    .intent-option {
+    /* ── v1.18: Intent cards — Step 1 (full) ──────────────────────────────────── */
+    .intent-card-full {
       display: flex;
       align-items: flex-start;
       gap: 0.875rem;
@@ -81,48 +72,65 @@
       border-radius: var(--radius);
       padding: 0.875rem 1rem;
       cursor: pointer;
-      transition: border-color var(--transition), background var(--transition);
+      margin-bottom: 0.6rem;
       background: var(--bg);
+      transition: border-color var(--transition), background var(--transition);
+      user-select: none;
     }
-    .intent-option:hover { border-color: var(--border2); background: var(--surface); }
-    .intent-option.selected { border-color: var(--accent); background: var(--surface); }
-    .intent-radio {
+    .intent-card-full:last-child { margin-bottom: 0; }
+    .intent-card-full:hover { border-color: var(--border2); background: var(--surface); }
+    .intent-card-full:hover .intent-card-radio { border-color: var(--accent); }
+    .intent-card-radio {
       width: 17px; height: 17px;
       border: 2px solid var(--border2);
       border-radius: 50%;
       flex-shrink: 0;
       margin-top: 2px;
-      transition: border-color var(--transition), background var(--transition);
-      position: relative;
+      transition: border-color var(--transition);
     }
-    .intent-option.selected .intent-radio {
-      border-color: var(--accent);
-      background: var(--accent);
-    }
-    .intent-option.selected .intent-radio::after {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: #fff;
-    }
-    .intent-body {}
-    .intent-title {
+    .intent-card-title { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; color: var(--text); margin-bottom: 0.2rem; }
+    .intent-card-desc { font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── v1.18: Intent strip — Step 2 (compact pills) ─────────────────────────── */
+    .strip-pills { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 1.25rem; }
+    .strip-pill {
       font-family: var(--font-mono);
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 0.2rem;
-    }
-    .intent-desc {
-      font-size: 0.76rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.04em;
+      padding: 0.35rem 0.875rem;
+      border-radius: 20px;
+      border: 1.5px solid var(--border2);
+      background: var(--bg);
       color: var(--muted);
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .strip-pill:hover { border-color: var(--accent); color: var(--text); }
+    .strip-pill.active { border-color: var(--accent); background: var(--accent); color: #ffffff; }
+
+    /* ── v1.18: Input panel slide-in ──────────────────────────────────────────── */
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #input-panel { display: none; }
+    #input-panel.visible { display: block; animation: panelIn 0.22s ease forwards; }
+
+    /* ── v1.18: Notice banner (bags fully reserved) ───────────────────────────── */
+    .notice-banner {
+      background: #fff8f0;
+      border: 1px solid var(--border2);
+      border-left: 3px solid var(--warn);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-size: 0.8rem;
+      color: var(--warn);
       line-height: 1.5;
+      margin-bottom: 1rem;
     }
 
-    /* ── v1.16: Sample-only note block ─────────────────────────────────────── */
+    /* ── v1.16: Sample-only note ──────────────────────────────────────────────── */
     .sample-note {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -149,7 +157,7 @@
       <div class="error-msg" id="error-msg">This link has expired or is invalid.</div>
     </div>
 
-    <!-- Fully Reserved -->
+    <!-- Fully Reserved (kept as fallback — not auto-triggered in v1.18) -->
     <div id="state-full">
       <div class="full-icon">⊘</div>
       <div class="full-title">Fully Reserved</div>
@@ -167,11 +175,10 @@
 
     <!-- Form -->
     <div id="state-form">
-      <!-- v1.16: title is bold + 2px larger -->
       <div class="card-title">Reserve Bags</div>
       <div class="card-sub" id="form-sub">Choose what you would like to do with this sample.</div>
 
-      <!-- Sample info -->
+      <!-- Sample Details -->
       <div class="section-label">Sample Details</div>
       <div class="info-block">
         <div class="info-row"><span class="info-label">Sample</span><span class="info-value accent" id="info-sample-code">—</span></div>
@@ -182,85 +189,86 @@
         <div class="info-row"><span class="info-label">Your Minimum</span><span class="info-value warn" id="info-min-bags">—</span></div>
       </div>
 
-      <!-- Availability bar -->
+      <!-- Availability -->
       <div class="section-label">Availability</div>
       <div class="avail-bar-wrap">
         <div class="avail-bar-labels">
           <span id="bar-reserved-label">0 reserved</span>
-          <span id="bar-available-label">0 available</span>
+          <span id="bar-available-label">0 available to you</span>
         </div>
         <div class="avail-bar"><div class="avail-bar-fill" id="avail-bar-fill" style="width:100%"></div></div>
       </div>
+      <!-- v1.18: removed "Reserved by Others" row; use buyer_available as source of truth -->
       <div class="info-block" style="margin-top:0.75rem">
-        <div class="info-row"><span class="info-label">Total Bags</span><span class="info-value" id="info-total-bags">—</span></div>
-        <div class="info-row"><span class="info-label">Reserved by Others</span><span class="info-value warn" id="info-reserved">—</span></div>
-        <div class="info-row"><span class="info-label">You Can Reserve Up To</span><span class="info-value accent" id="info-available">—</span></div>
-        <div class="info-row" id="my-prev-row" style="display:none"><span class="info-label">Your Current Reservation</span><span class="info-value" id="info-my-prev">—</span></div>
+        <div class="info-row">
+          <span class="info-label">Total Bags</span>
+          <span class="info-value" id="info-total-bags">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">You Can Reserve Up To</span>
+          <span class="info-value accent" id="info-available">—</span>
+        </div>
+        <div class="info-row" id="my-prev-row" style="display:none">
+          <span class="info-label">Your Current Reservation</span>
+          <span class="info-value" id="info-my-prev">—</span>
+        </div>
       </div>
 
-      <!-- v1.8: Update minimums inline -->
+      <!-- Update minimums (v1.8) -->
       <div id="minimums-section" style="margin-bottom:1.5rem;display:none">
         <div class="section-label">Update Your Minimum Orders</div>
         <div id="minimums-update-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.5rem"></div>
         <button class="btn" id="btn-save-minimums" style="margin-top:0;padding:0.5rem 1rem;font-size:0.75rem;width:auto">Save Minimums</button>
       </div>
 
-      <!-- v1.16: Intent selector — shown before quantity input -->
+      <!-- v1.18: Intent — two-step flow ───────────────────────────────────────── -->
       <div class="section-label" style="margin-top:1.5rem">What would you like to do?</div>
-      <div class="intent-grid">
-        <div class="intent-option selected" id="intent-reserve" onclick="selectIntent('reserve')">
-          <div class="intent-radio"></div>
-          <div class="intent-body">
-            <div class="intent-title">Reserve Bags</div>
-            <div class="intent-desc">Commit to a bag quantity at your agreed price. No payment now — this holds your allocation.</div>
-          </div>
-        </div>
-        <div class="intent-option" id="intent-sample" onclick="selectIntent('sample_only')">
-          <div class="intent-radio"></div>
-          <div class="intent-body">
-            <div class="intent-title">Request a Sample Only</div>
-            <div class="intent-desc">Receive a physical sample to taste before committing. No quantity reservation is made.</div>
-          </div>
-        </div>
-        <div class="intent-option" id="intent-both" onclick="selectIntent('reserve_and_sample')">
-          <div class="intent-radio"></div>
-          <div class="intent-body">
-            <div class="intent-title">Reserve Bags + Request a Sample</div>
-            <div class="intent-desc">Hold your allocation now and receive a physical sample alongside your order.</div>
-          </div>
-        </div>
+
+      <!-- Notice banner: bags fully reserved but sample still possible -->
+      <div class="notice-banner" id="notice-no-bags" style="display:none">
+        All bags for this sample are fully reserved. You can still request a physical sample below.
       </div>
 
-      <!-- Bag input — shown for reserve and reserve_and_sample -->
-      <div id="reserve-fields">
+      <!-- Step 1: Full intent cards (dynamic, shown on load) -->
+      <div id="intent-cards-full"></div>
+
+      <!-- Step 2: Compact strip + input panel (shown after first selection) -->
+      <div id="intent-strip" style="display:none">
+        <div class="strip-pills" id="strip-pills"></div>
+      </div>
+
+      <!-- Input panel — revealed when buyer selects an intent -->
+      <div id="input-panel">
+
+        <!-- Bags input — shown for reserve and reserve_and_sample -->
+        <div id="reserve-fields">
+          <div class="field">
+            <label for="bags-input">Bags to Reserve <span style="color:var(--error)">*</span></label>
+            <input type="number" id="bags-input" min="1" placeholder="0" oninput="updatePricePreview()" />
+          </div>
+          <div class="price-preview" id="price-preview">
+            <div class="muted">Enter bag quantity to see price estimate</div>
+          </div>
+        </div>
+
+        <!-- Sample-only note — shown for sample_only -->
+        <div id="sample-only-note" class="sample-note" style="display:none">
+          <strong>Sample request only.</strong> No bags will be reserved. Our team will arrange a physical sample for you to taste. You can reserve bags after your evaluation.
+        </div>
+
+        <!-- Notes (v1.17) — always shown in input panel -->
         <div class="field">
-          <label for="bags-input">Bags to Reserve <span style="color:var(--error)">*</span></label>
-          <input type="number" id="bags-input" min="1" placeholder="0" oninput="updatePricePreview()" />
+          <label for="reserve-notes">Notes <span style="color:var(--muted);font-size:0.65rem;text-transform:none">(optional)</span></label>
+          <textarea id="reserve-notes" rows="3" maxlength="500"
+            placeholder="e.g. preferred bag size, delivery instructions, questions…"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:0.85rem;padding:0.65rem 0.875rem;outline:none;border-radius:var(--radius);resize:vertical;line-height:1.6;transition:border-color var(--transition)"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border)'"
+          ></textarea>
         </div>
 
-        <!-- Price preview -->
-        <div class="price-preview" id="price-preview">
-          <div class="muted">Enter bag quantity to see price estimate</div>
-        </div>
+        <button class="btn" id="btn-reserve">Confirm Reservation</button>
       </div>
-
-      <!-- Sample-only note — shown only for sample_only -->
-      <div id="sample-only-note" class="sample-note" style="display:none">
-        <strong>Sample request only.</strong> No bags will be reserved. Our team will arrange a physical sample for you to taste. You can reserve bags after your evaluation.
-      </div>
-
-      <!-- v1.17: Notes field — optional, sent in email to warehouse -->
-      <div class="field">
-        <label for="reserve-notes">Notes <span style="color:var(--muted);font-size:0.65rem;text-transform:none">(optional)</span></label>
-        <textarea id="reserve-notes" rows="3" maxlength="500"
-          placeholder="e.g. preferred bag size, delivery instructions, questions…"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-sans);font-size:0.85rem;padding:0.65rem 0.875rem;outline:none;border-radius:var(--radius);resize:vertical;line-height:1.6;transition:border-color var(--transition)"
-          onfocus="this.style.borderColor='var(--accent)'"
-          onblur="this.style.borderColor='var(--border)'"
-        ></textarea>
-      </div>
-
-      <button class="btn" id="btn-reserve">Confirm Reservation</button>
     </div>
   </div>
 
@@ -268,36 +276,109 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script>
-    // Version 1.17 | buyer-reserve.html script
-    // v1.16: intent selector (reserve / sample_only / reserve_and_sample)
-    //        passes mode to API.submitReservation — GAS handles routing.
-    // v1.17: Notes textarea added below bag input. Passed to API.submitReservation
-    //        as 4th param — forwarded to GAS and included in confirmation email.
-    //        Reserve Bags title: bold (700) + font-size 1.225rem (≈ +2px from 1.1rem).
+    // Version 1.18 | buyer-reserve.html
+    // v1.18: Two-step intent UX — full cards on load → compact pill strip after selection.
+    //        Dynamic intent list: Reserve/Reserve+Sample hidden when no bags available.
+    //        Single option still shown so buyer understands what they are doing.
+    //        Availability gate uses buyer_available (fresh INBOUND_DETAILS bypass) directly,
+    //        not total_reserved (previously from cached OUTBOUND_DETAILS — root of the bug).
+    //        Removed "Reserved by Others" display row.
+    //        Notice banner replaces state-full dead-end when bags fully reserved.
+    // v1.17: Notes textarea added.
+    // v1.16: Intent selector (reserve / sample_only / reserve_and_sample).
 
     const token = new URLSearchParams(window.location.search).get('t');
-    let PAGE_DATA = null;
-    let CURRENT_INTENT = 'reserve';   // v1.16: tracks selected mode
+    let PAGE_DATA        = null;
+    let CURRENT_INTENT   = null;   // null = not yet selected
+    let AVAILABLE_INTENTS = [];    // dynamic based on maxReservable
+    let INTENT_STEP      = 1;      // 1 = full cards, 2 = strip + panel
 
     function showState(id) {
-      // v1.11: must use 'block' not '' — empty string lets CSS display:none rule win
       ['state-loading','state-error','state-success','state-form','state-full'].forEach(s => {
         document.getElementById(s).style.display = s === id ? 'block' : 'none';
       });
     }
 
-    // ── v1.16: Intent selector ────────────────────────────────────────────────
-    function selectIntent(mode) {
-      CURRENT_INTENT = mode;
-      ['reserve','sample','both'].forEach(function(k) {
-        document.getElementById('intent-' + k).classList.remove('selected');
+    // ── v1.18: Build dynamic intent list ─────────────────────────────────────
+    function buildAvailableIntents(maxReservable) {
+      var intents = [];
+      if (maxReservable > 0) {
+        intents.push({
+          id:    'reserve',
+          title: 'Reserve Bags',
+          desc:  'Commit to a bag quantity at your agreed price. No payment now — this holds your allocation.'
+        });
+      }
+      intents.push({
+        id:    'sample_only',
+        title: 'Request a Sample Only',
+        desc:  'Receive a physical sample to taste before committing. No quantity reservation is made.'
       });
-      const idMap = { reserve: 'intent-reserve', sample_only: 'intent-sample', reserve_and_sample: 'intent-both' };
-      document.getElementById(idMap[mode]).classList.add('selected');
+      if (maxReservable > 0) {
+        intents.push({
+          id:    'reserve_and_sample',
+          title: 'Reserve Bags + Request a Sample',
+          desc:  'Hold your allocation now and receive a physical sample alongside your order.'
+        });
+      }
+      return intents;
+    }
 
-      const reserveFields  = document.getElementById('reserve-fields');
-      const sampleNote     = document.getElementById('sample-only-note');
-      const btn            = document.getElementById('btn-reserve');
+    // ── v1.18: Render full intent cards (Step 1) ─────────────────────────────
+    function renderIntentCards() {
+      var container = document.getElementById('intent-cards-full');
+      container.innerHTML = '';
+      AVAILABLE_INTENTS.forEach(function(intent) {
+        var card = document.createElement('div');
+        card.className = 'intent-card-full';
+        card.innerHTML =
+          '<div class="intent-card-radio"></div>' +
+          '<div>' +
+            '<div class="intent-card-title">' + UI.esc(intent.title) + '</div>' +
+            '<div class="intent-card-desc">'  + UI.esc(intent.desc)  + '</div>' +
+          '</div>';
+        card.addEventListener('click', (function(id) {
+          return function() { selectIntent(id); };
+        })(intent.id));
+        container.appendChild(card);
+      });
+    }
+
+    // ── v1.18: Render compact strip pills (Step 2) ───────────────────────────
+    function renderStripPills() {
+      var container = document.getElementById('strip-pills');
+      container.innerHTML = '';
+      AVAILABLE_INTENTS.forEach(function(intent) {
+        var pill = document.createElement('button');
+        pill.className = 'strip-pill' + (intent.id === CURRENT_INTENT ? ' active' : '');
+        pill.textContent = intent.id === CURRENT_INTENT ? '✓ ' + intent.title : intent.title;
+        pill.addEventListener('click', (function(id) {
+          return function() { selectIntent(id); };
+        })(intent.id));
+        container.appendChild(pill);
+      });
+    }
+
+    // ── v1.18: Select intent ──────────────────────────────────────────────────
+    // Handles both first tap (cards → strip transition) and strip pill tap (change intent).
+    function selectIntent(mode) {
+      var firstSelection = (INTENT_STEP === 1);
+      CURRENT_INTENT = mode;
+      INTENT_STEP    = 2;
+
+      if (firstSelection) {
+        document.getElementById('intent-cards-full').style.display = 'none';
+        document.getElementById('intent-strip').style.display      = '';
+        var panel = document.getElementById('input-panel');
+        panel.classList.add('visible');
+      }
+
+      renderStripPills();
+
+      // Show/hide bag input vs sample note based on mode
+      var reserveFields = document.getElementById('reserve-fields');
+      var sampleNote    = document.getElementById('sample-only-note');
+      var btn           = document.getElementById('btn-reserve');
 
       if (mode === 'sample_only') {
         reserveFields.style.display = 'none';
@@ -312,6 +393,16 @@
         sampleNote.style.display    = 'none';
         btn.textContent             = 'Confirm Reservation';
       }
+
+      // Auto-focus bags input on first selection for reserve modes
+      if (firstSelection && mode !== 'sample_only') {
+        setTimeout(function() {
+          var inp = document.getElementById('bags-input');
+          if (inp) inp.focus();
+        }, 260);
+      }
+
+      updatePricePreview();
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
@@ -325,47 +416,44 @@
       try {
         PAGE_DATA = await API.getBuyerReservePage(token);
 
-        // Populate sample info
+        // ── Sample info ──────────────────────────────────────────────────────
         document.getElementById('info-sample-code').textContent = PAGE_DATA.sample_code || '—';
         document.getElementById('info-sample-name').textContent = PAGE_DATA.sample_name || '—';
 
-        // v1.13: show bag size in the same unit as the sale price
-        const priceUnit = PAGE_DATA.sale_price_unit || 'kg';
-        const bagSizeKg = PAGE_DATA.bag_size || 0;
+        const priceUnit   = PAGE_DATA.sale_price_unit || 'kg';
+        const bagSizeKg   = PAGE_DATA.bag_size || 0;
         const bagSizeDisp = (priceUnit === 'lb')
           ? (bagSizeKg * 2.2046).toFixed(1) + ' lb'
           : bagSizeKg + ' kg';
-        document.getElementById('info-bag-size').textContent = bagSizeKg ? bagSizeDisp : '—';
-
-        // v1.13: build price label from real unit — no longer relies on sale_price_label
-        document.getElementById('info-price').textContent = PAGE_DATA.sale_price
-          ? '$' + parseFloat(PAGE_DATA.sale_price).toFixed(2) + ' / ' + priceUnit
-          : '—';
-        // v1.11.8: buyer level hidden from buyer view
-        document.getElementById('info-coffee-type').textContent  = PAGE_DATA.coffee_type || '—';  // v1.8
+        document.getElementById('info-bag-size').textContent    = bagSizeKg ? bagSizeDisp : '—';
+        document.getElementById('info-price').textContent       = PAGE_DATA.sale_price
+          ? '$' + parseFloat(PAGE_DATA.sale_price).toFixed(2) + ' / ' + priceUnit : '—';
+        document.getElementById('info-coffee-type').textContent = PAGE_DATA.coffee_type || '—';
         const minRequired = PAGE_DATA.min_bags_required || 0;
-        document.getElementById('info-min-bags').textContent    = minRequired > 0 ? minRequired + ' bags minimum' : 'No minimum set';  // v1.8
-        renderMinimumsUpdate();  // v1.8
+        document.getElementById('info-min-bags').textContent    = minRequired > 0 ? minRequired + ' bags minimum' : 'No minimum set';
+        renderMinimumsUpdate();
 
-        // v1.11.5: correct availability display
-        const total          = (PAGE_DATA.confirmed_purchase || PAGE_DATA.available_bags || 0);
-        const myPrev         = PAGE_DATA.already_reserved || 0;
-        const totalReserved  = PAGE_DATA.total_reserved   || 0;
-        const othersReserved = Math.max(0, totalReserved - myPrev);
-        const maxReservable  = Math.max(0, total - othersReserved);
+        // ── v1.18: Availability — buyer_available is the single source of truth ──
+        // buyer_available = ceiling − ALL reservations, computed live on every write.
+        // INBOUND_DETAILS is cache-bypass so this is always fresh from the sheet.
+        // total_reserved is used for the bar display only (informational).
+        const total         = PAGE_DATA.confirmed_purchase || PAGE_DATA.available_bags || 0;
+        const myPrev        = PAGE_DATA.already_reserved || 0;
+        const maxReservable = Math.max(0, (PAGE_DATA.buyer_available || 0) + myPrev);
+        const totalReserved = PAGE_DATA.total_reserved || 0;  // bar display only
 
         document.getElementById('info-total-bags').textContent = total + ' bags';
-        document.getElementById('info-reserved').textContent   = othersReserved + ' bags';
-        document.getElementById('info-available').textContent  = maxReservable + ' bags';
+        document.getElementById('info-available').textContent  =
+          maxReservable + ' bag' + (maxReservable === 1 ? '' : 's');
 
         if (myPrev > 0) {
-          document.getElementById('info-my-prev').textContent = myPrev + ' bags';
-          document.getElementById('my-prev-row').style.display = '';
-          document.getElementById('form-sub').textContent =
+          document.getElementById('info-my-prev').textContent    = myPrev + ' bag' + (myPrev === 1 ? '' : 's');
+          document.getElementById('my-prev-row').style.display   = '';
+          document.getElementById('form-sub').textContent        =
             'You have already reserved ' + myPrev + ' bag' + (myPrev === 1 ? '' : 's') + '. Submit again to update your reservation.';
         }
 
-        // Availability bar — shows total reserved (all buyers) vs total ceiling
+        // Availability bar — visual proportion of the pool that is taken
         const pctReserved = total > 0 ? Math.round((totalReserved / total) * 100) : 0;
         const pctAvail    = 100 - pctReserved;
         const bar = document.getElementById('avail-bar-fill');
@@ -373,20 +461,21 @@
         if (pctAvail <= 0)       bar.classList.add('none');
         else if (pctAvail <= 25) bar.classList.add('low');
         document.getElementById('bar-reserved-label').textContent  = totalReserved + ' reserved';
-        document.getElementById('bar-available-label').textContent = Math.max(0, total - totalReserved) + ' available';
+        document.getElementById('bar-available-label').textContent = maxReservable + ' available to you';
 
-        // Set input max
+        // Set input ceiling
         const input = document.getElementById('bags-input');
         input.max = maxReservable;
-        if (myPrev > 0) input.value = myPrev;  // pre-fill with existing reservation
+        if (myPrev > 0) input.value = myPrev;
 
-        // If nothing available — show full state
+        // Show notice if bags fully taken (sample_only will still be available below)
         if (maxReservable === 0 && myPrev === 0) {
-          showState('state-full');
-          document.getElementById('full-msg').textContent =
-            'All ' + total + ' bags for ' + (PAGE_DATA.sample_code || PAGE_DATA.sample_name) + ' have been reserved.';
-          return;
+          document.getElementById('notice-no-bags').style.display = '';
         }
+
+        // Build and render dynamic intent cards
+        AVAILABLE_INTENTS = buildAvailableIntents(maxReservable);
+        renderIntentCards();
 
         showState('state-form');
         updatePricePreview();
@@ -399,17 +488,14 @@
 
     // ── Price Preview ─────────────────────────────────────────────────────────
     function updatePricePreview() {
-      const preview  = document.getElementById('price-preview');
-      const bags     = parseInt(document.getElementById('bags-input').value) || 0;
-      const bagSize      = PAGE_DATA ? (PAGE_DATA.bag_size   || 0) : 0;
-      const price        = PAGE_DATA ? (PAGE_DATA.sale_price || null) : null;
-      const priceUnit    = PAGE_DATA ? (PAGE_DATA.sale_price_unit || 'kg') : 'kg';
-      // v1.11.6: use maxReservable (total - othersReserved) not available_now
-      const confirmed    = PAGE_DATA ? (PAGE_DATA.confirmed_purchase || PAGE_DATA.available_bags || 0) : 0;
-      const alreadyRes   = PAGE_DATA ? (PAGE_DATA.already_reserved   || 0) : 0;
-      const totalRes     = PAGE_DATA ? (PAGE_DATA.total_reserved      || 0) : 0;
-      const othersRes    = Math.max(0, totalRes - alreadyRes);
-      const maxReserv    = Math.max(0, confirmed - othersRes);
+      const preview   = document.getElementById('price-preview');
+      if (!preview) return;
+      const bags      = parseInt(document.getElementById('bags-input').value) || 0;
+      const bagSize   = PAGE_DATA ? (PAGE_DATA.bag_size   || 0) : 0;
+      const price     = PAGE_DATA ? (PAGE_DATA.sale_price || null) : null;
+      const priceUnit = PAGE_DATA ? (PAGE_DATA.sale_price_unit || 'kg') : 'kg';
+      const myPrev    = PAGE_DATA ? (PAGE_DATA.already_reserved || 0) : 0;
+      const maxReserv = PAGE_DATA ? Math.max(0, (PAGE_DATA.buyer_available || 0) + myPrev) : 0;
 
       if (bags <= 0) {
         preview.innerHTML = '<div class="muted">Enter bag quantity to see price estimate</div>';
@@ -420,22 +506,16 @@
         return;
       }
 
-      // v1.13: bag_size is always stored in kg — convert weight display to match price unit
-      const totalKg  = bags * bagSize;
-      const weightDisp = (priceUnit === 'lb')
-        ? (totalKg * 2.2046).toFixed(1) + ' lb'
-        : totalKg + ' kg';
-      const bagSizeDisp = (priceUnit === 'lb')
-        ? (bagSize * 2.2046).toFixed(1) + ' lb'
-        : bagSize + ' kg';
+      const totalKg     = bags * bagSize;
+      const bagSizeDisp = (priceUnit === 'lb') ? (bagSize * 2.2046).toFixed(1) + ' lb' : bagSize + ' kg';
+      const weightDisp  = (priceUnit === 'lb') ? (totalKg * 2.2046).toFixed(1) + ' lb' : totalKg + ' kg';
 
       if (price) {
-        // v1.13: price is stored in priceUnit — multiply by weight in same unit
         const weightForCalc = (priceUnit === 'lb') ? (totalKg * 2.2046) : totalKg;
-        const total = (weightForCalc * price).toFixed(2);
+        const totalPrice    = (weightForCalc * price).toFixed(2);
         preview.innerHTML =
           '<div>' + bags + ' bags × ' + bagSizeDisp + ' = ' + weightDisp + '</div>' +
-          '<div class="total">Estimated Total: $' + total + '</div>' +
+          '<div class="total">Estimated Total: $' + totalPrice + '</div>' +
           '<div class="muted" style="margin-top:4px">@ $' + parseFloat(price).toFixed(2) + ' / ' + priceUnit + '</div>';
       } else {
         preview.innerHTML =
@@ -447,20 +527,21 @@
     // ── Submit ────────────────────────────────────────────────────────────────
     document.getElementById('btn-reserve').addEventListener('click', async () => {
       const btn    = document.getElementById('btn-reserve');
-      const intent = CURRENT_INTENT;   // v1.16
+      const intent = CURRENT_INTENT;
+
+      if (!intent) { toastError('Please select an option above.'); return; }
 
       // ── sample_only: no bag quantity needed ──
       if (intent === 'sample_only') {
         btn.disabled    = true;
         btn.textContent = 'Submitting...';
-        const notes = document.getElementById('reserve-notes').value.trim();  // v1.17
+        const notes = document.getElementById('reserve-notes').value.trim();
         try {
           await API.submitReservation(token, 0, intent, notes);
-          document.getElementById('success-title').textContent   = 'Sample Requested';
-          document.getElementById('success-detail').innerHTML    =
+          document.getElementById('success-title').textContent = 'Sample Requested';
+          document.getElementById('success-detail').innerHTML  =
             'Your sample request for <strong>' + UI.esc(PAGE_DATA.sample_name || '') + '</strong> has been recorded.<br><br>' +
-            'Our team will be in touch to arrange delivery.<br>' +
-            'A confirmation email has been sent to you.';
+            'Our team will be in touch to arrange delivery.<br>A confirmation email has been sent to you.';
           showState('state-success');
         } catch (err) {
           toastError(err.message);
@@ -470,19 +551,16 @@
         return;
       }
 
-      // ── reserve or reserve_and_sample: bag quantity required ──
-      const bags        = parseInt(document.getElementById('bags-input').value);
-      // v1.11.7: use maxReservable (confirmed - othersReserved), not available_now which is depleted
-      const confirmed   = PAGE_DATA ? (PAGE_DATA.confirmed_purchase || PAGE_DATA.available_bags || 0) : 0;
-      const myPrev      = PAGE_DATA ? (PAGE_DATA.already_reserved   || 0) : 0;
-      const totalRes    = PAGE_DATA ? (PAGE_DATA.total_reserved      || 0) : 0;
-      const othersRes   = Math.max(0, totalRes - myPrev);
-      const maxReserv   = Math.max(0, confirmed - othersRes);
+      // ── reserve or reserve_and_sample ──
+      const bags = parseInt(document.getElementById('bags-input').value);
+      // v1.18: gate uses buyer_available directly — fresh from INBOUND_DETAILS bypass
+      const myPrev    = PAGE_DATA ? (PAGE_DATA.already_reserved || 0) : 0;
+      const maxReserv = PAGE_DATA ? Math.max(0, (PAGE_DATA.buyer_available || 0) + myPrev) : 0;
 
-      if (!bags || bags < 1)    { toastError('Please enter the number of bags to reserve.'); return; }
-      if (bags > maxReserv)     { toastError('Only ' + maxReserv + ' bag' + (maxReserv === 1 ? '' : 's') + ' available.'); return; }
-      // v1.8: client-side minimum check (server also validates)
-      // v1.11.3: minimum is advisory — warn but allow reservation to proceed
+      if (!bags || bags < 1) { toastError('Please enter the number of bags to reserve.'); return; }
+      if (bags > maxReserv)  { toastError('Only ' + maxReserv + ' bag' + (maxReserv === 1 ? '' : 's') + ' available.'); return; }
+
+      // Minimum advisory (non-blocking)
       const minReq = PAGE_DATA ? (PAGE_DATA.min_bags_required || 0) : 0;
       if (minReq > 0 && bags < minReq) {
         toastError('Note: your usual minimum for ' + (PAGE_DATA.coffee_type || 'this coffee') + ' is ' + minReq + ' bags.');
@@ -492,24 +570,23 @@
       btn.textContent = 'Submitting...';
 
       try {
-        const notes  = document.getElementById('reserve-notes').value.trim();  // v1.17
+        const notes  = document.getElementById('reserve-notes').value.trim();
         const result = await API.submitReservation(token, bags, intent, notes);
-        // Show success
-        const bagSize   = result.bag_size   || 0;
-        const totalKg   = result.total_kg   || (bags * bagSize);
-        // v1.13: display weight in the same unit as the sale price
-        const unit      = PAGE_DATA ? (PAGE_DATA.sale_price_unit || 'kg') : 'kg';
+
+        const bagSize    = result.bag_size  || 0;
+        const totalKg    = result.total_kg  || (bags * bagSize);
+        const unit       = PAGE_DATA ? (PAGE_DATA.sale_price_unit || 'kg') : 'kg';
         const weightDisp = (unit === 'lb')
           ? (totalKg * 2.2046).toFixed(1) + ' lb total'
           : totalKg + ' kg total';
-        const priceText = result.total_price
+        const priceText  = result.total_price
           ? '<strong>$' + result.total_price + '</strong> estimated'
           : 'Contact us for pricing';
         const sampleLine = (intent === 'reserve_and_sample')
-          ? '<br><br>A physical sample will also be sent to you.'
-          : '';
-        document.getElementById('success-title').textContent  = 'Reservation Confirmed';
-        document.getElementById('success-detail').innerHTML   =
+          ? '<br><br>A physical sample will also be sent to you.' : '';
+
+        document.getElementById('success-title').textContent = 'Reservation Confirmed';
+        document.getElementById('success-detail').innerHTML  =
           'You have reserved <strong>' + bags + ' bag' + (bags === 1 ? '' : 's') + '</strong>' +
           ' of <strong>' + UI.esc(result.sample_name || '') + '</strong><br>' +
           weightDisp + ' &nbsp;·&nbsp; ' + priceText + sampleLine + '<br><br>' +
@@ -522,10 +599,7 @@
       }
     });
 
-
     // ── Minimums Update (v1.8) ────────────────────────────────────────────────
-    // Buyer can update their own minimum bag requirements inline on the reserve page.
-
     function renderMinimumsUpdate() {
       const types   = PAGE_DATA.coffee_types || [];
       const mins    = PAGE_DATA.minimums     || {};
@@ -543,7 +617,7 @@
     document.getElementById('btn-save-minimums').addEventListener('click', async () => {
       const types = PAGE_DATA.coffee_types || [];
       const btn   = document.getElementById('btn-save-minimums');
-      btn.disabled = true;
+      btn.disabled    = true;
       btn.textContent = 'Saving...';
       try {
         for (const t of types) {
@@ -551,10 +625,9 @@
           if (!input || input.value.trim() === '') continue;
           const bags = parseInt(input.value);
           if (isNaN(bags) || bags < 0) continue;
-          await API.saveBuyerMinimumPublic(PAGE_DATA.buyer_id, token, t, bags);  // v1.11.3: public — uses reservation token
+          await API.saveBuyerMinimumPublic(PAGE_DATA.buyer_id, token, t, bags);
           if (!PAGE_DATA.minimums) PAGE_DATA.minimums = {};
           PAGE_DATA.minimums[t] = bags;
-          // Update min_bags_required if it's the current coffee type
           if (t === PAGE_DATA.coffee_type) {
             PAGE_DATA.min_bags_required = bags;
             document.getElementById('info-min-bags').textContent = bags > 0 ? bags + ' bags minimum' : 'No minimum set';
@@ -564,7 +637,7 @@
         setTimeout(() => { btn.textContent = 'Save Minimums'; btn.disabled = false; }, 2000);
       } catch (err) {
         toastError(err.message);
-        btn.disabled = false;
+        btn.disabled    = false;
         btn.textContent = 'Save Minimums';
       }
     });
@@ -572,7 +645,7 @@
     // ── Toast ─────────────────────────────────────────────────────────────────
     function toastError(msg) {
       const t = document.createElement('div');
-      t.className = 'st-toast st-toast--error';
+      t.className   = 'st-toast st-toast--error';
       t.textContent = msg;
       document.body.appendChild(t);
       setTimeout(() => t.remove(), 4000);

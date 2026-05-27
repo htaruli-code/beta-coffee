@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<!-- Version 1.20 | buyer-catalogue.html -->
+<!-- Version 1.21 | buyer-catalogue.html -->
+<!-- v1.21: Intent selector moved from submission card to header card (above lot list).
+            Two-step UX: full cards on load → compact pill strip after selection.
+            Dynamic intent list: Reserve options hidden when no lot has available bags.
+            Submission card intent section removed — beans/notes/submit only.
+            Fix: buyer no longer needs to scroll back up after changing intent to Reserve;
+            lot reserve-row inputs are immediately visible in the lots below the intent strip.
+            Single option still shown when only sample_only is available. -->
 <!-- v1.20: Intent selector (sample_only/reserve/reserve_and_sample) — global mode controls
             whether reserve rows show; submit validates and routes correctly per intent.
-            notes forwarded to GAS for email (Bug 1). lb/kg price fix in submit (Bug 2).
-            BEANS_TYPES fallback updated to ['NO Sample','Green Sample','Roasted Sample']. -->
-<!-- v1.17.4: Reserve Bags input — type="text" inputmode="numeric" for mobile; strips non-digits
-              character by character on oninput — works on all mobile browsers. Server re-validates. -->
+            notes forwarded to GAS for email. lb/kg price fix in submit. -->
+<!-- v1.17.4: Reserve Bags input — type="text" inputmode="numeric" for mobile. -->
 <!-- Public page — token-authenticated. No login required. -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
-<!-- v1.15: js/config.js path fixed. getCataloguePage + submitCatalogueSelection added to Code.gs public block. -->
-<!-- v1.16: Buyer Level removed. Send To + Address added to info block. Notes tooltip added. -->
-<!-- v1.17.1: bags_to_reserve sent as structured object (not notes text). Server validates
-           qty ≤ buyer_available per lot. bags_reserved written to outbound_detail directly.
-           Client-side max enforced via input[max] + pre-submit validation. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -64,7 +64,7 @@
     .lot-stat-value { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text); font-weight: 500; }
     .lot-stat-value.price { color: var(--accent); }
 
-    /* v1.17: Reserve row — shown below lot stats when lot is selected */
+    /* Reserve row — shown below lot stats when lot is selected + intent includes reserve */
     .lot-reserve-row {
       display: none;
       align-items: center;
@@ -85,9 +85,7 @@
       transition: border-color var(--transition);
     }
     .lot-reserve-input:focus { border-color: var(--accent); }
-    .lot-reserve-hint {
-      font-size: 0.75rem; color: var(--muted); line-height: 1.4; flex: 1;
-    }
+    .lot-reserve-hint { font-size: 0.75rem; color: var(--muted); line-height: 1.4; flex: 1; }
     /* v1.17: Direct reserve link — shown when reservation_token exists (post-Sent) */
     .lot-reserve-link {
       display: inline-flex; align-items: center; gap: 0.3rem;
@@ -141,43 +139,47 @@
     .tooltip-box { position: absolute; bottom: calc(100% + 6px); left: 0; background: var(--text); color: #fff; font-family: var(--font-sans); font-size: 0.75rem; line-height: 1.5; padding: 0.5rem 0.75rem; border-radius: var(--radius); opacity: 0; pointer-events: none; transition: opacity 120ms ease; z-index: 100; width: 230px; white-space: normal; }
     .tooltip-box::after { content: ''; position: absolute; top: 100%; left: 12px; border: 5px solid transparent; border-top-color: var(--text); }
 
-    /* v1.20: Intent selector */
-    .intent-grid { display: grid; grid-template-columns: 1fr; gap: 0.5rem; margin-bottom: 1.5rem; }
-    .intent-option {
+    /* v1.21: Intent cards (Step 1 — full) */
+    .intent-card-full {
       display: flex; align-items: flex-start; gap: 0.75rem;
       border: 1.5px solid var(--border); border-radius: var(--radius);
-      padding: 0.75rem 1rem; cursor: pointer; background: var(--bg);
+      padding: 0.75rem 1rem; cursor: pointer; margin-bottom: 0.5rem;
+      background: var(--bg); user-select: none;
       transition: border-color var(--transition), background var(--transition);
     }
-    .intent-option:hover { border-color: var(--border2); background: var(--surface); }
-    .intent-option.selected { border-color: var(--accent); background: var(--surface); }
-    .intent-radio {
+    .intent-card-full:last-child { margin-bottom: 0; }
+    .intent-card-full:hover { border-color: var(--border2); background: var(--surface); }
+    .intent-card-full:hover .intent-card-radio { border-color: var(--accent); }
+    .intent-card-radio {
       width: 16px; height: 16px; border: 2px solid var(--border2); border-radius: 50%;
-      flex-shrink: 0; margin-top: 2px; position: relative;
-      transition: border-color var(--transition), background var(--transition);
+      flex-shrink: 0; margin-top: 2px; transition: border-color var(--transition);
     }
-    .intent-option.selected .intent-radio { border-color: var(--accent); background: var(--accent); }
-    .intent-option.selected .intent-radio::after {
-      content: ''; position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%); width: 5px; height: 5px;
-      border-radius: 50%; background: #fff;
-    }
-    .intent-title { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--text); margin-bottom: 0.15rem; }
-    .intent-desc  { font-size: 0.74rem; color: var(--muted); line-height: 1.45; }
+    .intent-card-title { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--text); margin-bottom: 0.15rem; }
+    .intent-card-desc  { font-size: 0.74rem; color: var(--muted); line-height: 1.45; }
 
-    /* v1.20: hide reserve rows globally when mode is sample_only */
+    /* v1.21: Intent strip (Step 2 — compact pills) */
+    .strip-pills { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0; }
+    .strip-pill {
+      font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.04em;
+      padding: 0.35rem 0.875rem; border-radius: 20px;
+      border: 1.5px solid var(--border2); background: var(--bg);
+      color: var(--muted); cursor: pointer; white-space: nowrap;
+      transition: all var(--transition);
+    }
+    .strip-pill:hover { border-color: var(--accent); color: var(--text); }
+    .strip-pill.active { border-color: var(--accent); background: var(--accent); color: #ffffff; }
+
+    /* v1.21: hide reserve rows globally when mode is sample_only */
     body.mode-sample .lot-reserve-row { display: none !important; }
   </style>
 </head>
-<body>
+<body class="mode-sample">
   <div class="wrap">
     <div class="card-logo" style="margin-bottom:1.5rem">Sample Tracker</div>
 
     <!-- Loading -->
     <div id="state-loading">
-      <div class="card">
-        <div class="st-spinner"></div>
-      </div>
+      <div class="card"><div class="st-spinner"></div></div>
     </div>
 
     <!-- Error -->
@@ -190,7 +192,8 @@
 
     <!-- Form -->
     <div id="state-form">
-      <!-- Header card -->
+
+      <!-- Header card: info + intent + lots -->
       <div class="card">
         <div class="card-title" id="form-title">Coffee Sample Catalogue</div>
         <div class="card-sub" id="form-sub"></div>
@@ -209,43 +212,28 @@
           </div>
         </div>
 
-        <!-- Lot selection -->
-        <div class="section-label">
+        <!-- v1.21: Intent selector — moved here from submission card, above lot list -->
+        <!-- Picking intent first means reserve-row inputs are immediately visible in lots below -->
+        <div class="section-label" style="margin-bottom:0.75rem">What would you like to do?</div>
+
+        <!-- Step 1: Full intent cards (dynamic, shown on load) -->
+        <div id="intent-cards-full" style="margin-bottom:1.25rem"></div>
+
+        <!-- Step 2: Compact strip (shown after first selection) -->
+        <div id="intent-strip" style="display:none; margin-bottom:1.25rem">
+          <div class="strip-pills" id="strip-pills"></div>
+        </div>
+
+        <!-- Lot selection (always visible — buyer browses while deciding) -->
+        <div class="section-label" style="margin-top:0.25rem">
           <span>Available Lots</span>
           <span id="selected-count"></span>
         </div>
         <div id="lot-list"></div>
       </div>
 
-      <!-- Submission card -->
+      <!-- Submission card: beans + notes + submit only (no intent selector) -->
       <div class="card">
-
-        <!-- v1.20: Intent selector -->
-        <div class="section-label" style="margin-bottom:0.75rem">What would you like to do?</div>
-        <div class="intent-grid">
-          <div class="intent-option selected" id="intent-sample" onclick="selectIntent('sample_only')">
-            <div class="intent-radio"></div>
-            <div>
-              <div class="intent-title">Request Samples Only</div>
-              <div class="intent-desc">Receive physical samples to taste. No bags reserved — no commitment.</div>
-            </div>
-          </div>
-          <div class="intent-option" id="intent-reserve" onclick="selectIntent('reserve')">
-            <div class="intent-radio"></div>
-            <div>
-              <div class="intent-title">Reserve Bags</div>
-              <div class="intent-desc">Enter quantities to hold your allocation at your agreed price. No payment now.</div>
-            </div>
-          </div>
-          <div class="intent-option" id="intent-both" onclick="selectIntent('reserve_and_sample')">
-            <div class="intent-radio"></div>
-            <div>
-              <div class="intent-title">Reserve Bags + Request Samples</div>
-              <div class="intent-desc">Hold your allocation and receive a physical sample alongside your order.</div>
-            </div>
-          </div>
-        </div>
-
         <div class="field">
           <label for="sel-beans">Beans Type <span style="color:var(--error)">*</span></label>
           <select id="sel-beans">
@@ -262,8 +250,7 @@
           </label>
           <textarea id="sel-notes" rows="3" maxlength="500" placeholder="e.g. 200g per lot, vacuum packed…"></textarea>
         </div>
-        <!-- v1.17: renamed from "Submit Selection" -->
-        <button class="btn" id="btn-submit" disabled>Request Sample</button>
+        <button class="btn" id="btn-submit" disabled>Request Samples</button>
       </div>
     </div>
 
@@ -279,11 +266,14 @@
 
   <script src="js/config.js"></script>
   <script>
-    // Version 1.20 | buyer-catalogue.html script
-    // v1.20: intent selector — selectIntent() sets CATALOGUE_INTENT, toggles body.mode-sample,
-    //        updates button label. submit sends intent + notes to GAS. Beans fallback updated.
-    // v1.17.4: type="text" inputmode="numeric" — strips non-digits on every keystroke.
-    //          Works on iOS/Android where type="number" oninput is unreliable.
+    // Version 1.21 | buyer-catalogue.html script
+    // v1.21: Intent moved to top of header card (above lot list). Two-step UX — full cards
+    //        on load → compact pill strip after selection. Dynamic intent list based on
+    //        whether any lot has available_bags > 0. Submission card intent section removed.
+    //        Fix: buyer picks intent once at top; lot reserve-row inputs are immediately
+    //        visible below — no scrolling back up after changing to reserve mode.
+    // v1.20: Intent selector; intent/notes/lb-kg fixes.
+    // v1.17.4: type="text" inputmode="numeric" — mobile-safe integer enforcement.
 
     // ── Dependency check ──────────────────────────────────────────────────────
     if (typeof APP_CONFIG === 'undefined' || !APP_CONFIG.GAS_URL) {
@@ -294,31 +284,98 @@
     }
 
     // ── State ─────────────────────────────────────────────────────────────────
-    let PAGE_DATA        = null;
-    let TOKEN            = null;
-    let CATALOGUE_INTENT = 'sample_only';   // v1.20: default — reserve rows hidden on load
+    let PAGE_DATA         = null;
+    let TOKEN             = null;
+    let CATALOGUE_INTENT  = 'sample_only';   // default — reserve rows hidden on load
+    let AVAILABLE_INTENTS = [];              // v1.21: dynamic
+    let INTENT_CONFIRMED  = false;           // v1.21: true once buyer taps a card
 
-    // ── v1.20: Intent selector ────────────────────────────────────────────────
-    function selectIntent(mode) {
-      CATALOGUE_INTENT = mode;
-      ['sample','reserve','both'].forEach(k => {
-        document.getElementById('intent-' + k).classList.remove('selected');
+    // ── v1.21: Build dynamic intent list ─────────────────────────────────────
+    // sample_only always shown first (safest, default, no commitment).
+    // Reserve options shown only when at least one lot has available bags.
+    function buildAvailableIntents(hasAvailableLots) {
+      var intents = [];
+      intents.push({
+        id:    'sample_only',
+        title: 'Request Samples Only',
+        desc:  'Receive physical samples to taste. No bags reserved — no commitment.'
       });
-      const idMap = { sample_only: 'intent-sample', reserve: 'intent-reserve', reserve_and_sample: 'intent-both' };
-      document.getElementById(idMap[mode]).classList.add('selected');
+      if (hasAvailableLots) {
+        intents.push({
+          id:    'reserve',
+          title: 'Reserve Bags',
+          desc:  'Enter quantities to hold your allocation at your agreed price. No payment now.'
+        });
+        intents.push({
+          id:    'reserve_and_sample',
+          title: 'Reserve Bags + Request Samples',
+          desc:  'Hold your allocation and receive physical samples alongside your order.'
+        });
+      }
+      return intents;
+    }
+
+    // ── v1.21: Render full intent cards (Step 1) ─────────────────────────────
+    function renderIntentCards() {
+      var container = document.getElementById('intent-cards-full');
+      container.innerHTML = '';
+      AVAILABLE_INTENTS.forEach(function(intent) {
+        var card = document.createElement('div');
+        card.className = 'intent-card-full';
+        card.innerHTML =
+          '<div class="intent-card-radio"></div>' +
+          '<div>' +
+            '<div class="intent-card-title">' + esc(intent.title) + '</div>' +
+            '<div class="intent-card-desc">'  + esc(intent.desc)  + '</div>' +
+          '</div>';
+        card.addEventListener('click', (function(id) {
+          return function() { selectIntent(id); };
+        })(intent.id));
+        container.appendChild(card);
+      });
+    }
+
+    // ── v1.21: Render compact strip pills (Step 2) ───────────────────────────
+    function renderStripPills() {
+      var container = document.getElementById('strip-pills');
+      container.innerHTML = '';
+      AVAILABLE_INTENTS.forEach(function(intent) {
+        var pill = document.createElement('button');
+        pill.className   = 'strip-pill' + (intent.id === CATALOGUE_INTENT ? ' active' : '');
+        pill.textContent = intent.id === CATALOGUE_INTENT ? '✓ ' + intent.title : intent.title;
+        pill.addEventListener('click', (function(id) {
+          return function() { selectIntent(id); };
+        })(intent.id));
+        container.appendChild(pill);
+      });
+    }
+
+    // ── v1.21: Select intent ──────────────────────────────────────────────────
+    // Handles first tap (full cards → strip) and strip pill changes.
+    function selectIntent(mode) {
+      var firstSelection = !INTENT_CONFIRMED;
+      CATALOGUE_INTENT  = mode;
+      INTENT_CONFIRMED  = true;
+
+      if (firstSelection) {
+        document.getElementById('intent-cards-full').style.display = 'none';
+        document.getElementById('intent-strip').style.display      = '';
+      }
+
+      renderStripPills();
+
+      // Drive reserve-row visibility via body class (same CSS mechanism as v1.20)
       if (mode === 'sample_only') {
         document.body.classList.add('mode-sample');
       } else {
         document.body.classList.remove('mode-sample');
       }
-      const btn = document.getElementById('btn-submit');
-      if (btn && !btn.disabled) btn.textContent = btnLabel(mode);
-    }
 
-    function btnLabel(mode) {
-      if (mode === 'reserve')            return 'RESERVE BAGS';
-      if (mode === 'reserve_and_sample') return 'RESERVE BAGS + REQUEST SAMPLES';
-      return 'REQUEST SAMPLES';
+      // Update submit button label if lots are already checked
+      var btn     = document.getElementById('btn-submit');
+      var checked = document.querySelectorAll('.lot-checkbox:checked').length;
+      btn.disabled = checked === 0;
+      if (checked > 0) btn.textContent = btnLabel(mode);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -327,17 +384,23 @@
     }
 
     function showState(name) {
-      ['loading','error','form','success'].forEach(s => {
+      ['loading','error','form','success'].forEach(function(s) {
         document.getElementById('state-' + s).style.display = s === name ? 'block' : 'none';
       });
     }
 
     function toast(msg, isError) {
-      const el = document.createElement('div');
-      el.className = 'st-toast' + (isError ? ' st-toast--error' : '');
+      var el = document.createElement('div');
+      el.className   = 'st-toast' + (isError ? ' st-toast--error' : '');
       el.textContent = msg;
       document.body.appendChild(el);
-      setTimeout(() => el.remove(), 3500);
+      setTimeout(function() { el.remove(); }, 3500);
+    }
+
+    function btnLabel(mode) {
+      if (mode === 'reserve')            return 'RESERVE BAGS';
+      if (mode === 'reserve_and_sample') return 'RESERVE BAGS + REQUEST SAMPLES';
+      return 'REQUEST SAMPLES';
     }
 
     async function post(payload) {
@@ -371,7 +434,6 @@
       }
 
       renderForm();
-      document.body.classList.add('mode-sample');   // v1.20: default intent = sample_only
       showState('form');
     })();
 
@@ -380,27 +442,29 @@
       document.getElementById('form-title').textContent =
         'Coffee Sample Catalogue — ' + esc(PAGE_DATA.buyer_company);
       document.getElementById('form-sub').textContent =
-        'Select the lots you\'re interested in. Choose whether to request samples, reserve bags, or both.';
+        'Choose what you\'d like to do, then select the lots you\'re interested in.';
       document.getElementById('info-warehouse').textContent = PAGE_DATA.warehouse_name || '—';
       document.getElementById('info-send-to').textContent   = PAGE_DATA.buyer_company  || '—';
       document.getElementById('info-address').textContent   = PAGE_DATA.buyer_address  || '—';
 
       // Beans options
       const beansSel = document.getElementById('sel-beans');
-      (PAGE_DATA.beans_options || ['NO Sample','Green Sample','Roasted Sample']).forEach(b => {
+      (PAGE_DATA.beans_options || ['NO Sample','Green Sample','Roasted Sample']).forEach(function(b) {
         const opt = document.createElement('option');
         opt.value = b; opt.textContent = b;
         beansSel.appendChild(opt);
       });
 
+      // v1.21: build dynamic intent list based on lot availability
+      const lots            = PAGE_DATA.lots || [];
+      const hasAvailableLots = lots.some(function(l) { return (l.available_bags || 0) > 0; });
+      AVAILABLE_INTENTS     = buildAvailableIntents(hasAvailableLots);
+      renderIntentCards();
+
       renderLots();
     }
 
     // ── Render lot cards ──────────────────────────────────────────────────────
-    // v1.17: each selected lot shows an optional "Reserve Bags" input.
-    //        If lot.reserve_link exists (reservation token already generated),
-    //        show a direct link to buyer-reserve.html instead of the input.
-
     function renderLots() {
       const listEl = document.getElementById('lot-list');
       const lots   = PAGE_DATA.lots || [];
@@ -411,7 +475,7 @@
       }
 
       listEl.innerHTML = '';
-      lots.forEach(lot => {
+      lots.forEach(function(lot) {
         const priceStr = lot.sale_price
           ? '$' + parseFloat(lot.sale_price).toFixed(2) + ' / ' + (lot.sale_price_unit || 'kg')
           : '—';
@@ -419,13 +483,10 @@
         const avail   = lot.available_bags !== null && lot.available_bags !== undefined
           ? lot.available_bags + ' bags' : '—';
 
-        // v1.17: reserve row — direct link if token exists, inline input otherwise
         const reserveRowHtml = lot.reserve_link
           ? `<div class="lot-reserve-row">
                <span class="lot-reserve-label">Reserve</span>
-               <a class="lot-reserve-link" href="${esc(lot.reserve_link)}" target="_blank">
-                 Reserve Bags →
-               </a>
+               <a class="lot-reserve-link" href="${esc(lot.reserve_link)}" target="_blank">Reserve Bags →</a>
                <span class="lot-reserve-hint">Opens the reservation page for this lot.</span>
              </div>`
           : `<div class="lot-reserve-row">
@@ -465,8 +526,7 @@
           </div>
           ${reserveRowHtml}`;
 
-        // Clicking card header toggles checkbox
-        card.querySelector('.lot-card-header').addEventListener('click', e => {
+        card.querySelector('.lot-card-header').addEventListener('click', function(e) {
           if (e.target.type === 'checkbox') return;
           const cb = card.querySelector('.lot-checkbox');
           cb.checked = !cb.checked;
@@ -477,18 +537,14 @@
       });
     }
 
-    // v1.17.4: Live validation for reserve bag input — mobile-safe integer enforcement.
-    // Uses type="text" + inputmode="numeric" so mobile keyboard shows numbers but we
-    // control exactly what's accepted. Strips non-digits on every keystroke.
+    // ── Reserve bag input: live validation (v1.17.4) ──────────────────────────
     function onReserveInput(inp) {
       const hint = inp.closest('.lot-reserve-row') ? inp.closest('.lot-reserve-row').querySelector('.lot-reserve-hint') : null;
       const max  = parseInt(inp.dataset.max) || 0;
 
-      // Step 1: strip anything that is not a digit — handles all mobile input methods
       const stripped = inp.value.replace(/[^0-9]/g, '');
       if (inp.value !== stripped) inp.value = stripped;
 
-      // Step 2: empty = clear errors (no reservation = valid)
       if (stripped === '') {
         inp.classList.remove('input-error');
         if (hint) { hint.classList.remove('hint-error'); hint.textContent = 'Optional — enter a quantity to reserve bags now. Max: ' + max + ' bags.'; }
@@ -497,7 +553,6 @@
 
       const parsed = parseInt(stripped, 10);
 
-      // Step 3: clamp to max (mirrors buyer-reserve.html input.max behaviour)
       if (parsed > max) {
         inp.value = String(max);
         inp.classList.add('input-error');
@@ -505,14 +560,12 @@
         return;
       }
 
-      // Step 4: zero entered explicitly
       if (parsed === 0) {
         inp.classList.add('input-error');
         if (hint) { hint.classList.add('hint-error'); hint.textContent = 'Enter at least 1 bag, or leave blank.'; }
         return;
       }
 
-      // Valid
       inp.classList.remove('input-error');
       if (hint) { hint.classList.remove('hint-error'); hint.textContent = 'Reserving ' + parsed + ' bag' + (parsed === 1 ? '' : 's') + ' (max ' + max + ').'; }
     }
@@ -520,60 +573,49 @@
     function onLotCheck() {
       const checked = document.querySelectorAll('.lot-checkbox:checked');
 
-      // Update card selected style (also shows/hides reserve row via CSS)
-      document.querySelectorAll('.lot-card').forEach(card => {
+      document.querySelectorAll('.lot-card').forEach(function(card) {
         const cb = card.querySelector('.lot-checkbox');
         card.classList.toggle('selected', cb && cb.checked);
-        // Clear reserve input when deselected
         if (cb && !cb.checked) {
           const inp = card.querySelector('.lot-reserve-input');
           if (inp) inp.value = '';
         }
       });
 
-      // Update count label
       const countEl = document.getElementById('selected-count');
       countEl.textContent = checked.length ? checked.length + ' selected' : '';
 
-      // Enable/disable submit — v1.20: also update button label from current intent
       const btn = document.getElementById('btn-submit');
       btn.disabled = checked.length === 0;
       if (checked.length > 0) btn.textContent = btnLabel(CATALOGUE_INTENT);
     }
 
     // ── Submit — one API call: submitCatalogueSelection ───────────────────────
-    // v1.17: collects per-lot reserve quantities, validates against available_bags
-    //        client-side, sends as bags_to_reserve object. Server re-validates.
-    // v1.20: sends intent param; sample_only skips reserve collection entirely;
-    //        reserve mode requires at least one bag qty; button label adapts per intent.
-
     document.getElementById('btn-submit').addEventListener('click', async () => {
       const selectedIds = Array.from(
         document.querySelectorAll('.lot-checkbox:checked')
-      ).map(cb => cb.value);
+      ).map(function(cb) { return cb.value; });
 
       const beans  = document.getElementById('sel-beans').value;
       const notes  = document.getElementById('sel-notes').value.trim();
-      const intent = CATALOGUE_INTENT;   // v1.20
+      const intent = CATALOGUE_INTENT;
 
       if (!selectedIds.length) { toast('Select at least one lot.', true); return; }
       if (!beans)              { toast('Please select a beans type.', true); return; }
 
-      // v1.20: collect reserve quantities only when intent involves reservation
       const bags_to_reserve = {};
       let reserveError = null;
 
       if (intent !== 'sample_only') {
-        // v1.17.3: integer enforcement + isNaN guard
-        selectedIds.forEach(dId => {
+        selectedIds.forEach(function(dId) {
           const inp = document.getElementById('reserve-' + dId);
-          if (!inp) return; // has reserve_link instead — no input to read
+          if (!inp) return;
           const raw = inp.value.trim();
-          if (raw === '' || raw === '0') return; // empty = no reservation for this lot, skip
+          if (raw === '' || raw === '0') return;
 
           const qty = parseInt(raw);
           if (isNaN(qty) || qty !== Math.floor(parseFloat(raw))) {
-            const lot = (PAGE_DATA.lots || []).find(l => String(l.detail_id) === String(dId));
+            const lot = (PAGE_DATA.lots || []).find(function(l) { return String(l.detail_id) === String(dId); });
             reserveError = 'Reserve quantity for "' + (lot ? lot.sample_name : dId) + '" must be a whole number.';
             return;
           }
@@ -581,7 +623,7 @@
 
           const max = parseInt(inp.dataset.max) || 0;
           if (qty > max) {
-            const lot = (PAGE_DATA.lots || []).find(l => String(l.detail_id) === String(dId));
+            const lot = (PAGE_DATA.lots || []).find(function(l) { return String(l.detail_id) === String(dId); });
             reserveError = '"' + (lot ? lot.sample_name : dId) + '": only ' + max + ' bag' + (max === 1 ? '' : 's') + ' available (server will re-validate).';
             return;
           }
@@ -590,7 +632,6 @@
 
         if (reserveError) { toast(reserveError, true); return; }
 
-        // reserve mode requires at least one qty entered
         if (intent === 'reserve' && Object.keys(bags_to_reserve).length === 0) {
           toast('Please enter a bag quantity for at least one lot, or choose "Request Samples Only".', true);
           return;
@@ -611,10 +652,9 @@
           bags_to_reserve,
           beans,
           notes,
-          intent               // v1.20: 'sample_only' | 'reserve' | 'reserve_and_sample'
+          intent
         });
 
-        // Build success message — v1.20: title reflects intent
         const titleMap = {
           reserve:            'Reservation Submitted',
           reserve_and_sample: 'Reservation & Sample Request Submitted',
