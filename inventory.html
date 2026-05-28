@@ -1,5 +1,11 @@
 <!DOCTYPE html>
-<!-- Version 2.1.6 | inventory.html -->
+<!-- Version 2.2.0 | inventory.html -->
+<!-- v2.2.0: Bin editing from inventory page.
+     New modal-bins: multi-row editor for bin_label, qty_bags, location, notes.
+     openBinsModal(lotId) reads from PAGE_DATA — no extra API call on open.
+     saveBinsForLot action — ceiling: received_bags (not po_line). Returns full page data.
+     "Edit Bins" button added to each lot row alongside existing "Edit" lot button.
+     Live total counter turns red if bin_sum exceeds received_bags. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -76,6 +82,19 @@
     .dd-sub-tag { font-size: 0.62rem; color: var(--accent); background: #fff3e0; padding: 0.1rem 0.35rem; border-radius: 2px; font-weight: 600; }
     .dd-toggle { font-family: var(--font-mono); font-size: 0.65rem; cursor: pointer; color: var(--success); background: none; border: none; padding: 0; text-decoration: underline; }
     .dd-empty { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); font-style: italic; }
+
+    /* ── Bin edit modal (v2.2.0) ────────────────────────────────────────────── */
+    .bin-edit-row { display: grid; grid-template-columns: 1fr 80px 1fr 1fr 28px; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem; }
+    .bin-edit-row input, .bin-edit-row select { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
+    .bin-edit-header { display: grid; grid-template-columns: 1fr 80px 1fr 1fr 28px; gap: 0.4rem; padding: 0 0 0.3rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.4rem; }
+    .bin-edit-header span { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .btn-del-bin { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0; line-height: 1; transition: color var(--transition); }
+    .btn-del-bin:hover { color: var(--error); }
+    .bin-total { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; }
+    .bin-total.over { color: var(--error); font-weight: 600; }
+    .bin-total.exact { color: var(--success); font-weight: 600; }
+    .bin-info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.75rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 0.75rem; line-height: 1.7; }
+    .bin-info-block strong { color: var(--text); }
   </style>
 </head>
 <body>
@@ -193,6 +212,39 @@
   </div>
 </div>
 
+<!-- Bin Edit Modal (v2.2.0) -->
+<div class="modal-overlay" id="modal-bins">
+  <div class="modal" style="max-width:740px">
+    <div class="modal-title" id="modal-bins-title">Edit Bins</div>
+    <div class="modal-error" id="modal-bins-error"></div>
+    <input type="hidden" id="bins-lot-id" />
+
+    <div class="bin-info-block" id="bins-info-block"></div>
+
+    <div class="modal-section">Bins</div>
+
+    <!-- Column headers -->
+    <div class="bin-edit-header">
+      <span>Bin Label <span style="color:var(--error)">*</span></span>
+      <span>Qty Bags <span style="color:var(--error)">*</span></span>
+      <span>Location</span>
+      <span>Notes</span>
+      <span></span>
+    </div>
+
+    <div id="bins-rows-wrap"></div>
+
+    <button class="btn btn-ghost btn-sm" id="btn-add-bin-row" style="margin-top:0.35rem">+ Add Bin</button>
+
+    <div class="bin-total" id="bins-total">Total: 0 bags</div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-bins-cancel">Cancel</button>
+      <button class="btn" id="btn-bins-save">Save Bins</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="js/config.js"></script>
@@ -200,13 +252,9 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.1.5 | inventory.html
-// v2.1.5: BUG FIX — openLotModal normalises received_date to YYYY-MM-DD before assigning
-//          to input[type=date].value. Defensive against any date format the server sends:
-//          full ISO string, Date object serialised to string, or already-correct YYYY-MM-DD.
-//          Also carries read-only system fields (po_line_id, sku_id, sku_code etc.) through
-//          the save payload so server never blanks them on edit.
-// v2.1.4: isNaN guards + sanitised numeric fields on lot save. Client-side required validation.
+// Version 2.2.0 | inventory.html
+// v2.2.0: openBinsModal, renderBinRows, bin add/remove, saveBinsForLot API call.
+// v2.1.5: BUG FIX — openLotModal normalises received_date to YYYY-MM-DD.
 const fmtDate = v => UI.formatDate(v);
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
@@ -331,7 +379,10 @@ function renderTable() {
       '<td>' + fmtDate(l.received_date) + '</td>' +
       '<td>' + binToggle + '</td>' +
       '<td>' + (ddCount > 0 ? ddToggle : '<span class="dd-empty">no drawdowns</span>') + '</td>' +
-      '<td><button class="btn btn-ghost btn-sm" onclick="openLotModal(' + l.lot_id + ')">Edit</button></td>' +
+      '<td style="white-space:nowrap">' +
+        '<button class="btn btn-ghost btn-sm" onclick="openBinsModal(' + l.lot_id + ')" style="margin-right:0.35rem">Bins</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="openLotModal(' + l.lot_id + ')">Edit</button>' +
+      '</td>' +
     '</tr>');
 
     if (isExpanded && bins.length) {
@@ -601,6 +652,158 @@ document.getElementById('btn-lot-save').onclick = async () => {
   } catch (e) {
     console.error('Caught error:', e);
     showModalError('modal-lot', e.message || 'Save failed.');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ── Bin Edit Modal (v2.2.0) ──────────────────────────────────────────────────
+
+var binRows = [];  // [{ bin_label, qty_bags, location_id, notes }]
+
+function openBinsModal(lotId) {
+  const lot = (PAGE_DATA.inventory_lots || []).find(l => String(l.lot_id) === String(lotId));
+  if (!lot) return;
+
+  document.getElementById('bins-lot-id').value = lotId;
+  document.getElementById('modal-bins-title').textContent =
+    'Edit Bins — ' + (lot.sample_name || 'Lot ' + lotId);
+
+  // Info block
+  document.getElementById('bins-info-block').innerHTML =
+    '<strong>' + esc(lot.warehouse_name || 'Warehouse') + '</strong>' +
+    ' &nbsp;·&nbsp; <strong>' + lot.received_bags + '</strong> bags received' +
+    ' &nbsp;·&nbsp; Bin total cannot exceed received bags.';
+
+  // Seed from existing bins — deep copy so edits don't mutate PAGE_DATA
+  const existing = lot.bins || [];
+  binRows = existing.length
+    ? existing.map(b => ({
+        bin_label:   b.bin_label   || '',
+        qty_bags:    b.qty_bags    || '',
+        location_id: b.location_id || '',
+        notes:       b.notes       || ''
+      }))
+    : [{ bin_label: '', qty_bags: '', location_id: '', notes: '' }];
+
+  renderBinRows(lot);
+  clearModalError('modal-bins');
+  document.getElementById('modal-bins').classList.add('open');
+}
+
+function renderBinRows(lotArg) {
+  // Resolve lot — use lotArg if passed, otherwise look up from hidden input
+  const lot = lotArg || (PAGE_DATA.inventory_lots || [])
+    .find(l => String(l.lot_id) === String(document.getElementById('bins-lot-id').value));
+  if (!lot) return;
+
+  const whId = String(lot.warehouse_id || '');
+  const locs = (PAGE_DATA.locations || []).filter(l =>
+    String(l.warehouse_id) === whId && l.is_active !== false
+  );
+  const locOpts = '<option value="">— No location —</option>' +
+    locs.map(l =>
+      '<option value="' + l.location_id + '">' + esc(l.facility_name || String(l.location_id)) + '</option>'
+    ).join('');
+
+  const wrap = document.getElementById('bins-rows-wrap');
+  wrap.innerHTML = binRows.map(function(b, i) {
+    const selOpts = locs.map(l =>
+      '<option value="' + l.location_id + '"' +
+      (String(b.location_id) === String(l.location_id) ? ' selected' : '') +
+      '>' + esc(l.facility_name || String(l.location_id)) + '</option>'
+    ).join('');
+    return '<div class="bin-edit-row">' +
+      '<input type="text" placeholder="e.g. A3-R2" value="' + esc(b.bin_label) + '" ' +
+        'oninput="binRows[' + i + '].bin_label=this.value" />' +
+      '<input type="number" min="1" placeholder="0" value="' + (b.qty_bags || '') + '" ' +
+        'oninput="binRows[' + i + '].qty_bags=this.value;updateBinTotal()" />' +
+      '<select onchange="binRows[' + i + '].location_id=this.value">' +
+        '<option value="">— No location —</option>' + selOpts +
+      '</select>' +
+      '<input type="text" placeholder="optional notes" value="' + esc(b.notes) + '" ' +
+        'oninput="binRows[' + i + '].notes=this.value" />' +
+      '<button type="button" class="btn-del-bin" onclick="removeBinRow(' + i + ')" title="Remove">✕</button>' +
+    '</div>';
+  }).join('');
+
+  updateBinTotal();
+}
+
+function updateBinTotal() {
+  const lot = (PAGE_DATA.inventory_lots || [])
+    .find(l => String(l.lot_id) === String(document.getElementById('bins-lot-id').value));
+  const received = lot ? (lot.received_bags || 0) : 0;
+  const total = binRows.reduce(function(s, b) { return s + (parseInt(b.qty_bags) || 0); }, 0);
+  const el = document.getElementById('bins-total');
+  el.textContent = 'Total: ' + total + ' / ' + received + ' bags binned';
+  el.className = 'bin-total' + (total > received ? ' over' : total === received ? ' exact' : '');
+  document.getElementById('btn-bins-save').disabled = total > received;
+}
+
+function removeBinRow(idx) {
+  binRows.splice(idx, 1);
+  if (!binRows.length) binRows = [{ bin_label: '', qty_bags: '', location_id: '', notes: '' }];
+  renderBinRows();
+}
+
+document.getElementById('btn-add-bin-row').onclick = function() {
+  binRows.push({ bin_label: '', qty_bags: '', location_id: '', notes: '' });
+  renderBinRows();
+};
+
+document.getElementById('btn-bins-cancel').onclick = function() {
+  document.getElementById('modal-bins').classList.remove('open');
+};
+
+document.getElementById('btn-bins-save').onclick = async function() {
+  const btn = document.getElementById('btn-bins-save');
+  btn.disabled = true;
+
+  const lotId = document.getElementById('bins-lot-id').value;
+  const lot   = (PAGE_DATA.inventory_lots || []).find(l => String(l.lot_id) === String(lotId));
+  const received = lot ? (lot.received_bags || 0) : 0;
+
+  // Client-side validation
+  for (var i = 0; i < binRows.length; i++) {
+    if (!binRows[i].bin_label || !String(binRows[i].bin_label).trim()) {
+      showModalError('modal-bins', 'Bin ' + (i + 1) + ': label is required.');
+      btn.disabled = false; return;
+    }
+    const qty = parseInt(binRows[i].qty_bags) || 0;
+    if (qty <= 0) {
+      showModalError('modal-bins', 'Bin ' + (i + 1) + ': qty must be greater than zero.');
+      btn.disabled = false; return;
+    }
+  }
+  const total = binRows.reduce(function(s, b) { return s + (parseInt(b.qty_bags) || 0); }, 0);
+  if (total > received) {
+    showModalError('modal-bins', 'Total bins (' + total + ') exceed received bags (' + received + ').');
+    btn.disabled = false; return;
+  }
+
+  const payload = {
+    action:  'saveBinsForLot',
+    lot_id:  lotId,
+    bins:    binRows.map(function(b) {
+      return {
+        bin_label:   String(b.bin_label || '').trim(),
+        qty_bags:    parseInt(b.qty_bags) || 0,
+        location_id: b.location_id || '',
+        notes:       String(b.notes || '').trim()
+      };
+    })
+  };
+
+  try {
+    const data = await API.post(payload);
+    PAGE_DATA = data;
+    document.getElementById('modal-bins').classList.remove('open');
+    renderTable();
+    showToast('Bins saved.', 'success');
+  } catch (e) {
+    console.error('saveBinsForLot error:', e);
+    showModalError('modal-bins', e.message || 'Save failed.');
   } finally {
     btn.disabled = false;
   }
