@@ -1,5 +1,11 @@
 <!DOCTYPE html>
-<!-- Version 1.6 | buyer-dashboard.html -->
+<!-- Version 1.8 | buyer-dashboard.html -->
+<!-- v1.8: ensureCompanySwitcher() — self-heals the nav switcher for sessions stored
+     before company_count existed; asks getMyCompanies once and shows the switcher
+     if the email is linked to >1 company. -->
+<!-- v1.7: Switch company — the nav company name becomes a dropdown trigger when the
+     buyer is linked to >1 company (and not impersonated); clicking re-opens the
+     picker in switch mode and calls BuyerAPI.switchCompany (no new OTP). -->
 <!-- v1.6: Multi-company login. If verifyAuthCode returns multi_company, a company
      picker step is shown; selecting one calls BuyerAPI.selectCompany to obtain the
      session. Single-company login is unchanged. -->
@@ -38,6 +44,10 @@
     .nav-brand { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; }
     .nav-right { display: flex; align-items: center; gap: 1.25rem; }
     .nav-buyer { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+    /* v1.7: nav company name as a switch trigger when buyer has >1 company */
+    .nav-switch { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text); background: none; border: none; cursor: pointer; padding: 0.2rem 0.4rem; border-radius: var(--radius); display: inline-flex; align-items: center; gap: 0.3rem; transition: background var(--transition), color var(--transition); }
+    .nav-switch:hover { background: var(--accent-light); color: var(--accent); }
+    .nav-switch .caret { font-size: 0.6rem; opacity: 0.7; }
     .btn-logout { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); border: none; background: none; cursor: pointer; padding: 0; letter-spacing: 0.06em; text-transform: uppercase; transition: color var(--transition); }
     .btn-logout:hover { color: var(--error); }
 
@@ -252,7 +262,9 @@
 <script src="js/buyer-api.js"></script>
 <script src="js/buyer-ui.js"></script>
 <script>
-// Version 1.6 | buyer-dashboard.html
+// Version 1.8 | buyer-dashboard.html
+// v1.8: ensureCompanySwitcher() self-heals nav switcher for pre-company_count sessions.
+// v1.7: switch company from nav (openCompanySwitcher); picker reused in switch mode.
 // v1.6: multi-company login picker (step-company + renderCompanyPicker).
 // v1.5: showLogin() resets IMPERSONATED — prevents banner persisting on tab reuse.
 // v1.4: impersonation via ?impersonate=TOKEN.
@@ -322,17 +334,53 @@ function showLogin() {
   document.getElementById('nav-buyer').textContent          = '';
 }
 
+// v1.8: if the nav switcher isn't shown but this email may have >1 company, ask the
+// server once and reveal the switcher. Handles sessions saved before company_count
+// existed, so the buyer doesn't have to sign out and back in. No-op when impersonated
+// or when the switcher is already present.
+function ensureCompanySwitcher() {
+  if (IMPERSONATED) return;
+  if (document.getElementById('btn-switch-company')) return;  // already shown
+  const buyer = BuyerAuth.getBuyer() || {};
+  if (Number(buyer.company_count || 1) > 1) return;           // showDashboard already handled it
+  BuyerAPI.getMyCompanies().then(function(data) {
+    const companies = (data && data.companies) || [];
+    if (companies.length > 1) {
+      const updated = Object.assign({}, BuyerAuth.getBuyer() || {}, { company_count: companies.length });
+      BuyerAuth.setSession(BuyerAuth.getToken(), updated);     // persist so it sticks on refresh
+      renderNavBuyer(updated);
+    }
+  }).catch(function() { /* silent — switcher just stays hidden */ });
+}
+
+// v1.7: nav company display. If the buyer is linked to more than one company
+// (company_count > 1) and this is NOT an impersonated session, render the name
+// as a clickable switcher; otherwise plain text.
+function renderNavBuyer(buyer) {
+  const el = document.getElementById('nav-buyer');
+  const name = buyer.company_name || '';
+  const canSwitch = !IMPERSONATED && Number(buyer.company_count || 1) > 1;
+  if (canSwitch) {
+    el.innerHTML = '<button type="button" class="nav-switch" id="btn-switch-company" title="Switch company">' +
+                   esc(name) + ' <span class="caret">\u25BC</span></button>';
+    document.getElementById('btn-switch-company').onclick = openCompanySwitcher;
+  } else {
+    el.textContent = name;
+  }
+}
+
 function showDashboard() {
   document.getElementById('login-screen').style.display     = 'none';
   document.getElementById('dashboard-screen').style.display = 'block';
   const buyer = BuyerAuth.getBuyer();
   if (buyer) {
-    document.getElementById('nav-buyer').textContent  = buyer.company_name || '';
+    renderNavBuyer(buyer);  // v1.7: plain text, or a switch trigger if >1 company
     document.getElementById('dash-title').textContent = 'My Orders';
     document.getElementById('dash-sub').textContent   = IMPERSONATED
       ? 'Viewing orders for ' + (buyer.company_name || '')
       : 'Welcome back, ' + (buyer.contact_person || buyer.company_name) + '.';
   }
+  ensureCompanySwitcher();  // v1.8: show switcher even if stored buyer lacks company_count
   // v1.4: show impersonation banner; hide logout for impersonated sessions
   if (IMPERSONATED) {
     document.getElementById('impersonate-bar').classList.add('show');
@@ -470,7 +518,10 @@ document.getElementById('btn-verify-code').onclick = async function() {
   try {
     const data = await BuyerAPI.verifyAuthCode(email, code);
     if (data.multi_company) {           // v1.6: more than one company on this email
-      renderCompanyPicker(data.choice_token, data.companies);
+      const choiceToken = data.choice_token;
+      renderCompanyPicker(data.companies, function(buyerId) {  // v1.7: new signature
+        return BuyerAPI.selectCompany(choiceToken, buyerId);
+      });
       switchStep('step-company');
     } else {
       BuyerAuth.setSession(data.session_token, data.buyer);
@@ -571,28 +622,69 @@ document.addEventListener('keydown', e => {
 });
 
 // v1.6: render one button per company; clicking it mints the session
-function renderCompanyPicker(choiceToken, companies) {
+// v1.6/1.7: shared picker. `commit(buyerId)` returns the API promise resolving to
+// session data; `opts.currentId` marks the active company; `opts.onCancel` (switch
+// mode) shows a Cancel button to return to the dashboard without changing company.
+function renderCompanyPicker(companies, commit, opts) {
+  opts = opts || {};
   const wrap = document.getElementById('company-list');
   hideAlert('company-error');
-  wrap.innerHTML = companies.map(function(c) {
+  let html = companies.map(function(c) {
+    const isCurrent = opts.currentId != null && String(c.buyer_id) === String(opts.currentId);
     return '<button class="btn" style="margin-bottom:0.6rem" ' +
+           (isCurrent ? 'disabled ' : '') +
            'data-buyer-id="' + esc(String(c.buyer_id)) + '">' +
-           esc(c.company_name || ('Company ' + c.buyer_id)) + '</button>';
+           esc(c.company_name || ('Company ' + c.buyer_id)) +
+           (isCurrent ? ' (current)' : '') + '</button>';
   }).join('');
-  wrap.querySelectorAll('button').forEach(function(btn) {
+  if (opts.onCancel) {
+    html += '<button class="btn btn-ghost" id="btn-company-cancel" style="width:100%">Cancel</button>';
+  }
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('button[data-buyer-id]').forEach(function(btn) {
     btn.onclick = async function() {
       const buyerId = btn.dataset.buyerId;
       wrap.querySelectorAll('button').forEach(b => b.disabled = true);
       hideAlert('company-error');
       try {
-        const data = await BuyerAPI.selectCompany(choiceToken, buyerId);
+        const data = await commit(buyerId);
         BuyerAuth.setSession(data.session_token, data.buyer);
         showDashboard(); loadDashboard();
       } catch (e) {
         wrap.querySelectorAll('button').forEach(b => b.disabled = false);
-        showAlert('company-error', e.message || 'Could not open that company. Please log in again.', 'error');
+        showAlert('company-error', e.message || 'Could not open that company. Please try again.', 'error');
       }
     };
+  });
+  const cancelBtn = document.getElementById('btn-company-cancel');
+  if (cancelBtn && opts.onCancel) cancelBtn.onclick = opts.onCancel;
+}
+
+// v1.7: open the picker for a logged-in buyer (switch, no re-OTP).
+function openCompanySwitcher() {
+  const current = BuyerAuth.getBuyer() || {};
+  // Show the login screen's company step as the switcher surface, hide dashboard.
+  document.getElementById('dashboard-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display     = 'flex';
+  switchStep('step-company');
+  const wrap = document.getElementById('company-list');
+  wrap.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading companies…</div>';
+  BuyerAPI.getMyCompanies().then(function(data) {
+    renderCompanyPicker(data.companies || [], function(buyerId) {
+      return BuyerAPI.switchCompany(buyerId);
+    }, {
+      currentId: data.current_buyer_id != null ? data.current_buyer_id : current.buyer_id,
+      onCancel: function() {
+        document.getElementById('login-screen').style.display     = 'none';
+        document.getElementById('dashboard-screen').style.display = 'block';
+        switchStep('step-email');  // reset login surface for any future logout
+      }
+    });
+  }).catch(function(e) {
+    const expired = (e.code === 'SESSION_EXPIRED') || (e.message && e.message.indexOf('UNAUTHORIZED') !== -1);
+    if (expired) { BuyerAuth.clearSession(); switchStep('step-email'); showLogin(); return; }
+    wrap.innerHTML = '';
+    showAlert('company-error', e.message || 'Could not load your companies. Please try again.', 'error');
   });
 }
 
