@@ -1,6 +1,7 @@
-// Version 2.4
+// Version 2.5
 // buyer-api.js — All API calls for buyer-facing pages.
 // Calls BUYER_API_URL (defined in buyer-config.js).
+// v2.5: getMyCompanies() + switchCompany() — logged-in company switch, no re-OTP.
 // v2.4: selectCompany() — multi-company login picker (calls selectBuyerCompany).
 // v2.3: post() now unwraps { success, data } envelope — mirrors main api.js.
 //         Throws on success:false with the server error message and code.
@@ -72,9 +73,18 @@ const BuyerAPI = (() => {
     });
   }
 
+  // v2.5: logged-in buyer switching between their own companies (session attached automatically)
+  async function getMyCompanies() {
+    return post({ action: 'getMyCompanies' });
+  }
+
+  async function switchCompany(buyerId) {
+    return post({ action: 'switchBuyerCompany', buyer_id: buyerId });
+  }
+
   async function logout() {
     return post({ action: 'logoutBuyer' });
   }
 
-  return { post, sendAuthCode, verifyAuthCode, selectCompany, getDashboard, submitDrawdown, logout };
+  return { post, sendAuthCode, verifyAuthCode, selectCompany, getMyCompanies, switchCompany, getDashboard, submitDrawdown, logout };
 })();
