@@ -1,6 +1,7 @@
-// Version 2.3
+// Version 2.4
 // buyer-api.js — All API calls for buyer-facing pages.
 // Calls BUYER_API_URL (defined in buyer-config.js).
+// v2.4: selectCompany() — multi-company login picker (calls selectBuyerCompany).
 // v2.3: post() now unwraps { success, data } envelope — mirrors main api.js.
 //         Throws on success:false with the server error message and code.
 // v2.2: Replaced URL-token model with session_token from OTP login.
@@ -48,6 +49,12 @@ const BuyerAPI = (() => {
     return post({ action: 'verifyBuyerAuthCode', email: email, code: code });
   }
 
+  // v2.4: multi-company — exchange choice_token + chosen buyer_id for a session.
+  // No session token exists yet, so this stays a public action.
+  async function selectCompany(choiceToken, buyerId) {
+    return post({ action: 'selectBuyerCompany', choice_token: choiceToken, buyer_id: buyerId });
+  }
+
   // ── Authenticated actions ────────────────────────────────────────────────
 
   async function getDashboard() {
@@ -69,5 +76,5 @@ const BuyerAPI = (() => {
     return post({ action: 'logoutBuyer' });
   }
 
-  return { post, sendAuthCode, verifyAuthCode, getDashboard, submitDrawdown, logout };
+  return { post, sendAuthCode, verifyAuthCode, selectCompany, getDashboard, submitDrawdown, logout };
 })();
