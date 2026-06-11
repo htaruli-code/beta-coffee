@@ -1,4 +1,12 @@
-<!-- Version 2.3.3 | purchase-orders.html -->
+<!-- Version 2.3.12 | purchase-orders.html -->
+<!-- v2.3.12: PO line RECEIVED badge fixed — was showing raw 6dp received (18.508475/18.5085) and red/partial. Now displays both at 4dp and uses 0.001 tolerance so an effectively-complete fractional line shows green + disables Receive/Edit/Del. Display-side fix; received_bags stays as stored. -->
+<!-- v2.3.11: RECEIVE rounding mismatch fixed at root — kg/lb helpers now STORE 6dp (was 4dp) so multiple converted bins reconcile to the whole PO qty (11+19+472+590 kg / 59 = bins summing to 18.508475, not 18.5084). Boxes still DISPLAY 4dp. Total line snaps to the remaining when within 0.001 tolerance so the eye sees 18.5085/18.5085 not 18.5084/18.5085. -->
+<!-- v2.3.10: Receive modal bin rows gain optional kg/lb helper (recvWeightToBags) — divides entered weight by the shared Bag Size to auto-fill bags, mirroring the PO line entry. Bin grid widened 5→6 cols + matching "or kg/lb" header. Stores 4dp; total math unchanged (full precision + tolerance). -->
+<!-- v2.3.9: RECEIVE display fix — root cause was OVER-rounding in v2.3.8: rounding the remaining ceiling to 4dp rounded 18.50847 UP to 18.5085 while hand-split bins summed to 18.50847 and truncated to 18.5084, a false 0.0001 mismatch. Now math uses FULL precision with 0.001 tolerance; only the displayed numbers are rounded to 4dp. Bins keep their stored precision on load. -->
+<!-- v2.3.8: RECEIVE PO fractional fix — recvLineQty/recvRemaining rounded to 4dp at source (handles deep-float records already in the sheet, e.g. 18.5084745763→18.5085); bin total rounded to 4dp; over-receive/exact tolerance widened to 0.0005 for multi-bin accumulation; kg helper now STORES 4dp so new qty_bags are clean. Fixes save discrepancy that blocked Receiving. -->
+<!-- v2.3.7: New Line row column reorder for UX — Bag Size now precedes Qty Bags and the kg/lb helper, so the helper's divisor is entered first. Header, grid widths, and inputs reordered together; no data/validation change. -->
+<!-- v2.3.5: FRACTIONAL BAGS — qty_bags + receive/issue inputs text+inputmode=decimal; kg/lb helper (poWeightToBags) back-calcs bags; LINE GRID widened 9→10 cols + matching "or kg/lb" header so columns align; parseFloat throughout incl. receive bins + over-receive tolerance. -->
+<!-- v2.3.6: New Line row — header label "Sample Name"→"Product Name"; product-name input gains tooltip; selecting a SKU auto-populates Product Name from sku_name (won't overwrite a user-typed name). Display label only — underlying field stays sample_name. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -102,7 +110,7 @@
     /* ── PO Line Modal (v2.1.9) ── */
     .line-table-header {
       display: grid;
-      grid-template-columns: 1.2fr 1.6fr 1fr 1.3fr 0.7fr 0.7fr 0.8fr 0.65fr 28px;
+      grid-template-columns: 1.2fr 1.6fr 1fr 1.3fr 0.7fr 0.7fr 0.6fr 0.8fr 0.65fr 28px;
       gap: 0.5rem;
       padding: 0 0.5rem 0.4rem;
       font-family: var(--font-mono);
@@ -121,7 +129,7 @@
     }
     .line-row-fields {
       display: grid;
-      grid-template-columns: 1.2fr 1.6fr 1fr 1.3fr 0.7fr 0.7fr 0.8fr 0.65fr 28px;
+      grid-template-columns: 1.2fr 1.6fr 1fr 1.3fr 0.7fr 0.7fr 0.6fr 0.8fr 0.65fr 28px;
       gap: 0.5rem;
       align-items: center;
     }
@@ -257,7 +265,7 @@
     /* ── Receive Modal bins (v2.1.9) ── */
     .receive-bin-header {
       display: grid;
-      grid-template-columns: 2fr 0.7fr 1fr 1fr 28px;
+      grid-template-columns: 2fr 0.7fr 0.7fr 1fr 1fr 28px;
       gap: 0.5rem;
       padding: 0 0.4rem 0.35rem;
       font-family: var(--font-mono);
@@ -269,7 +277,7 @@
     }
     .receive-bin-row {
       display: grid;
-      grid-template-columns: 2fr 0.7fr 1fr 1fr 28px;
+      grid-template-columns: 2fr 0.7fr 0.7fr 1fr 1fr 28px;
       gap: 0.5rem;
       align-items: center;
       margin-top: 0.4rem;
@@ -504,9 +512,10 @@
       <span>SKU <span style="color:var(--error)">*</span></span>
       <span>Search Sample Code</span>
       <span>Origin Code</span>
-      <span>Sample Name <span style="color:var(--error)">*</span></span>
-      <span>Qty Bags <span style="color:var(--error)">*</span></span>
+      <span>Product Name <span style="color:var(--error)">*</span></span>
       <span>Bag Size</span>
+      <span>Qty Bags <span style="color:var(--error)">*</span></span>
+      <span>or kg/lb</span>
       <span>Cost / unit</span>
       <span>Cost Unit</span>
       <span></span>
@@ -619,7 +628,7 @@
       </div>
       <div class="field" style="max-width:110px">
         <label>Bag Size</label>
-        <input type="number" min="0" step="0.1" id="recv-bag-size" />
+        <input type="text" inputmode="decimal" id="recv-bag-size" placeholder="60" />
       </div>
       <div class="field" style="max-width:120px">
         <label>Cost / unit</label>
@@ -639,6 +648,7 @@
     <div class="receive-bin-header">
       <span>Bin Label (e.g. ICO 02/243/839 CMAU-8492032 - 01)</span>
       <span>Bags <span style="color:var(--error)">*</span></span>
+      <span>or kg/lb</span>
       <span>Location</span>
       <span>Notes</span>
       <span></span>
@@ -718,7 +728,7 @@
       </div>
       <div class="field" style="max-width:110px">
         <label>Bag Size</label>
-        <input type="number" min="0" step="0.1" id="issue-bag-size" />
+        <input type="text" inputmode="decimal" id="issue-bag-size" placeholder="60" />
       </div>
       <div class="field" style="max-width:110px">
         <label>Cost / unit</label>
@@ -1015,11 +1025,15 @@ function renderLinesTable(lines, currency, poId) {
     const costPrice   = formatMoney(l.cost_price || 0) + ' ' + curr + '/' + esc(l.cost_price_unit || 'kg');
     const received    = l.received_bags || 0;
     const qty         = l.qty_bags || 0;
+    // v2.3.12: display 4dp (received may be stored at 6dp from kg-converted bins); compare
+    // with a 0.001 tolerance so a fractional received that's effectively complete shows green.
+    const fmt4 = (n) => Number((Number(n) || 0).toFixed(4));
+    const TOL = 0.001;
     let badgeClass = 'recv-grey';
-    let badgeLabel = received + '/' + qty;
-    if (received > 0 && received < qty)  badgeClass = 'recv-red';
-    if (received >= qty && received > 0) badgeClass = 'recv-green';
-    if (received === 0) { badgeClass = 'recv-grey'; badgeLabel = 'Not received'; }
+    let badgeLabel = fmt4(received) + '/' + fmt4(qty);
+    if (received > TOL && received < qty - TOL)        badgeClass = 'recv-red';
+    if (received >= qty - TOL && received > TOL)       badgeClass = 'recv-green';
+    if (received <= TOL) { badgeClass = 'recv-grey'; badgeLabel = 'Not received'; }
     return `<tr>
       <td><span class="sku-code-cell">${esc(l.sku_code || '—')}</span></td>
       <td>${esc(l.sample_name)}</td>
@@ -1030,10 +1044,10 @@ function renderLinesTable(lines, currency, poId) {
       <td class="num subtotal-row">${subtotal}</td>
       <td class="num"><span class="recv-badge ${badgeClass}">${badgeLabel}</span></td>
       <td>
-        <button class="btn btn-ghost btn-sm" ${received >= qty && qty > 0 ? 'disabled title="Fully received"' : 'onclick="openReceiveModal(' + l.po_line_id + ', ' + poId + ')"'}>📦 Receive</button>
+        <button class="btn btn-ghost btn-sm" ${received >= qty - TOL && qty > TOL ? 'disabled title="Fully received"' : 'onclick="openReceiveModal(' + l.po_line_id + ', ' + poId + ')"'}>📦 Receive</button>
         <button class="btn btn-ghost btn-sm" onclick="openIssueSampleModal(${l.po_line_id}, ${poId})">🔬 Sample</button>
-        <button class="btn btn-ghost btn-sm" ${received >= qty && qty > 0 ? 'disabled title="Cannot edit — inventory already committed"' : 'onclick="openLineModal(' + l.po_id + ', ' + l.po_line_id + ')"'}>Edit</button>
-        <button class="btn btn-danger btn-sm" ${received >= qty && qty > 0 ? 'disabled title="Cannot delete — inventory already committed"' : 'onclick="deleteLine(' + l.po_id + ', ' + l.po_line_id + ')"'}>Del</button>
+        <button class="btn btn-ghost btn-sm" ${received >= qty - TOL && qty > TOL ? 'disabled title="Cannot edit — inventory already committed"' : 'onclick="openLineModal(' + l.po_id + ', ' + l.po_line_id + ')"'}>Edit</button>
+        <button class="btn btn-danger btn-sm" ${received >= qty - TOL && qty > TOL ? 'disabled title="Cannot delete — inventory already committed"' : 'onclick="deleteLine(' + l.po_id + ', ' + l.po_line_id + ')"'}>Del</button>
       </td>
     </tr>`;
   }).join('');
@@ -1241,6 +1255,18 @@ function openLineModal(poId, lineId) {
   document.getElementById('modal-line').classList.add('open');
 }
 
+// v2.3.4: optional kg/lb helper — divides weight by bag_size, writes fractional bags.
+// Bag remains the source of truth; weight is a convenience that back-calculates.
+function poWeightToBags(i, rawWeight) {
+  const wt   = parseFloat(rawWeight);
+  const size = parseFloat(lineRows[i] && lineRows[i].bag_size);
+  if (!isFinite(wt) || !isFinite(size) || size <= 0) return; // need a bag size first
+  const bags = Math.round((wt / size) * 1000000) / 1000000; // v2.3.11: store at 6dp so multiple bins reconcile to the whole; display still shows 4dp
+  lineRows[i].qty_bags = String(bags);
+  const bagInput = document.getElementById('line-bags-' + i);
+  if (bagInput) bagInput.value = Number(bags.toFixed(4)); // display 4dp; model keeps full precision
+}
+
 function renderLineRows() {
   const wrap = document.getElementById('line-rows-wrap');
   const coffeeTypes = PAGE_DATA.coffee_types || [];
@@ -1289,18 +1315,25 @@ function renderLineRows() {
           // Col 3: Origin Code (read-only, auto-filled from sample pick)
           '<input type="text" id="line-origin-' + i + '" placeholder="—" ' +
             'value="' + escAttr(r.origin_sample_code) + '" readonly />' +
-          // Col 4: Sample Name (editable after auto-fill)
-          '<input type="text" id="line-name-' + i + '" placeholder="Sample name" ' +
+          // Col 4: Product Name (auto-filled from SKU on pick; editable)
+          '<input type="text" id="line-name-' + i + '" placeholder="Product name" ' +
+            'title="Auto-fills from the selected SKU name. You can edit it." ' +
             'value="' + escAttr(r.sample_name) + '" ' +
             'oninput="lineRows[' + i + '].sample_name = this.value" />' +
-          // Col 5: Qty Bags
-          '<input type="number" min="1" placeholder="0" ' +
-            'value="' + escAttr(r.qty_bags) + '" ' +
-            'oninput="lineRows[' + i + '].qty_bags = this.value" />' +
-          // Col 6: Bag Size
-          '<input type="number" min="0" step="0.1" placeholder="60" ' +
+          // Col 5: Bag Size (placed before Qty so the kg/lb helper has its divisor first)
+          '<input type="text" inputmode="decimal" placeholder="60" ' +
             'value="' + escAttr(r.bag_size) + '" ' +
             'oninput="lineRows[' + i + '].bag_size = this.value" />' +
+          // Col 6: Qty Bags (fractional). Optional kg/lb helper back-calcs bags.
+          '<input type="text" inputmode="decimal" placeholder="0" ' +
+            'id="line-bags-' + i + '" ' +
+            'value="' + escAttr(r.qty_bags) + '" ' +
+            'oninput="lineRows[' + i + '].qty_bags = this.value" />' +
+          // Col 7: or kg/lb helper
+          '<input type="text" inputmode="decimal" placeholder="or kg/lb" ' +
+            'id="line-wt-' + i + '" title="Enter weight to auto-fill bags" ' +
+            'oninput="poWeightToBags(' + i + ', this.value)" ' +
+            'style="font-size:0.7rem;opacity:0.8" />' +
           // Col 7: Cost / unit
           '<input type="number" min="0" step="0.01" placeholder="0.00" ' +
             'value="' + escAttr(r.cost_price) + '" ' +
@@ -1371,6 +1404,13 @@ function onSkuAcPick(rowIdx, skuId) {
   const r = lineRows[rowIdx];
   r.sku_id   = s.sku_id;
   r.sku_code = s.sku_code;
+  // v2.3.6: auto-populate Product Name from the selected SKU's name.
+  // Fills when empty, or when the field still holds a previously auto-filled
+  // SKU name — but never overwrites a name the user typed themselves.
+  if (s.sku_name && (!r.sample_name || r.sample_name === r._skuNameAutofill)) {
+    r.sample_name      = s.sku_name;
+    r._skuNameAutofill = s.sku_name; // remember what we auto-filled, to allow re-fill on SKU change
+  }
   // Auto-fill coffee_type from SKU default if not already set
   if (s.coffee_type && !r.coffee_type) r.coffee_type = s.coffee_type;
   closeSkuAc(rowIdx);
@@ -1483,7 +1523,7 @@ document.getElementById('btn-line-save').onclick = async () => {
       showModalError('modal-line', 'Row ' + (i + 1) + ': Sample Name is required.');
       btn.disabled = false; return;
     }
-    if (!r.qty_bags || parseInt(r.qty_bags) <= 0) {
+    if (!r.qty_bags || parseFloat(r.qty_bags) <= 0) {
       showModalError('modal-line', 'Row ' + (i + 1) + ': Qty Bags must be greater than zero.');
       btn.disabled = false; return;
     }
@@ -1677,8 +1717,11 @@ async function openReceiveModal(poLineId, poId) {
   const line = po ? (po.lines || []).find(l => String(l.po_line_id) === String(poLineId)) : null;
   if (!line) { showToast('PO line not found.', 'error'); return; }
 
-  recvLineQty   = line.qty_bags     || 0;
-  const alreadyReceived = line.received_bags || 0;
+  // v2.3.9: keep FULL-PRECISION remaining as the comparison ceiling. Rounding the
+  // ceiling to 4dp could round .47 UP (18.5085) while hand-split bins sum just under
+  // (18.50847), creating a false 0.0001 shortfall. Display is rounded; math is not.
+  recvLineQty   = Number(line.qty_bags)     || 0;
+  const alreadyReceived = Number(line.received_bags) || 0;
   recvRemaining = Math.max(0, recvLineQty - alreadyReceived);
 
   document.getElementById('recv-po-line-id').value  = poLineId;
@@ -1696,10 +1739,10 @@ async function openReceiveModal(poLineId, poId) {
   // Show PO qty + already received context
   const qtyLabel = document.getElementById('recv-po-qty-label');
   if (alreadyReceived > 0) {
-    qtyLabel.textContent = 'PO qty: ' + recvLineQty + ' bags · Already received: ' + alreadyReceived + ' · Remaining: ' + recvRemaining;
-    qtyLabel.style.color = recvRemaining === 0 ? 'var(--success)' : 'var(--warn)';
+    qtyLabel.textContent = 'PO qty: ' + Number(recvLineQty.toFixed(4)) + ' bags · Already received: ' + Number(alreadyReceived.toFixed(4)) + ' · Remaining: ' + Number(recvRemaining.toFixed(4));
+    qtyLabel.style.color = recvRemaining <= 0.001 ? 'var(--success)' : 'var(--warn)';
   } else {
-    qtyLabel.textContent = 'PO qty: ' + recvLineQty + ' bags';
+    qtyLabel.textContent = 'PO qty: ' + Number(recvLineQty.toFixed(4)) + ' bags';
     qtyLabel.style.color = '';
   }
 
@@ -1734,6 +1777,8 @@ async function openReceiveModal(poLineId, poId) {
     const existingBins = binData.bins || [];
     if (existingBins.length > 0) {
       // Pre-populate with all existing bins — staff can edit + add new ones
+      // v2.3.9: preserve each bin's stored precision on load (do NOT force 4dp — that
+      // lost the 5th digit of 5dp bins and created a false shortfall vs the ceiling).
       recvBins = existingBins.map(b => ({
         bin_label:   b.bin_label   || '',
         qty_bags:    b.qty_bags    || '',
@@ -1771,6 +1816,20 @@ function updateReceiveLocations() {
   });
 }
 
+// v2.3.10: receive bin kg/lb helper — divides entered weight by the shared Bag Size,
+// writes fractional bags into that bin. Mirrors poWeightToBags on the PO line rows.
+// Stores 4dp (consistent with the line-entry helper); display math stays full-precision.
+function recvWeightToBags(i, rawWeight) {
+  const wt   = parseFloat(rawWeight);
+  const size = parseFloat(document.getElementById('recv-bag-size').value);
+  if (!isFinite(wt) || !isFinite(size) || size <= 0) return; // need a bag size first
+  const bags = Math.round((wt / size) * 1000000) / 1000000; // v2.3.11: 6dp store so bins reconcile
+  recvBins[i].qty_bags = String(bags);        // model keeps 6dp so bins reconcile
+  const bagInput = document.getElementById('recv-bin-bags-' + i);
+  if (bagInput) bagInput.value = Number(bags.toFixed(4)); // display 4dp for tidiness
+  updateRecvTotal();
+}
+
 function renderRecvBins() {
   const whId = document.getElementById('recv-warehouse').value;
   const locs = (PAGE_DATA.locations || []).filter(l => String(l.warehouse_id) === String(whId) && l.is_active);
@@ -1783,9 +1842,14 @@ function renderRecvBins() {
       <input type="text" placeholder="Bin label e.g. ICO 02/243/839 CMAU-8492032 - 0${i+1}"
         value="${esc(b.bin_label)}"
         oninput="recvBins[${i}].bin_label = this.value" />
-      <input type="number" min="1" placeholder="0"
+      <input type="text" inputmode="decimal" placeholder="0"
+        id="recv-bin-bags-${i}"
         value="${esc(b.qty_bags)}"
         oninput="recvBins[${i}].qty_bags = this.value; updateRecvTotal()" />
+      <input type="text" inputmode="decimal" placeholder="or kg/lb"
+        title="Enter weight to auto-fill bags (uses Bag Size above)"
+        oninput="recvWeightToBags(${i}, this.value)"
+        style="font-size:0.7rem;opacity:0.8" />
       <select id="recv-bin-loc-${i}"
         onchange="recvBins[${i}].location_id = this.value">
         ${locOpts}
@@ -1811,13 +1875,19 @@ function removeRecvBin(i) {
 }
 
 function updateRecvTotal() {
-  const total = recvBins.reduce((s, b) => s + (parseInt(b.qty_bags) || 0), 0);
+  // v2.3.11: compare on FULL precision with tolerance; round only what's shown.
+  const total = recvBins.reduce((s, b) => s + (parseFloat(b.qty_bags) || 0), 0);
   const el    = document.getElementById('recv-total');
-  // Show total against remaining (not full PO qty) so staff sees the correct ceiling
-  el.textContent = 'Total: ' + total + ' / ' + recvRemaining + ' bags remaining';
-  if (total > recvRemaining) {
+  const TOL   = 0.001; // a thousandth of a bag — covers hand-split rounding + float tails
+  const fmt   = (n) => Number(n.toFixed(4));   // display helper, math stays full-precision
+  const within = total > 0 && Math.abs(total - recvRemaining) <= TOL;
+  // When within tolerance, the bins ARE the full quantity for business purposes — show the
+  // total as the remaining so the eye doesn't see a meaningless 18.5084 vs 18.5085 mismatch.
+  const shownTotal = within ? fmt(recvRemaining) : fmt(total);
+  el.textContent = 'Total: ' + shownTotal + ' / ' + fmt(recvRemaining) + ' bags remaining';
+  if (total > recvRemaining + TOL) {
     el.className = 'receive-total over';
-  } else if (total > 0 && total === recvRemaining) {
+  } else if (within) {
     el.className = 'receive-total exact';
   } else {
     el.className = 'receive-total under';
@@ -1840,15 +1910,15 @@ document.getElementById('btn-recv-save').onclick = async () => {
       showModalError('modal-receive', 'Bin ' + (i+1) + ': Bin label is required.');
       btn.disabled = false; return;
     }
-    if (!recvBins[i].qty_bags || parseInt(recvBins[i].qty_bags) <= 0) {
+    if (!recvBins[i].qty_bags || parseFloat(recvBins[i].qty_bags) <= 0) {
       showModalError('modal-receive', 'Bin ' + (i+1) + ': Qty bags must be greater than zero.');
       btn.disabled = false; return;
     }
   }
 
-  const total = recvBins.reduce((s, b) => s + (parseInt(b.qty_bags) || 0), 0);
-  if (total > recvRemaining) {
-    showModalError('modal-receive', 'Total bins (' + total + ') exceeds remaining (' + recvRemaining + ' bags). Cannot over-receive.');
+  const total = recvBins.reduce((s, b) => s + (parseFloat(b.qty_bags) || 0), 0);
+  if (total > recvRemaining + 0.001) {
+    showModalError('modal-receive', 'Total bins (' + Number(total.toFixed(4)) + ') exceeds remaining (' + Number(recvRemaining.toFixed(4)) + ' bags). Cannot over-receive.');
     btn.disabled = false; return;
   }
 

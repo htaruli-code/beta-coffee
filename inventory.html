@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<!-- Version 2.2.0 | inventory.html -->
-<!-- v2.2.0: Bin editing from inventory page.
+<!-- Version 2.3.1 | inventory.html -->
+<!-- v2.3.1: Drawdown activity panel now shows drawn-down bags PER BIN (bin tag + count),
+     so multi-bin picks are identifiable. Uses existing bin_allocations[].allocated_bags — no API change.
+     v2.2.0: Bin editing from inventory page.
      New modal-bins: multi-row editor for bin_label, qty_bags, location, notes.
      openBinsModal(lotId) reads from PAGE_DATA — no extra API call on open.
      saveBinsForLot action — ceiling: received_bags (not po_line). Returns full page data.
@@ -44,7 +46,7 @@
     .inv-table th{font-family:var(--font-mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:.4rem .6rem;border-bottom:2px solid var(--border);text-align:left;white-space:nowrap}
     .inv-table td{padding:.55rem .6rem;border-bottom:1px solid var(--border);vertical-align:middle}
     .inv-table tr.lot-row:hover td{background:var(--surface)}
-    .inv-table tr.bin-row td{background:#faf5ee;font-size:.72rem;padding:.28rem .6rem .28rem 2.8rem;border-bottom:1px dashed var(--border);color:var(--muted)}
+    .inv-table tr.bin-row td{background:#faf5ee;font-size:.845rem;padding:.28rem .6rem .28rem 2.8rem;border-bottom:1px dashed var(--border);color:var(--muted)}
     .num{text-align:right;font-family:var(--font-mono)}
     .avail-ok{color:var(--success);font-weight:600}
     .avail-low{color:#b45309;font-weight:600}
@@ -68,8 +70,8 @@
     /* ── Drawdown panel (v2.1) ──────────────────────────────────────────────── */
     .inv-table tr.dd-section-row td { background: #f0f7f4; padding: 0; border-bottom: none; }
     .dd-panel { padding: 0.5rem 0.6rem 0.6rem 2.8rem; border-bottom: 1px solid var(--border); }
-    .dd-panel-title { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: space-between; }
-    .dd-line { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.7rem; padding: 0.22rem 0; border-bottom: 1px dashed var(--border); color: var(--muted); }
+    .dd-panel-title { font-family: var(--font-mono); font-size: 0.775rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: space-between; }
+    .dd-line { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.825rem; padding: 0.22rem 0; border-bottom: 1px dashed var(--border); color: var(--muted); }
     .dd-line:last-child { border-bottom: none; }
     .dd-line .dd-bags { color: var(--text); font-weight: 600; }
     .dd-line .dd-buyer { color: var(--text); }
@@ -79,7 +81,8 @@
     .dd-badge-dispatched { background: #eef4fd; color: #1a5ca8; }
     .dd-badge-delivered  { background: #edf7f0; color: #1e6640; }
     .dd-badge-cancelled  { background: #fdecea; color: #b00020; }
-    .dd-sub-tag { font-size: 0.62rem; color: var(--accent); background: #fff3e0; padding: 0.1rem 0.35rem; border-radius: 2px; font-weight: 600; }
+    .dd-sub-tag { font-size: 0.745rem; color: var(--accent); background: #fff3e0; padding: 0.1rem 0.35rem; border-radius: 2px; font-weight: 600; }
+    .dd-bin-tag { font-size: 0.745rem; color: #2e7d52; background: rgba(46,125,82,0.08); padding: 0.1rem 0.35rem; border-radius: 2px; font-family: var(--font-mono); }
     .dd-toggle { font-family: var(--font-mono); font-size: 0.65rem; cursor: pointer; color: var(--success); background: none; border: none; padding: 0; text-decoration: underline; }
     .dd-empty { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); font-style: italic; }
 
@@ -125,17 +128,26 @@
 
   <div class="toolbar">
     <select id="filter-wh"   style="width:auto" onchange="onWarehouseFilter()"><option value="">All Warehouses</option></select>
-    <select id="filter-loc"  style="width:auto" onchange="renderTable()"><option value="">All Locations</option></select>
-    <select id="filter-type" style="width:auto" onchange="renderTable()"><option value="">All Coffee Types</option></select>
-    <select id="filter-sku"  style="width:auto" onchange="renderTable()"><option value="">All SKUs</option></select>
-    <input  id="filter-search" type="text" placeholder="Search sample name…" style="width:200px" oninput="renderTable()" />
+    <select id="filter-loc"  style="width:auto" onchange="resetPage()"><option value="">All Locations</option></select>
+    <select id="filter-type" style="width:auto" onchange="resetPage()"><option value="">All Coffee Types</option></select>
+    <select id="filter-sku"  style="width:auto" onchange="resetPage()"><option value="">All SKUs</option></select>
+    <input  id="filter-search" type="text" placeholder="Search sample name…" style="width:200px" oninput="resetPage()" />
     <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-family:var(--font-mono);font-size:.72rem;color:var(--muted)">
-      <input type="checkbox" id="filter-legacy" onchange="renderTable()" style="width:auto" />
+      <input type="checkbox" id="filter-legacy" onchange="resetPage()" style="width:auto" />
       Show legacy (no bins)
     </label>
+    <select id="filter-page-size" style="width:auto;margin-left:auto" onchange="onPageSizeChange()" title="Rows per page">
+      <option value="10" selected>10 / page</option>
+      <option value="20">20 / page</option>
+    </select>
   </div>
 
   <div id="inv-table-wrap"><div class="loading">Loading inventory…</div></div>
+  <div id="inv-pagination" style="display:none;align-items:center;gap:0.5rem;margin-top:1rem;font-family:var(--font-mono);font-size:0.75rem">
+    <button id="inv-pg-prev" onclick="changeLotPage(-1)" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.65rem;border-radius:var(--radius);cursor:pointer;font-family:var(--font-mono);font-size:0.75rem">← Prev</button>
+    <span id="inv-pg-info" style="color:var(--muted);padding:0 0.25rem"></span>
+    <button id="inv-pg-next" onclick="changeLotPage(1)"  style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.65rem;border-radius:var(--radius);cursor:pointer;font-family:var(--font-mono);font-size:0.75rem">Next →</button>
+  </div>
 </div>
 
 <!-- Edit Lot Modal -->
@@ -252,9 +264,11 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.2.0 | inventory.html
+// Version 2.3.1 | inventory.html
+// v2.3.1: buildLotDrawdownPanel — bin tags now include per-bin drawn-down bag count.
+// v2.3.0: _binsModalLotId guard prevents mid-save overwrite (D7).
+//         updateBinTotal shows explicit warning when total is 0 (I7).
 // v2.2.0: openBinsModal, renderBinRows, bin add/remove, saveBinsForLot API call.
-// v2.1.5: BUG FIX — openLotModal normalises received_date to YYYY-MM-DD.
 const fmtDate = v => UI.formatDate(v);
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth === 'undefined') throw new Error('auth.js not loaded');
@@ -262,8 +276,10 @@ if (typeof API  === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
 let PAGE_DATA   = { inventory_lots: [], warehouses: [], locations: [], countries: [], coffee_types: [], weight_units: ['kg','lb'], drawdowns: [], contracts: [], buyers: [], lot_substitutions: [] };
-let expandedLots     = new Set();
+let expandedLots      = new Set();
 let expandedDrawdowns = new Set();
+let currentPage = 1;
+let PAGE_SIZE   = 10;
 
 (async () => {
   const user    = Auth.getUser();
@@ -312,8 +328,13 @@ function onWarehouseFilter() {
   const locEl = document.getElementById('filter-loc');
   locEl.innerHTML = '<option value="">All Locations</option>' +
     locs.map(l => '<option value="' + l.location_id + '">' + esc(l.facility_name) + '</option>').join('');
+  currentPage = 1;
   renderTable();
 }
+
+function resetPage() { currentPage = 1; renderTable(); }
+function onPageSizeChange() { PAGE_SIZE = parseInt(document.getElementById('filter-page-size').value) || 10; currentPage = 1; renderTable(); }
+function changeLotPage(dir) { currentPage += dir; renderTable(); document.getElementById('inv-table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
 function renderTable() {
   const wh         = document.getElementById('filter-wh').value;
@@ -335,18 +356,39 @@ function renderTable() {
   if (search) lots = lots.filter(l => (l.sample_name || '').toLowerCase().includes(search));
   if (!showLegacy) lots = lots.filter(l => l.bins && l.bins.length > 0);
 
-  const wrap = document.getElementById('inv-table-wrap');
+  const wrap   = document.getElementById('inv-table-wrap');
+  const pgBar  = document.getElementById('inv-pagination');
+  const pgInfo = document.getElementById('inv-pg-info');
+  const pgPrev = document.getElementById('inv-pg-prev');
+  const pgNext = document.getElementById('inv-pg-next');
+
   if (!lots.length) {
     wrap.innerHTML = '<div class="empty">No lots found.' +
       (!showLegacy ? ' <button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'filter-legacy\').checked=true;renderTable()">Show legacy lots</button>' : '') +
       '</div>';
+    pgBar.style.display = 'none';
     return;
   }
 
+  const total      = lots.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page  = lots.slice(start, start + PAGE_SIZE);
+
+  pgInfo.textContent  = 'Page ' + currentPage + ' of ' + totalPages + ' (' + total + ' lots)';
+  pgPrev.disabled     = currentPage <= 1;
+  pgNext.disabled     = currentPage >= totalPages;
+  pgBar.style.display = totalPages > 1 ? 'flex' : 'none';
+
   const rows = [];
-  lots.forEach(l => {
-    const bins       = l.bins || [];
-    const isLegacy   = bins.length === 0;
+  page.forEach(l => {
+    const allBins    = l.bins || [];
+    // visibleBins drives BOTH the count and the rendered rows — keep them in sync.
+    // When a location filter is active, only bins in that location are shown/counted.
+    const visibleBins = loc ? allBins.filter(b => String(b.location_id) === loc) : allBins;
+    const bins       = visibleBins;
+    const isLegacy   = allBins.length === 0;
     const isExpanded = expandedLots.has(String(l.lot_id));
     const availClass = l.available_bags === 0 ? 'avail-zero' : l.available_bags < 5 ? 'avail-low' : 'avail-ok';
     const skuHtml    = l.sku_code
@@ -386,17 +428,18 @@ function renderTable() {
     '</tr>');
 
     if (isExpanded && bins.length) {
-      const visibleBins = loc ? bins.filter(b => String(b.location_id) === loc) : bins;
-      visibleBins.forEach(b => {
+      bins.forEach(b => {
         const locName = locMap[String(b.location_id)] || '';
         rows.push('<tr class="bin-row">' +
-          '<td></td>' +
-          '<td colspan="2">📦 ' + esc(b.bin_label || '—') + '</td>' +
-          '<td>' + (locName ? '<span class="legacy-badge">' + esc(locName) + '</span>' : '') + '</td>' +
-          '<td colspan="3">' + esc(b.notes || '') + '</td>' +
-          '<td></td><td></td>' +
-          '<td class="num">' + b.qty_bags + ' bags</td>' +
-          '<td colspan="3"></td>' +
+          '<td colspan="3">📦 ' + esc(b.bin_label || '—') + '</td>' +
+          '<td colspan="3">' + (locName ? '<span class="legacy-badge">' + esc(locName) + '</span>' : '') + '</td>' +
+          '<td colspan="3" class="num">' +
+            b.qty_bags + ' bags' +
+            (b.received_bags && b.received_bags !== b.qty_bags
+              ? ' <span style="color:var(--muted);font-size:0.775rem">of ' + b.received_bags + '</span>'
+              : '') +
+          '</td>' +
+          '<td colspan="4"></td>' +
         '</tr>');
       });
     }
@@ -432,6 +475,8 @@ function toggleDrawdownPanel(lotId) {
 
 // Returns all drawdowns that touch this lot — either as primary lot or as substitution replacement.
 // v2.1.1: Uses drawdown_id on substitution records for exact matching.
+// v2.6: Multi-line drawdowns have contract_line_id='' on the header.
+// For those, check d.lines[] child rows against primaryLineIds.
 // Legacy subs (drawdown_id='') fall back to contract_line_id matching.
 function getLotDrawdowns(lotId) {
   const lid = String(lotId);
@@ -447,25 +492,61 @@ function getLotDrawdowns(lotId) {
   // Substitution records pointing to this lot as replacement
   const subs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.replacement_lot_id) === lid);
 
-  // For each drawdown: is this lot involved either as primary or substitution?
   const result = [];
 
   (PAGE_DATA.drawdowns || []).forEach(d => {
-    const clid       = String(d.contract_line_id);
-    const ddIdStr    = String(d.drawdown_id);
-    const isPrimary  = primaryLineIds.has(clid);
+    const ddIdStr = String(d.drawdown_id);
+    const clid    = String(d.contract_line_id || '');
 
-    // Substitution match: prefer drawdown_id match, fall back to line-level for legacy records
+    // isPrimary: either header contract_line_id matches (legacy)
+    // OR any child line in d.lines[] matches (multi-line)
+    const isPrimary = primaryLineIds.has(clid) ||
+      (d.lines && d.lines.some(function(l) {
+        return primaryLineIds.has(String(l.contract_line_id));
+      }));
+
+    // Substitution match
     const subMatch = subs.find(s =>
       (s.drawdown_id && String(s.drawdown_id) === ddIdStr) ||
-      (!s.drawdown_id && String(s.contract_line_id) === clid)
+      (!s.drawdown_id && clid && String(s.contract_line_id) === clid)
     );
 
-    if (!isPrimary && !subMatch) return; // this lot not involved in this drawdown
+    if (!isPrimary && !subMatch) return;
+
+    // v2.6 fix: compute bags, product names and bin allocations for THIS LOT ONLY.
+    // Attach lot_lines[] — one entry per drawdown_line that belongs to this lot,
+    // each carrying its own requested_bags and bin_allocations[].
+    let lotBags = 0;
+    let lotLineNames = [];
+    let lotLines = []; // per-line detail for rendering
+    if (d.lines && d.lines.length > 0) {
+      d.lines.forEach(function(l) {
+        if (primaryLineIds.has(String(l.contract_line_id))) {
+          const name = l.contract_line ? l.contract_line.sample_name : '';
+          const bags = l.requested_bags || 0;
+          lotBags += bags;
+          if (name) lotLineNames.push(name);
+          lotLines.push({
+            sample_name:     name,
+            requested_bags:  bags,
+            bin_allocations: l.bin_allocations || []
+          });
+        }
+      });
+    } else {
+      // Legacy single-line drawdown
+      lotBags = d.requested_bags || 0;
+      const name = d.contract_line ? d.contract_line.sample_name || '' : '';
+      if (name) lotLineNames.push(name);
+      lotLines.push({ sample_name: name, requested_bags: lotBags, bin_allocations: [] });
+    }
 
     result.push(Object.assign({}, d, {
       is_substitution: !isPrimary && !!subMatch,
-      sub_bags_count:  subMatch ? subMatch.bags_count : null
+      sub_bags_count:  subMatch ? subMatch.bags_count : null,
+      lot_bags:        lotBags,
+      lot_line_names:  lotLineNames,
+      lot_lines:       lotLines    // per-line detail scoped to this lot
     }));
   });
 
@@ -481,27 +562,65 @@ function buildLotDrawdownPanel(lotId, lotDrawdowns) {
   const pending    = lotDrawdowns.filter(d => d.status === 'Pending' || d.status === 'Approved').length;
   const dispatched = lotDrawdowns.filter(d => d.status === 'Dispatched' || d.status === 'Delivered').length;
 
+  // Derive primaryLineIds for this lot (needed for scoping bin allocations)
+  const lid = String(lotId);
+  const primaryLineIds = new Set(
+    (PAGE_DATA.contracts || [])
+      .flatMap(c => (c.lines || []))
+      .filter(l => String(l.inventory_lot_id) === lid)
+      .map(l => String(l.contract_line_id))
+  );
+
   let title = '<div class="dd-panel-title"><span>Drawdown Activity';
   if (pending)    title += ' &nbsp;·&nbsp; <span style="color:var(--accent)">' + pending + ' in-flight</span>';
   if (dispatched) title += ' &nbsp;·&nbsp; <span style="color:var(--success)">' + dispatched + ' fulfilled</span>';
   title += '</span></div>';
 
   const lines = lotDrawdowns.map(d => {
-    const badgeKey  = (d.status || 'pending').toLowerCase();
-    const subTag    = d.is_substitution
+    const badgeKey = (d.status || 'pending').toLowerCase();
+    const subTag   = d.is_substitution
       ? '<span class="dd-sub-tag">SUB ' + (d.sub_bags_count ? d.sub_bags_count + ' bags' : '') + '</span>'
       : '';
-    return '<div class="dd-line">' +
-      '<span class="dd-badge dd-badge-' + badgeKey + '">' + esc(d.status) + '</span>' +
-      subTag +
-      '<span class="dd-buyer">' + esc(d.buyer_name || '—') + '</span>' +
-      '<span style="color:var(--muted)">·</span>' +
-      '<span>' + esc(d.contract_number || '—') + '</span>' +
-      '<span style="color:var(--muted)">·</span>' +
-      '<span>' + esc((d.contract_line && d.contract_line.sample_name) || '—') + '</span>' +
-      '<span style="color:var(--muted)">·</span>' +
-      '<span class="dd-bags">' + (d.requested_bags || 0) + ' bags</span>' +
-      (d.shipping_date ? '<span style="color:var(--muted)">ship ' + fmtDate(d.shipping_date) + '</span>' : '') +
+    const refNum = d.drawdown_number || d.contract_number || '—';
+
+    // Render one sub-row per lot_line (product + bags + bins for this lot)
+    const lotLines = d.lot_lines && d.lot_lines.length
+      ? d.lot_lines
+      : [{ sample_name: (d.contract_line && d.contract_line.sample_name) || '—', requested_bags: d.requested_bags || 0, bin_allocations: [] }];
+
+    const lineRowsHtml = lotLines.map(function(ll) {
+      // v2.3.1: show drawn-down bags PER BIN, not just bin labels.
+      //   Each bin tag now reads "📦 <bin_label> <N> bags" using ba.allocated_bags,
+      //   so a multi-bin pick (e.g. Bin-01 4 bags + Bin-02 1 bag) is identifiable.
+      const binsHtml = ll.bin_allocations && ll.bin_allocations.length
+        ? '<div style="margin-top:0.2rem;display:flex;flex-wrap:wrap;gap:0.25rem">' +
+            ll.bin_allocations.map(function(ba) {
+              const n = (ba.allocated_bags != null ? ba.allocated_bags : 0);
+              return '<span class="dd-bin-tag">📦 ' + esc(ba.bin_label || ('Bin ' + ba.bin_id)) +
+                ' <strong style="color:var(--text)">' + n + ' bag' + (n === 1 ? '' : 's') + '</strong></span>';
+            }).join('') +
+          '</div>'
+        : '';
+      return '<div style="display:flex;align-items:flex-start;flex-direction:column;margin-bottom:0.15rem">' +
+        '<div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap">' +
+          '<span>' + esc(ll.sample_name || '—') + '</span>' +
+          '<span style="color:var(--muted)">·</span>' +
+          '<span class="dd-bags">' + (ll.requested_bags || 0) + ' bags</span>' +
+        '</div>' +
+        binsHtml +
+      '</div>';
+    }).join('');
+
+    return '<div class="dd-line" style="flex-direction:column;align-items:flex-start;gap:0.2rem">' +
+      '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;width:100%">' +
+        '<span class="dd-badge dd-badge-' + badgeKey + '">' + esc(d.status) + '</span>' +
+        subTag +
+        '<span class="dd-buyer">' + esc(d.buyer_name || '—') + '</span>' +
+        '<span style="color:var(--muted)">·</span>' +
+        '<span style="font-family:var(--font-mono);font-size:0.845rem">' + esc(refNum) + '</span>' +
+        (d.shipping_date ? '<span style="color:var(--muted)">ship ' + fmtDate(d.shipping_date) + '</span>' : '') +
+      '</div>' +
+      '<div style="padding-left:0.5rem;width:100%">' + lineRowsHtml + '</div>' +
     '</div>';
   }).join('');
 
@@ -659,11 +778,17 @@ document.getElementById('btn-lot-save').onclick = async () => {
 
 // ── Bin Edit Modal (v2.2.0) ──────────────────────────────────────────────────
 
-var binRows = [];  // [{ bin_label, qty_bags, location_id, notes }]
+var binRows = [];
+// v2.3.0 D7: tracks which lot the modal opened for.
+// If openBinsModal is called while a save is in-flight, the save handler
+// detects the mismatch and aborts rather than saving against the wrong lot.
+var _binsModalLotId = null;
 
 function openBinsModal(lotId) {
   const lot = (PAGE_DATA.inventory_lots || []).find(l => String(l.lot_id) === String(lotId));
   if (!lot) return;
+
+  _binsModalLotId = String(lotId);
 
   document.getElementById('bins-lot-id').value = lotId;
   document.getElementById('modal-bins-title').textContent =
@@ -736,8 +861,17 @@ function updateBinTotal() {
   const received = lot ? (lot.received_bags || 0) : 0;
   const total = binRows.reduce(function(s, b) { return s + (parseInt(b.qty_bags) || 0); }, 0);
   const el = document.getElementById('bins-total');
-  el.textContent = 'Total: ' + total + ' / ' + received + ' bags binned';
-  el.className = 'bin-total' + (total > received ? ' over' : total === received ? ' exact' : '');
+  // v2.3.0 I7: zero-bag warning — prevents accidentally clearing all bin records
+  if (total === 0 && binRows.some(b => b.bin_label || b.qty_bags)) {
+    el.textContent = 'Total: 0 bags — saving will clear all bin records for this lot';
+    el.className   = 'bin-total over';
+  } else if (total === 0) {
+    el.textContent = 'Total: 0 / ' + received + ' bags binned';
+    el.className   = 'bin-total';
+  } else {
+    el.textContent = 'Total: ' + total + ' / ' + received + ' bags binned';
+    el.className   = 'bin-total' + (total > received ? ' over' : total === received ? ' exact' : '');
+  }
   document.getElementById('btn-bins-save').disabled = total > received;
 }
 
@@ -760,7 +894,12 @@ document.getElementById('btn-bins-save').onclick = async function() {
   const btn = document.getElementById('btn-bins-save');
   btn.disabled = true;
 
-  const lotId = document.getElementById('bins-lot-id').value;
+  const lotId   = document.getElementById('bins-lot-id').value;
+  // v2.3.0 D7: guard against modal re-open mid-save overwriting binRows
+  if (String(lotId) !== String(_binsModalLotId)) {
+    showToast('Modal state changed — please reopen the bins modal.', 'error');
+    btn.disabled = false; return;
+  }
   const lot   = (PAGE_DATA.inventory_lots || []).find(l => String(l.lot_id) === String(lotId));
   const received = lot ? (lot.received_bags || 0) : 0;
 

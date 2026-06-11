@@ -1,11 +1,18 @@
 <!DOCTYPE html>
-<!-- Version 2.1.4 | drawdowns.html -->
-<!-- v2.1.4: Toolbar buyer filter — replaced dropdown with search input + results list (client-side, no extra API call).
-             New Drawdown modal — contract dropdown replaced with search input + results list.
-             Selected contract_id stored in hidden new-dd-contract-id; buyer info auto-shown on selection.
-             Shared initSearch() helper wires both search controls.
-   v2.0.5: Contract line dropdown now correctly populated from con.lines[].
-   v2.0.4: Added "+ New Drawdown" button and modal. -->
+<!-- Version 3.8 | drawdowns.html -->
+<!-- v3.8: Approve/status modal + bin-alloc now display fractional bags via fmtBags (needed, requested, total avail, short-by, bin avail labels) and the inventory-check ok test uses 0.0001 tolerance (was exact total>=requested). Display+compare only. NOTE: drawdowns SAVED on pre-3.7 (DEV 3.4) stored requested_bags as parseInt(0.5)=0 — those rows show "0 bags needed'; they must be recreated or repaired in the sheet, the display cannot recover a value that was stored as 0. -->
+<!-- v3.7: fixed substitution-modal max truncation — effectiveMax used parseInt(dataset.max), zeroing a fractional available (e.g. 0.274→0) and blocking valid sub bags. Now parseFloat. NOTE: the multi-line "Line N: Bags must be greater than zero'" error on fractional input comes from an OLDER deployed 3.x drawdowns; THIS file (multi-line read = parseFloat, input = text/inputmode=decimal) already accepts 0.274. Deploy this to resolve. -->
+<!-- v3.6: drawdown lot/bin display now shows FRACTIONAL bags (fmtBags 4dp, trailing zeros trimmed) AND weight next to bag count (fmtWeight = bags×bag_size with unit, e.g. "2 bags (118 kg)"). bag_size+unit resolved from the contract line; weight omitted if bag_size unknown. Applies to Bags column, lot summary rows, and bin-allocation rows. Display-only. -->
+<!-- v3.5: FRACTIONAL BAGS merged onto DEV 3.4 — multi-line + substitution + bin-alloc bag inputs text+inputmode=decimal; all bag parseInt→parseFloat; bin-allocation completeness uses 0.0001 tolerance (was exact ===); ceilings parseFloat+tolerance; multi-line kg/lb helper (ddLineWeightToBags) reads per-line data-bagsize; alloc totals display 4dp. Keeps DEV multi-line modal + bin allocation suite. -->
+<!-- v3.4: New Drawdown modal — Ship Date now required (label marked *, validated before submit).
+     v3.0: Multi-line drawdown support.
+     New drawdown modal: repeatable line+bags rows (+ Add Line / × Remove).
+     Submit sends lines[] array — one API call per form submit.
+     Table: Sample column shows all lines summary; Bags column shows total.
+     buildDrawdownLotSummary: loops all drawdown.lines[] child rows.
+     Status modal inventory context: loops all drawn lines.
+     openStatusModal: passes first line id for substitution form compatibility.
+     Response handling: merges drawdowns[] + contract_lines[] arrays from server. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -27,7 +34,7 @@
     .nav-links { display: flex; gap: 0.25rem; flex: 1; }
     .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
     .nav-links a:hover { background: var(--surface); color: var(--text); }
-    .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
+    .nav-links a.active { color: var(--accent); font-weight: 500; }
     .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
     .nav-user:hover { color: var(--accent); }
     .page { max-width: 1300px; margin: 0 auto; padding: 2rem; }
@@ -40,6 +47,7 @@
     .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
     .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
     .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.7rem; }
+    .btn-danger { background: var(--error); color: #fff; }
     select, input { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
     select:focus, input:focus { border-color: var(--accent); }
     textarea { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; resize: vertical; min-height: 64px; }
@@ -61,12 +69,11 @@
     .empty { text-align: center; padding: 3rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
     .modal-overlay.open { display: flex; }
-    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 480px; margin: auto; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 560px; margin: auto; }
     .modal-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.25rem; }
     .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
     .modal-error { display: none; background: rgba(192, 57, 43, 0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
     .modal-error.show { display: block; }
-    /* v2.0.4: buyer info block inside new drawdown modal */
     .modal-buyer-info { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.65rem 0.85rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.6; display: none; }
     .modal-buyer-info.show { display: block; }
     .modal-buyer-info strong { color: var(--text); }
@@ -74,7 +81,12 @@
     .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
 
-    /* ── Drawdown lot panel (v2.0.8) ──────────────────────────────────────── */
+    /* ── Pagination ──────────────────────────────────────────────────────────── */
+    .pagination { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; font-family: var(--font-mono); font-size: 0.75rem; }
+    .pagination button { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 0.3rem 0.65rem; border-radius: var(--radius); cursor: pointer; font-family: var(--font-mono); font-size: 0.75rem; }
+    .pagination button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .pagination button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .pagination .pg-info { color: var(--muted); padding: 0 0.25rem; }
     .lot-expand-row td { background: #f0f7f4; padding: 0; }
     .lot-panel { padding: 0.45rem 0.75rem 0.55rem 0.75rem; font-family: var(--font-mono); font-size: 0.72rem; }
     .lot-panel-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; padding: 0.2rem 0; border-bottom: 1px dashed var(--border); color: var(--muted); }
@@ -84,7 +96,7 @@
     .lot-sub-tag { font-size: 0.62rem; color: var(--accent); background: #fff3e0; padding: 0.1rem 0.35rem; border-radius: 2px; font-weight: 600; }
     .lot-toggle { font-family: var(--font-mono); font-size: 0.68rem; cursor: pointer; color: var(--accent); background: none; border: none; padding: 0; text-decoration: underline; white-space: nowrap; }
 
-    /* ── Inline substitution form in Approve modal (v2.1) ──────────────────── */
+    /* ── Inline substitution form ───────────────────────────────────────────── */
     .sub-inline { background: var(--surface); border: 1px solid rgba(196,122,43,0.3); border-radius: var(--radius); padding: 0.75rem; margin-top: 0.75rem; }
     .sub-inline-title { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; font-weight: 600; }
     .sub-inline .field-row { margin-bottom: 0.5rem; }
@@ -96,33 +108,41 @@
     .sub-list-row:last-child { border-bottom: none; }
     .sub-list-row .sub-bags { color: var(--text); font-weight: 600; }
     .sub-list-row .sub-del { background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.8rem; padding: 0; margin-left: auto; }
-    /* ── Generic search-with-dropdown (v2.1.4) ──────────────────────────────── */
-    .srch-wrap { position: relative; }
-    .srch-wrap input { width: 180px; }
-    .srch-drop {
-      position: absolute; z-index: 300; top: calc(100% + 2px); left: 0;
-      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.10);
-      min-width: 240px; max-height: 220px; overflow-y: auto; display: none;
-    }
-    .srch-drop.open { display: block; }
-    .srch-item {
-      padding: 0.4rem 0.75rem; cursor: pointer;
-      border-bottom: 1px solid var(--border);
-      font-family: var(--font-mono); font-size: 0.75rem; color: var(--text);
-    }
-    .srch-item:last-child { border-bottom: none; }
-    .srch-item:hover, .srch-item.srch-active { background: var(--surface); }
-    .srch-item .srch-sub { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
-    .srch-clear { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
-      background: none; border: none; color: var(--muted); cursor: pointer;
-      font-size: 0.85rem; padding: 0; line-height: 1; display: none; }
-    .srch-clear.show { display: block; }
-    /* full-width variant for modals */
-    .srch-wrap.srch-full { display: block; }
-    .srch-wrap.srch-full input { width: 100%; }
-    .srch-wrap.srch-full .srch-drop { min-width: 100%; }
 
+    /* ── Bin allocation section ─────────────────────────────────────────────── */
+    .bin-alloc-section { margin-top: 0.75rem; }
+    .bin-alloc-title { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 0.5rem; }
+    .bin-alloc-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; }
+    .bin-alloc-group-label { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .bin-alloc-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.2rem 0; border-bottom: 1px dashed var(--border); }
+    .bin-alloc-row:last-child { border-bottom: none; }
+    .bin-alloc-label { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text); flex: 1; }
+    .bin-alloc-avail { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+    .bin-alloc-input { width: 72px !important; min-width: 0; flex-shrink: 0; text-align: right; font-size: 0.75rem !important; padding: 0.25rem 0.45rem !important; }
+    .bin-alloc-total { font-family: var(--font-mono); font-size: 0.72rem; margin-top: 0.35rem; text-align: right; }
+    .bin-alloc-ok    { color: var(--success); font-weight: 600; }
+    .bin-alloc-bad   { color: var(--error);   font-weight: 600; }
+    .bin-alloc-no-bins { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); font-style: italic; padding: 0.3rem 0; }
+
+    /* ── Lot panel allocated bins ────────────────────────────────────────────── */
+    .lp-bin-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0 0.15rem 1.2rem; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); border-bottom: 1px dashed var(--border); }
+    .lp-bin-row:last-child { border-bottom: none; }
+    .lp-bin-label { color: var(--text); }
+    .lp-bin-bags  { color: var(--accent); font-weight: 600; white-space: nowrap; }
+    .lp-weight    { color: var(--muted); font-weight: 400; font-size: 0.92em; }
+
+    /* ── Multi-line rows inside new drawdown modal ──────────────────────────── */
+    .dd-line-block { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.65rem; margin-bottom: 0.65rem; background: var(--surface); position: relative; }
+    .dd-line-block .remove-line-btn { position: absolute; top: 0.45rem; right: 0.45rem; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 0; line-height: 1; }
+    .dd-line-block .remove-line-btn:hover { color: var(--error); }
+    .dd-line-label { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.45rem; }
+    .add-line-btn { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: none; border: 1px dashed rgba(196,122,43,0.4); border-radius: var(--radius); padding: 0.4rem 0.85rem; cursor: pointer; width: 100%; margin-bottom: 0.75rem; transition: border-color var(--transition); }
+    .add-line-btn:hover { border-color: var(--accent); }
+
+    /* ── Multi-line summary in table ────────────────────────────────────────── */
+    .sample-multi { font-size: 0.72rem; line-height: 1.6; }
+    .sample-multi-row { display: flex; align-items: baseline; gap: 0.35rem; }
+    .sample-multi-bags { font-family: var(--font-mono); font-weight: 600; color: var(--text); white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -149,19 +169,18 @@
       <div class="page-title">Drawdowns</div>
       <div class="page-sub">Approve and dispatch buyer delivery requests</div>
     </div>
-    <!-- v2.0.4: staff can create a drawdown on behalf of a buyer -->
     <button class="btn" id="btn-new-drawdown">+ New Drawdown</button>
   </div>
   <div class="toolbar">
     <select id="filter-status" style="width:auto"><option value="">All Statuses</option></select>
-    <div class="srch-wrap" id="filter-buyer-wrap">
-      <input type="text" id="filter-buyer-input" placeholder="Filter by buyer…" autocomplete="off" />
-      <button type="button" class="srch-clear" id="filter-buyer-clear" title="Clear">✕</button>
-      <div class="srch-drop" id="filter-buyer-drop"></div>
-    </div>
-    <input type="hidden" id="filter-buyer" value="" />
+    <select id="filter-buyer"  style="width:auto"><option value="">All Buyers</option></select>
   </div>
   <div id="dd-wrap"><div class="loading">Loading drawdowns…</div></div>
+  <div class="pagination" id="dd-pagination" style="display:none">
+    <button id="pg-prev" onclick="changePage(-1)">← Prev</button>
+    <span class="pg-info" id="pg-info"></span>
+    <button id="pg-next" onclick="changePage(1)">Next →</button>
+  </div>
 </div>
 
 <!-- ── Status Update Modal ──────────────────────────────────────────────────── -->
@@ -173,9 +192,9 @@
     <input type="hidden" id="ds-contract-id" />
     <input type="hidden" id="ds-line-id" />
     <input type="hidden" id="ds-original-lot-id" />
-    <!-- Inventory context — shown only when approving -->
     <div id="ds-inventory-context" style="display:none;margin-bottom:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.65rem 0.85rem;font-family:var(--font-mono);font-size:0.72rem;line-height:1.8"></div>
-    <!-- Inline substitution form — shown when inventory is short on Approve -->
+    <!-- Bin allocation — shown when approving, one group per drawn line with bins -->
+    <div id="ds-bin-alloc" style="display:none" class="bin-alloc-section"></div>
     <div id="ds-sub-form" style="display:none">
       <div class="sub-inline">
         <div class="sub-inline-title">Add Lot Substitution</div>
@@ -187,7 +206,7 @@
           </div>
           <div class="field" style="max-width:100px">
             <label>Bags <span id="ds-sub-bags-hint" style="color:var(--accent);font-weight:400"></span></label>
-            <input type="number" id="ds-sub-bags" min="1" placeholder="0" />
+            <input type="text" inputmode="decimal" id="ds-sub-bags" placeholder="0" />
           </div>
           <div class="field" style="max-width:180px">
             <label>Reason (optional)</label>
@@ -208,38 +227,34 @@
   </div>
 </div>
 
-<!-- ── New Drawdown Modal (staff on behalf of buyer) — v2.0.4 ──────────────── -->
+<!-- ── New Drawdown Modal — v3.0 multi-line ─────────────────────────────────── -->
 <div class="modal-overlay" id="modal-new-dd">
-  <div class="modal">
+  <div class="modal" style="max-width:840px">
     <div class="modal-title">New Drawdown</div>
     <div class="modal-error" id="modal-new-dd-error"></div>
 
-    <!-- Buyer context block — shown once a contract is selected -->
     <div class="modal-buyer-info" id="new-dd-buyer-info"></div>
 
+    <!-- Contract selector -->
     <div class="field-row">
       <div class="field">
-        <label for="new-dd-contract-input">Contract <span style="color:var(--error)">*</span></label>
-        <div class="srch-wrap srch-full" id="new-dd-contract-wrap">
-          <input type="text" id="new-dd-contract-input" placeholder="Search by buyer or contract number…" autocomplete="off" />
-          <div class="srch-drop" id="new-dd-contract-drop"></div>
-        </div>
-        <input type="hidden" id="new-dd-contract-id" />
-      </div>
-      <div class="field">
-        <label for="new-dd-line">Contract Line <span style="color:var(--error)">*</span></label>
-        <select id="new-dd-line" disabled>
-          <option value="">— Select contract first —</option>
+        <label for="new-dd-contract">Contract <span style="color:var(--error)">*</span></label>
+        <select id="new-dd-contract">
+          <option value="">— Select contract —</option>
         </select>
       </div>
     </div>
+
+    <!-- Repeatable line rows — rendered by JS -->
+    <div id="new-dd-lines-wrap"></div>
+
+    <!-- + Add Line button -->
+    <button class="add-line-btn" id="btn-add-line" disabled>+ Add Line</button>
+
+    <!-- Shared fields -->
     <div class="field-row">
       <div class="field">
-        <label for="new-dd-bags">Bags <span style="color:var(--error)">*</span> <span id="new-dd-bags-hint" style="color:var(--accent);font-size:0.65rem;font-weight:400"></span></label>
-        <input type="number" id="new-dd-bags" min="1" placeholder="0" />
-      </div>
-      <div class="field">
-        <label for="new-dd-date">Ship Date</label>
+        <label for="new-dd-date">Ship Date <span style="color:var(--error)">*</span></label>
         <input type="date" id="new-dd-date" />
       </div>
     </div>
@@ -247,6 +262,7 @@
       <label for="new-dd-notes">Notes</label>
       <textarea id="new-dd-notes" placeholder="Optional delivery notes…"></textarea>
     </div>
+
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-new-dd-cancel">Cancel</button>
       <button class="btn" id="btn-new-dd-save">Create Drawdown</button>
@@ -261,22 +277,30 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.1.4 | drawdowns.html
-// v2.1.4: Toolbar buyer filter — replaced dropdown with search input + results list (client-side, no extra API call).
-//          New Drawdown modal — contract dropdown replaced with search input + results list.
-//          Shared initSearch() helper; selectContract() extracted to handle buyer info + line population.
-// v2.1.3: isNaN guards on bags fields. dates via UI.formatDate. page-width 1300px.
-const fmtDate = v => UI.formatDate(v);
+// Version 3.4 | drawdowns.html
+// v3.3: Approve modal — filters 0-qty bins (already dispatched); shows received_bags vs qty_bags.
+// v3.1: Bin allocation section in Approve modal.
+//       Bins saved via saveDrawdownLineBins before status update.
+//       Lot panel shows allocated bins on Approved/Dispatched drawdowns.
+// v3.0: Multi-line drawdown modal. lines[] array submit.
 if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
 if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
+const fmtDate = v => UI.formatDate(v);
+
 let expandedRows = new Set();
-let PAGE_DATA = { drawdowns: [], contracts: [], buyers: [], inventory_lots: [], drawdown_statuses: [], lot_substitutions: [] };
+let currentPage  = 1;
+const PAGE_SIZE  = 20;
+let PAGE_DATA = {
+  drawdowns: [], contracts: [], buyers: [],
+  inventory_lots: [], drawdown_statuses: [], lot_substitutions: []
+};
 
 (async () => {
-  const user = Auth.getUser(); const company = Auth.getCompany();
+  const user    = Auth.getUser();
+  const company = Auth.getCompany();
   document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
   document.getElementById('nav-user').textContent  = user ? user.name : '';
   document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
@@ -288,145 +312,99 @@ let PAGE_DATA = { drawdowns: [], contracts: [], buyers: [], inventory_lots: [], 
   } catch (e) { showToast('Failed to load.', 'error'); }
 })();
 
+// ── Filters ───────────────────────────────────────────────────────────────────
+
 function populateFilters() {
   const fs = document.getElementById('filter-status');
   PAGE_DATA.drawdown_statuses.forEach(s => {
-    const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    fs.appendChild(o);
   });
-  fs.onchange = renderTable;
-
-  // Build buyer list from buyers who actually have drawdowns
-  const activeBuyerIds = new Set();
+  const fb      = document.getElementById('filter-buyer');
+  const seen    = new Set();
   PAGE_DATA.drawdowns.forEach(d => {
     const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(d.contract_id));
-    if (con) activeBuyerIds.add(String(con.buyer_id));
+    if (!con || seen.has(String(con.buyer_id))) return;
+    seen.add(String(con.buyer_id));
+    const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id));
+    if (!buyer) return;
+    const o = document.createElement('option');
+    o.value = buyer.buyer_id; o.textContent = buyer.company_name;
+    fb.appendChild(o);
   });
-  const buyerList = PAGE_DATA.buyers.filter(b => activeBuyerIds.has(String(b.buyer_id)));
-
-  initSearch({
-    inputId:  'filter-buyer-input',
-    dropId:   'filter-buyer-drop',
-    hiddenId: 'filter-buyer',
-    clearId:  'filter-buyer-clear',
-    items:    () => buyerList,
-    label:    b => b.company_name,
-    value:    b => String(b.buyer_id),
-    onSelect: renderTable,
-    onClear:  renderTable
-  });
+  fs.onchange = fb.onchange = function() { currentPage = 1; renderTable(); };
 }
 
-// ── Shared search-with-dropdown helper (v2.1.4) ───────────────────────────────
-// opts: { inputId, dropId, hiddenId, clearId?, items(), label(), value(), subLabel?(), onSelect, onClear }
-// items() called lazily so PAGE_DATA is always fresh.
-function initSearch(opts) {
-  const input    = document.getElementById(opts.inputId);
-  const drop     = document.getElementById(opts.dropId);
-  const hidden   = document.getElementById(opts.hiddenId);
-  const clearBtn = opts.clearId ? document.getElementById(opts.clearId) : null;
-
-  function renderDrop(list) {
-    if (!list.length) { drop.classList.remove('open'); return; }
-    drop.innerHTML = list.map(item =>
-      '<div class="srch-item" data-val="' + esc(opts.value(item)) + '">' +
-        esc(opts.label(item)) +
-        (opts.subLabel ? '<div class="srch-sub">' + esc(opts.subLabel(item)) + '</div>' : '') +
-      '</div>'
-    ).join('');
-    drop.classList.add('open');
-    drop.querySelectorAll('.srch-item').forEach(el => {
-      el.onmousedown = e => {
-        e.preventDefault();
-        selectItem(el.dataset.val, el.querySelector('.srch-item > :first-child')
-          ? el.firstChild.textContent.trim()
-          : el.textContent.trim());
-      };
-    });
-  }
-
-  function selectItem(val, label) {
-    hidden.value = val;
-    input.value  = label;
-    drop.classList.remove('open');
-    if (clearBtn) clearBtn.classList.add('show');
-    if (opts.onSelect) opts.onSelect(val);
-  }
-
-  function clearItem() {
-    hidden.value = '';
-    input.value  = '';
-    drop.classList.remove('open');
-    if (clearBtn) clearBtn.classList.remove('show');
-    if (opts.onClear) opts.onClear();
-  }
-
-  input.addEventListener('input', () => {
-    hidden.value = '';
-    if (clearBtn) clearBtn.classList.remove('show');
-    const q = input.value.trim().toLowerCase();
-    if (!q) { drop.classList.remove('open'); if (opts.onClear) opts.onClear(); return; }
-    const matches = opts.items().filter(item => opts.label(item).toLowerCase().includes(q)).slice(0, 12);
-    renderDrop(matches);
-  });
-
-  input.addEventListener('keydown', e => {
-    const items  = drop.querySelectorAll('.srch-item');
-    const active = drop.querySelector('.srch-active');
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      const next = active ? (active.nextElementSibling || items[0]) : items[0];
-      if (active) active.classList.remove('srch-active');
-      if (next)   next.classList.add('srch-active');
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      const prev = active ? (active.previousElementSibling || items[items.length - 1]) : items[items.length - 1];
-      if (active) active.classList.remove('srch-active');
-      if (prev)   prev.classList.add('srch-active');
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (active) selectItem(active.dataset.val, active.textContent.trim());
-    } else if (e.key === 'Escape') {
-      drop.classList.remove('open');
-    }
-  });
-
-  input.addEventListener('blur', () => { setTimeout(() => drop.classList.remove('open'), 150); });
-  if (clearBtn) clearBtn.onclick = clearItem;
-
-  // Expose for programmatic pre-fill
-  input._selectItem = selectItem;
-  input._clearItem  = clearItem;
-}
+// ── Table render ──────────────────────────────────────────────────────────────
 
 function renderTable() {
   const sf = document.getElementById('filter-status').value;
   const bf = document.getElementById('filter-buyer').value;
 
-  let dds = PAGE_DATA.drawdowns;
+  let dds = PAGE_DATA.drawdowns.slice();
+
   if (sf) dds = dds.filter(d => d.status === sf);
   if (bf) {
-    const matchContracts = PAGE_DATA.contracts.filter(c => String(c.buyer_id) === String(bf)).map(c => String(c.contract_id));
+    const matchContracts = PAGE_DATA.contracts
+      .filter(c => String(c.buyer_id) === String(bf))
+      .map(c => String(c.contract_id));
     dds = dds.filter(d => matchContracts.includes(String(d.contract_id)));
   }
 
-  const wrap = document.getElementById('dd-wrap');
-  if (!dds.length) { wrap.innerHTML = '<div class="empty">No drawdowns found.</div>'; return; }
+  // Sort newest → oldest by drawdown_id (incremental — reliable proxy for creation order)
+  dds.sort((a, b) => (b.drawdown_id || 0) - (a.drawdown_id || 0));
 
-  const rows = dds.map(d => {
+  const total      = dds.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page  = dds.slice(start, start + PAGE_SIZE);
+
+  const wrap    = document.getElementById('dd-wrap');
+  const pgBar   = document.getElementById('dd-pagination');
+  const pgInfo  = document.getElementById('pg-info');
+  const pgPrev  = document.getElementById('pg-prev');
+  const pgNext  = document.getElementById('pg-next');
+
+  if (!total) {
+    wrap.innerHTML = '<div class="empty">No drawdowns found.</div>';
+    pgBar.style.display = 'none';
+    return;
+  }
+
+  pgInfo.textContent  = 'Page ' + currentPage + ' of ' + totalPages + ' (' + total + ' total)';
+  pgPrev.disabled     = currentPage <= 1;
+  pgNext.disabled     = currentPage >= totalPages;
+  pgBar.style.display = totalPages > 1 ? 'flex' : 'none';
+
+  const rows = page.map(d => {
     const con    = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(d.contract_id));
     const buyer  = con ? PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id)) : null;
-    const line   = d.contract_line;
-    const sample = line ? line.sample_name : '—';
-    const badgeKey = d.status.toLowerCase();
 
-    const NEXT = { 'Pending': ['Approved','Cancelled'], 'Approved': ['Dispatched','Cancelled'], 'Dispatched': ['Delivered'] };
+    // Compute total bags from drawdown.lines[] (Lines column removed — bags still shown)
+    const ddLines = d.lines || [];
+    let totalBags;
+    if (ddLines.length > 0) {
+      totalBags = ddLines.reduce((s, l) => s + (l.requested_bags || 0), 0);
+    } else {
+      totalBags = d.requested_bags || 0;
+    }
+
+    // Sample name for Bags column tooltip / screen reader context (not shown as column)
+    const badgeKey = d.status.toLowerCase();
+    const NEXT = { Pending: ['Approved','Cancelled'], Approved: ['Dispatched','Cancelled'], Dispatched: ['Delivered'] };
     const next = NEXT[d.status] || [];
+
+    const firstLineId = ddLines.length > 0
+      ? (ddLines[0].contract_line_id || '')
+      : (d.contract_line_id || '');
+
     let actions = next.map(s =>
-      `<button class="btn btn-ghost btn-sm" onclick="openStatusModal(${d.drawdown_id}, '${d.contract_id}', '${d.contract_line_id}', '${s}')">${s}</button>`
+      `<button class="btn btn-ghost btn-sm" onclick="openStatusModal(${d.drawdown_id},'${d.contract_id}','${firstLineId}','${s}')">${s}</button>`
     ).join('');
-    // v2.1.1: Resend warehouse notification email for Approved drawdowns
     if (d.status === 'Approved') {
-      actions += `<button class="btn btn-ghost btn-sm" onclick="resendDrawdownEmail(${d.drawdown_id})" title="Resend warehouse notification email">📧 Resend</button>`;
+      actions += `<button class="btn btn-ghost btn-sm" onclick="resendDrawdownEmail(${d.drawdown_id})" title="Resend warehouse notification">📧 Resend</button>`;
     }
 
     const lotSummary = buildDrawdownLotSummary(d);
@@ -434,14 +412,14 @@ function renderTable() {
     const lotToggle  = lotSummary.lines.length
       ? `<button class="lot-toggle" onclick="toggleDdRow(${d.drawdown_id})">${isExpanded ? '▲' : '▼'} ${lotSummary.lines.length} lot${lotSummary.lines.length !== 1 ? 's' : ''}</button>`
       : '<span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted)">—</span>';
-    const colCount   = 10;
+    const colCount = 10;  // Lines column removed; Drawdown # added
 
     let html = `<tr>
       <td><span class="badge badge-${badgeKey}">${esc(d.status)}</span></td>
       <td>${buyer ? esc(buyer.company_name) : '—'}</td>
       <td>${con  ? esc(con.contract_number) : '—'}</td>
-      <td>${esc(sample)}</td>
-      <td style="text-align:right;font-family:var(--font-mono)">${d.requested_bags}</td>
+      <td style="font-family:var(--font-mono);font-size:0.75rem">${d.drawdown_number ? esc(d.drawdown_number) : '—'}</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${fmtBags(totalBags)}</td>
       <td>${lotToggle}</td>
       <td>${fmtDate(d.shipping_date)}</td>
       <td>${fmtDate(d.drawdown_date || d.created_at)}</td>
@@ -452,14 +430,28 @@ function renderTable() {
     if (isExpanded && lotSummary.lines.length) {
       html += `<tr class="lot-expand-row"><td colspan="${colCount}">
         <div class="lot-panel">
-          ${lotSummary.lines.map(line => `<div class="lot-panel-row">
-            ${line.is_sub ? '<span class="lot-sub-tag">SUB</span>' : ''}
-            <span class="lp-bags">${line.bags} bags</span>
-            <span style="color:var(--muted)">·</span>
-            <span class="lp-lot">${esc(line.lot_name)}</span>
-            ${line.lot_number ? '<span style="color:var(--muted)">Lot ' + esc(line.lot_number) + '</span>' : ''}
-            ${line.location ? '<span style="color:var(--muted)">· ' + esc(line.location) + '</span>' : ''}
-          </div>`).join('')}
+          ${lotSummary.lines.map(line => {
+            let lotHtml =
+              '<div class="lot-panel-row">' +
+                (line.is_sub ? '<span class="lot-sub-tag">SUB</span>' : '') +
+                '<span class="lp-bags">' + fmtBags(line.bags) + ' bags' + fmtWeight(line.bags, line.bag_size, line.bag_size_unit) + '</span>' +
+                '<span style="color:var(--muted)">·</span>' +
+                '<span class="lp-lot">' + esc(line.lot_name) + '</span>' +
+                (line.lot_number ? '<span style="color:var(--muted)">Lot ' + esc(line.lot_number) + '</span>' : '') +
+                (line.location   ? '<span style="color:var(--muted)">· ' + esc(line.location) + '</span>' : '') +
+              '</div>';
+            if (line.bin_allocations && line.bin_allocations.length) {
+              line.bin_allocations.forEach(function(ba) {
+                lotHtml +=
+                  '<div class="lp-bin-row">' +
+                    '<span style="color:var(--muted)">↳</span>' +
+                    '<span class="lp-bin-label">' + esc(ba.bin_label || ('Bin ' + ba.bin_id)) + '</span>' +
+                    '<span class="lp-bin-bags">' + fmtBags(ba.allocated_bags) + ' bags' + fmtWeight(ba.allocated_bags, line.bag_size, line.bag_size_unit) + '</span>' +
+                  '</div>';
+              });
+            }
+            return lotHtml;
+          }).join('')}
         </div>
       </td></tr>`;
     }
@@ -469,90 +461,268 @@ function renderTable() {
 
   wrap.innerHTML = `<table class="dd-table">
     <thead><tr>
-      <th>Status</th><th>Buyer</th><th>Contract</th><th>Sample</th>
+      <th>Status</th><th>Buyer</th><th>Contract</th><th>Drawdown #</th>
       <th style="text-align:right">Bags</th><th>Lots</th><th>Ship Date</th><th>Created</th><th>Outbound</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
 
-// ── Status update modal ───────────────────────────────────────────────────────
+function changePage(dir) {
+  currentPage += dir;
+  renderTable();
+  document.getElementById('dd-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
-// Drawdown-level subs recorded in this session (before saving status)
-// [{ replacement_lot_id, bags_count, reason }]
+// ── Status modal ──────────────────────────────────────────────────────────────
+
+// ── Bin allocation state (v3.1) ───────────────────────────────────────────────
+// keyed by drawdown_line_id (or contract_line_id for legacy): { requested_bags, drawdown_line_id, bins[] }
+var binAllocState = {};
+
+function renderBinAllocSection(drawdownId) {
+  const wrap = document.getElementById('ds-bin-alloc');
+  const dd   = PAGE_DATA.drawdowns.find(function(d) { return String(d.drawdown_id) === String(drawdownId); });
+  if (!dd) { wrap.style.display = 'none'; return; }
+
+  const ddLines = dd.lines || [];
+  const linesToRender = ddLines.length > 0 ? ddLines : (
+    dd.contract_line_id ? [{
+      drawdown_line_id: '',
+      contract_line_id: dd.contract_line_id,
+      requested_bags:   dd.requested_bags || 0,
+      inventory_lot_id: dd.contract_line ? (dd.contract_line.inventory_lot_id || '') : '',
+      contract_line:    dd.contract_line || null,
+      bin_allocations:  []
+    }] : []
+  );
+
+  // Show section only if at least one line has bins configured on its lot
+  var anyBins = linesToRender.some(function(dl) {
+    const lotId = dl.inventory_lot_id || (dl.contract_line ? dl.contract_line.inventory_lot_id : '');
+    const lot   = lotId ? PAGE_DATA.inventory_lots.find(function(l) { return String(l.lot_id) === String(lotId); }) : null;
+    return lot && lot.bins && lot.bins.length > 0;
+  });
+  if (!anyBins) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = '';
+  var html = '<div class="bin-alloc-title">📦 Bin Allocation</div>';
+
+  linesToRender.forEach(function(dl) {
+    const lotId = dl.inventory_lot_id || (dl.contract_line ? dl.contract_line.inventory_lot_id : '');
+    const lot   = lotId ? PAGE_DATA.inventory_lots.find(function(l) { return String(l.lot_id) === String(lotId); }) : null;
+    const bins  = (lot && lot.bins) ? lot.bins : [];
+    const lineId = String(dl.drawdown_line_id || dl.contract_line_id);
+    const cl     = dl.contract_line;
+    const needed = dl.requested_bags || 0;
+
+    // Initialise state — pre-populate from existing bin_allocations if present
+    if (!binAllocState[lineId]) {
+      const existingAllocs = dl.bin_allocations || [];
+      binAllocState[lineId] = {
+        requested_bags:   needed,
+        drawdown_line_id: dl.drawdown_line_id || '',
+        bins: bins
+          .filter(function(b) { return b.qty_bags > 0; })  // hide 0-qty bins (already dispatched)
+          .map(function(b) {
+            const ex = existingAllocs.find(function(a) { return String(a.bin_id) === String(b.bin_id); });
+            return { bin_id: b.bin_id, bin_label: b.bin_label, qty_bags: b.qty_bags, received_bags: b.received_bags || b.qty_bags, allocated_bags: ex ? ex.allocated_bags : 0 };
+          })
+      };
+    }
+
+    if (!bins.length) {
+      html += '<div class="bin-alloc-group">' +
+        '<div class="bin-alloc-group-label">' + esc(cl ? cl.sample_name : lineId) + ' — ' + fmtBags(needed) + ' bags</div>' +
+        '<div class="bin-alloc-no-bins">No bins configured — allocation skipped</div>' +
+        '</div>';
+      return;
+    }
+
+    const allocTotal = binAllocState[lineId].bins.reduce(function(s, b) { return s + (b.allocated_bags || 0); }, 0);
+    const ok         = Math.abs(allocTotal - needed) <= 0.0001;
+
+    html += '<div class="bin-alloc-group">' +
+      '<div class="bin-alloc-group-label">' + esc(cl ? cl.sample_name : lineId) + ' — ' + fmtBags(needed) + ' bags needed</div>';
+
+    binAllocState[lineId].bins.forEach(function(b, i) {
+      const availLabel = b.received_bags && b.received_bags !== b.qty_bags
+        ? fmtBags(b.qty_bags) + ' avail <span style="color:var(--muted);font-size:0.65rem">of ' + fmtBags(b.received_bags) + ' orig</span>'
+        : fmtBags(b.qty_bags) + ' avail';
+      html +=
+        '<div class="bin-alloc-row">' +
+          '<span class="bin-alloc-label">' + esc(b.bin_label || ('Bin ' + b.bin_id)) + '</span>' +
+          '<span class="bin-alloc-avail">' + availLabel + '</span>' +
+          '<input type="text" inputmode="decimal" class="bin-alloc-input" data-max="' + b.qty_bags + '" ' +
+            'value="' + (b.allocated_bags || 0) + '" ' +
+            'data-line-id="' + lineId + '" data-bin-idx="' + i + '" ' +
+            'oninput="onBinAllocInput(this)" />' +
+        '</div>';
+    });
+
+    html +=
+      '<div class="bin-alloc-total" id="bin-alloc-total-' + lineId + '">' +
+        '<span class="' + (ok ? 'bin-alloc-ok' : 'bin-alloc-bad') + '">' +
+          Number(allocTotal.toFixed(4)) + ' / ' + Number(needed.toFixed(4)) + ' bags allocated' + (ok ? ' ✓' : '') +
+        '</span>' +
+      '</div></div>';
+  });
+
+  wrap.innerHTML = html;
+}
+
+function onBinAllocInput(input) {
+  const lineId = input.dataset.lineId;
+  const binIdx = parseInt(input.dataset.binIdx);
+  var   val    = parseFloat(input.value) || 0;
+  if (!binAllocState[lineId]) return;
+
+  const maxBags = binAllocState[lineId].bins[binIdx].qty_bags;
+  if (val > maxBags) { val = maxBags; input.value = val; }
+  if (val < 0)       { val = 0;       input.value = 0;  }
+
+  binAllocState[lineId].bins[binIdx].allocated_bags = val;
+
+  const needed     = binAllocState[lineId].requested_bags;
+  const allocTotal = binAllocState[lineId].bins.reduce(function(s, b) { return s + (b.allocated_bags || 0); }, 0);
+  const ok         = Math.abs(allocTotal - needed) <= 0.0001;
+  const totalEl    = document.getElementById('bin-alloc-total-' + lineId);
+  if (totalEl) {
+    totalEl.innerHTML =
+      '<span class="' + (ok ? 'bin-alloc-ok' : 'bin-alloc-bad') + '">' +
+        Number(allocTotal.toFixed(4)) + ' / ' + Number(needed.toFixed(4)) + ' bags allocated' + (ok ? ' ✓' : '') +
+      '</span>';
+  }
+  checkBinAllocComplete();
+  const saveBtn = document.getElementById('btn-ds-save');
+  if (saveBtn) saveBtn.disabled = !checkBinAllocComplete();
+}
+function checkBinAllocComplete() {
+  // Returns true if all lines with configured bins are exactly allocated
+  return Object.keys(binAllocState).every(function(lineId) {
+    const state = binAllocState[lineId];
+    if (!state.bins.length) return true; // no bins on lot — skip
+    const allocTotal = state.bins.reduce(function(s, b) { return s + (b.allocated_bags || 0); }, 0);
+    return Math.abs(allocTotal - state.requested_bags) <= 0.0001;
+  });
+}
+
 let pendingSubstitutions = [];
 
 function openStatusModal(drawdownId, contractId, lineId, presetStatus) {
   pendingSubstitutions = [];
-  document.getElementById('ds-drawdown-id').value   = drawdownId;
-  document.getElementById('ds-contract-id').value   = contractId;
-  document.getElementById('ds-line-id').value        = lineId;
+  binAllocState = {}; // reset bin state for each modal open
+  document.getElementById('ds-drawdown-id').value = drawdownId;
+  document.getElementById('ds-contract-id').value = contractId;
+  document.getElementById('ds-line-id').value     = lineId;
 
-  const ALLOWED = { 'Pending': ['Approved','Cancelled'], 'Approved': ['Dispatched','Cancelled'], 'Dispatched': ['Delivered'] };
+  const ALLOWED = { Pending: ['Approved','Cancelled'], Approved: ['Dispatched','Cancelled'], Dispatched: ['Delivered'] };
   const dd      = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
   const options = dd ? (ALLOWED[dd.status] || []) : PAGE_DATA.drawdown_statuses;
-  document.getElementById('ds-status').innerHTML = options.map(s =>
-    `<option value="${s}" ${s === presetStatus ? 'selected' : ''}>${s}</option>`
-  ).join('');
+  document.getElementById('ds-status').innerHTML = options
+    .map(s => `<option value="${s}" ${s === presetStatus ? 'selected' : ''}>${s}</option>`)
+    .join('');
 
-  // ── Inventory context — shown only when approving ──────────────────────────
   const ctx     = document.getElementById('ds-inventory-context');
   const subForm = document.getElementById('ds-sub-form');
+
   if (presetStatus === 'Approved' && dd) {
-    const con  = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
-    const line = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
-    const lot  = line && line.inventory_lot_id
-      ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id))
-      : null;
+    // v3.0: Show inventory context for all drawn lines
+    const ddLines = dd.lines || [];
+    const con     = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
 
-    // Store original lot id for substitution form
-    document.getElementById('ds-original-lot-id').value = lot ? lot.lot_id : '';
+    // Build per-line check using the first short line for the sub form
+    let html = '<strong style="color:var(--text)">Inventory check</strong><br>';
+    let firstShortLine = null;
+    let firstShortLot  = null;
 
-    const requested    = dd.requested_bags || 0;
-    const primaryAvail = lot ? (lot.available_bags || 0) : 0;
-    // v2.1: subs filtered to THIS drawdown only
-    const existingSubs = (PAGE_DATA.lot_substitutions || [])
-      .filter(s => String(s.drawdown_id) === String(drawdownId));
-    const subTotal     = existingSubs.reduce((s, x) => s + (x.bags_count || 0), 0) +
-                         pendingSubstitutions.reduce((s, x) => s + (x.bags_count || 0), 0);
-    const total        = primaryAvail + subTotal;
-    const short        = Math.max(0, requested - total);
-    const ok           = total >= requested;
+    ddLines.forEach(dl => {
+      const cl  = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(dl.contract_line_id)) : null;
+      const lot = cl && cl.inventory_lot_id
+        ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(cl.inventory_lot_id))
+        : null;
+      const requested    = dl.requested_bags || 0;
+      const primaryAvail = lot ? (lot.available_bags || 0) : 0;
+      const existingSubs = (PAGE_DATA.lot_substitutions || [])
+        .filter(s => String(s.drawdown_id) === String(drawdownId) && String(s.contract_line_id) === String(dl.contract_line_id));
+      const subTotal     = existingSubs.reduce((s, x) => s + (x.bags_count || 0), 0);
+      const total        = primaryAvail + subTotal;
+      const ok           = total >= requested - 0.0001;
 
-    let html = '<strong style="color:var(--text)">Inventory check — ' + requested + ' bags requested</strong><br>';
-    if (lot) {
-      html += '<span style="color:var(--muted)">Primary lot:</span> ' + esc(lot.sample_name) +
-        ' &nbsp;·&nbsp; <strong>' + primaryAvail + '</strong> available<br>';
-    } else {
-      html += '<span style="color:var(--muted)">Primary lot:</span> <span style="color:var(--error)">no lot linked</span><br>';
-    }
-    existingSubs.forEach(s => {
-      const replLot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
-      html += '<span style="color:var(--muted)">↳ Sub (saved):</span> ' +
-        (replLot ? esc(replLot.sample_name) : 'Lot ' + s.replacement_lot_id) +
-        ' &nbsp;·&nbsp; <strong>' + s.bags_count + ' bags</strong><br>';
+      html += '<div style="margin-top:0.3rem">';
+      html += '<span style="font-weight:600">' + esc(cl ? cl.sample_name : dl.contract_line_id) + '</span>';
+      html += ' — ' + fmtBags(requested) + ' bags req · ';
+      if (ok) {
+        html += '<strong style="color:var(--success)">' + fmtBags(total) + ' avail ✓</strong>';
+      } else {
+        html += '<strong style="color:var(--error)">short by ' + fmtBags(requested - total) + '</strong>';
+        if (!firstShortLine) { firstShortLine = dl; firstShortLot = lot; }
+      }
+      html += '</div>';
     });
-    html += '<span style="color:var(--muted)">Total coverable:</span> ';
-    if (ok) {
-      html += '<strong style="color:var(--success)">' + total + ' bags ✓</strong>';
-    } else {
-      html += '<strong style="color:var(--error)">' + total + ' bags — short by ' + short + '</strong>';
-    }
-    ctx.innerHTML = html;
-    ctx.style.display = 'block';
-    ctx.style.borderColor = ok ? 'rgba(46,125,82,0.3)' : 'rgba(192,57,43,0.3)';
-    ctx.style.background  = ok ? 'rgba(46,125,82,0.05)' : 'rgba(192,57,43,0.05)';
 
-    // Show sub form if short, hide if covered
-    if (!ok) {
+    const allOk = !firstShortLine;
+    ctx.innerHTML = html;
+    ctx.style.display     = 'block';
+    ctx.style.borderColor = allOk ? 'rgba(46,125,82,0.3)' : 'rgba(192,57,43,0.3)';
+    ctx.style.background  = allOk ? 'rgba(46,125,82,0.05)' : 'rgba(192,57,43,0.05)';
+
+    if (!allOk && firstShortLine) {
+      document.getElementById('ds-line-id').value = firstShortLine.contract_line_id;
+      document.getElementById('ds-original-lot-id').value = firstShortLot ? firstShortLot.lot_id : '';
       subForm.style.display = 'block';
-      refreshSubForm(drawdownId, lineId, lot, requested, primaryAvail, existingSubs);
+      const existingSubs = (PAGE_DATA.lot_substitutions || [])
+        .filter(s => String(s.drawdown_id) === String(drawdownId) && String(s.contract_line_id) === String(firstShortLine.contract_line_id));
+      const requested    = firstShortLine.requested_bags || 0;
+      const primaryAvail = firstShortLot ? (firstShortLot.available_bags || 0) : 0;
+      refreshSubForm(drawdownId, firstShortLine.contract_line_id, firstShortLot, requested, primaryAvail, existingSubs);
     } else {
       subForm.style.display = 'none';
+    }
+
+    // Legacy drawdown (no lines[]): fall back to single-line check
+    if (ddLines.length === 0 && lineId) {
+      const cl  = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
+      const lot = cl && cl.inventory_lot_id
+        ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(cl.inventory_lot_id))
+        : null;
+      document.getElementById('ds-original-lot-id').value = lot ? lot.lot_id : '';
+      const requested    = dd.requested_bags || 0;
+      const primaryAvail = lot ? (lot.available_bags || 0) : 0;
+      const existingSubs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId));
+      const subTotal     = existingSubs.reduce((s, x) => s + (x.bags_count || 0), 0);
+      const total        = primaryAvail + subTotal;
+      const ok           = total >= requested - 0.0001;
+      let legacyHtml = '<strong>Inventory check — ' + requested + ' bags requested</strong><br>';
+      if (lot) legacyHtml += 'Primary: ' + esc(lot.sample_name) + ' · <strong>' + primaryAvail + '</strong> avail<br>';
+      legacyHtml += ok
+        ? '<strong style="color:var(--success)">' + total + ' bags ✓</strong>'
+        : '<strong style="color:var(--error)">' + total + ' — short by ' + (requested - total) + '</strong>';
+      ctx.innerHTML = html || legacyHtml;
+      ctx.style.display     = 'block';
+      ctx.style.borderColor = ok ? 'rgba(46,125,82,0.3)' : 'rgba(192,57,43,0.3)';
+      ctx.style.background  = ok ? 'rgba(46,125,82,0.05)' : 'rgba(192,57,43,0.05)';
+      if (!ok) {
+        subForm.style.display = 'block';
+        refreshSubForm(drawdownId, lineId, lot, requested, primaryAvail, existingSubs);
+      } else {
+        subForm.style.display = 'none';
+      }
     }
   } else {
     ctx.style.display     = 'none';
     subForm.style.display = 'none';
+    document.getElementById('ds-bin-alloc').style.display = 'none';
+  }
+
+  // v3.1: Render bin allocation section for Approved; manage save button state
+  const saveBtn = document.getElementById('btn-ds-save');
+  if (presetStatus === 'Approved') {
+    renderBinAllocSection(drawdownId);
+    // Disable save if bins are not yet fully allocated
+    saveBtn.disabled = !checkBinAllocComplete();
+  } else {
+    saveBtn.disabled = false;
   }
 
   document.getElementById('modal-status-title').textContent = 'Move to: ' + presetStatus;
@@ -567,23 +737,17 @@ function refreshSubForm(drawdownId, lineId, primaryLot, requested, primaryAvail,
   const gap            = Math.max(0, requested - alreadyCovered);
   const origLotId      = document.getElementById('ds-original-lot-id').value;
 
-  // Pending sub list
   const listEl = document.getElementById('ds-sub-list');
-  if (pendingSubstitutions.length) {
-    listEl.innerHTML = pendingSubstitutions.map((s, i) => {
-      const lot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
-      return '<div class="sub-list-row">' +
-        '<span class="sub-bags">' + s.bags_count + ' bags</span>' +
-        '<span>from ' + (lot ? esc(lot.sample_name) : 'Lot ' + s.replacement_lot_id) + '</span>' +
-        (s.reason ? '<span>— ' + esc(s.reason) + '</span>' : '') +
-        '<button class="sub-del" onclick="removePendingSub(' + i + ',\'' + drawdownId + '\',\'' + lineId + '\')" title="Remove">✕</button>' +
-      '</div>';
-    }).join('');
-  } else {
-    listEl.innerHTML = '';
-  }
+  listEl.innerHTML = pendingSubstitutions.map((s, i) => {
+    const lot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
+    return '<div class="sub-list-row">' +
+      '<span class="sub-bags">' + s.bags_count + ' bags</span>' +
+      '<span>from ' + (lot ? esc(lot.sample_name) : 'Lot ' + s.replacement_lot_id) + '</span>' +
+      (s.reason ? '<span>— ' + esc(s.reason) + '</span>' : '') +
+      '<button class="sub-del" onclick="removePendingSub(' + i + ',\'' + drawdownId + '\',\'' + lineId + '\')" title="Remove">✕</button>' +
+    '</div>';
+  }).join('');
 
-  // Replacement lot dropdown — exclude original lot, only lots with available bags
   const lotSel = document.getElementById('ds-sub-lot');
   lotSel.innerHTML = '<option value="">— Select lot —</option>' +
     PAGE_DATA.inventory_lots
@@ -591,21 +755,18 @@ function refreshSubForm(drawdownId, lineId, primaryLot, requested, primaryAvail,
       .map(l => {
         const effectiveMax = Math.min(l.available_bags, gap);
         return '<option value="' + l.lot_id + '" data-avail="' + l.available_bags + '" data-max="' + effectiveMax + '">' +
-          esc(l.sample_name) + ' · ' + l.available_bags + ' avail' +
-          '</option>';
+          esc(l.sample_name) + ' · ' + l.available_bags + ' avail</option>';
       }).join('');
 
-  // Bags hint
   const hintEl = document.getElementById('ds-sub-bags-hint');
   hintEl.textContent = gap > 0 ? '(gap: ' + gap + ')' : '';
   document.getElementById('ds-sub-bags').value = '';
   document.getElementById('ds-sub-bags').max   = gap;
   document.getElementById('ds-sub-reason').value = '';
 
-  // Update lot onchange for per-lot max
   lotSel.onchange = function() {
-    const opt = lotSel.options[lotSel.selectedIndex];
-    const effectiveMax = opt && opt.dataset.max ? parseInt(opt.dataset.max) : gap;
+    const opt          = lotSel.options[lotSel.selectedIndex];
+    const effectiveMax = opt && opt.dataset.max ? parseFloat(opt.dataset.max) : gap;
     document.getElementById('ds-sub-bags').max = effectiveMax;
     hintEl.textContent = effectiveMax > 0 ? '(max ' + effectiveMax + ')' : '';
   };
@@ -613,64 +774,42 @@ function refreshSubForm(drawdownId, lineId, primaryLot, requested, primaryAvail,
 
 function removePendingSub(idx, drawdownId, lineId) {
   pendingSubstitutions.splice(idx, 1);
-  const dd      = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
-  const con     = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd.contract_id));
-  const line    = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
-  const lot     = line && line.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id)) : null;
-  const existingSubs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId));
-  const primaryAvail = lot ? (lot.available_bags || 0) : 0;
-  refreshSubForm(drawdownId, lineId, lot, dd.requested_bags || 0, primaryAvail, existingSubs);
-  refreshApproveContext(drawdownId, lineId);
+  const dd         = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
+  const con        = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd && dd.contract_id));
+  const ddLine     = (dd && dd.lines || []).find(l => String(l.contract_line_id) === String(lineId));
+  const cl         = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
+  const lot        = cl && cl.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(cl.inventory_lot_id)) : null;
+  const requested  = ddLine ? (ddLine.requested_bags || 0) : (dd ? (dd.requested_bags || 0) : 0);
+  const existingSubs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId) && String(s.contract_line_id) === String(lineId));
+  refreshSubForm(drawdownId, lineId, lot, requested, lot ? (lot.available_bags || 0) : 0, existingSubs);
 }
 
-document.getElementById('btn-ds-add-sub').onclick = function() {
-  const lotSel  = document.getElementById('ds-sub-lot');
-  const lotId   = lotSel.value;
-  const bags    = parseInt(document.getElementById('ds-sub-bags').value);  // v2.1.3: no || 0
-  const reason  = document.getElementById('ds-sub-reason').value.trim();
-  const max     = parseInt(document.getElementById('ds-sub-bags').max) || 0;
-  if (!lotId) { showModalError('modal-status', 'Select a replacement lot.'); return; }
-  if (isNaN(bags) || bags <= 0) { showModalError('modal-status', 'Bags must be a whole number greater than zero.'); return; }
-  if (bags > max) { showModalError('modal-status', 'Bags (' + bags + ') exceed maximum (' + max + ').'); return; }
-  clearModalError('modal-status');
-  pendingSubstitutions.push({ replacement_lot_id: lotId, bags_count: bags, reason: reason });
-  const drawdownId = document.getElementById('ds-drawdown-id').value;
-  const lineId     = document.getElementById('ds-line-id').value;
-  const dd         = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
-  const con        = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd.contract_id));
-  const line       = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
-  const lot        = line && line.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id)) : null;
-  const existingSubs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId));
-  refreshSubForm(drawdownId, lineId, lot, dd.requested_bags || 0, lot ? (lot.available_bags || 0) : 0, existingSubs);
-  refreshApproveContext(drawdownId, lineId);
-};
-
 function refreshApproveContext(drawdownId, lineId) {
-  const dd       = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
-  const con      = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd && dd.contract_id));
-  const line     = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
-  const lot      = line && line.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id)) : null;
-  const existing = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId));
-  const pending  = pendingSubstitutions.reduce((s, x) => s + (x.bags_count || 0), 0);
+  const dd    = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
+  const con   = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd && dd.contract_id));
+  const cl    = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
+  const lot   = cl && cl.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(cl.inventory_lot_id)) : null;
+  const ddLine = (dd && dd.lines || []).find(l => String(l.contract_line_id) === String(lineId));
+  const requested = ddLine ? (ddLine.requested_bags || 0) : (dd ? (dd.requested_bags || 0) : 0);
+  const existing  = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId) && String(s.contract_line_id) === String(lineId));
+  const pending   = pendingSubstitutions.reduce((s, x) => s + (x.bags_count || 0), 0);
   const existTotal = existing.reduce((s, x) => s + (x.bags_count || 0), 0);
   const primaryAvail = lot ? (lot.available_bags || 0) : 0;
-  const total    = primaryAvail + existTotal + pending;
-  const requested = dd ? (dd.requested_bags || 0) : 0;
-  const ok       = total >= requested;
-  const ctx      = document.getElementById('ds-inventory-context');
-  const subForm  = document.getElementById('ds-sub-form');
+  const total     = primaryAvail + existTotal + pending;
+  const ok        = total >= requested;
+  const ctx       = document.getElementById('ds-inventory-context');
+  const subForm   = document.getElementById('ds-sub-form');
 
-  let html = '<strong style="color:var(--text)">Inventory check — ' + requested + ' bags requested</strong><br>';
-  if (lot) html += '<span style="color:var(--muted)">Primary lot:</span> ' + esc(lot.sample_name) + ' &nbsp;·&nbsp; <strong>' + primaryAvail + '</strong> available<br>';
+  let html = '<strong style="color:var(--text)">Line: ' + esc(cl ? cl.sample_name : lineId) + '</strong> — ' + requested + ' bags<br>';
+  if (lot) html += 'Primary: ' + esc(lot.sample_name) + ' · <strong>' + primaryAvail + '</strong> avail<br>';
   existing.forEach(s => {
     const rl = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
-    html += '<span style="color:var(--muted)">↳ Sub (saved):</span> ' + (rl ? esc(rl.sample_name) : 'Lot ' + s.replacement_lot_id) + ' &nbsp;·&nbsp; <strong>' + s.bags_count + ' bags</strong><br>';
+    html += '↳ Sub (saved): ' + (rl ? esc(rl.sample_name) : 'Lot ' + s.replacement_lot_id) + ' · <strong>' + s.bags_count + ' bags</strong><br>';
   });
   pendingSubstitutions.forEach(s => {
     const rl = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
-    html += '<span style="color:var(--accent)">↳ Sub (pending):</span> ' + (rl ? esc(rl.sample_name) : 'Lot ' + s.replacement_lot_id) + ' &nbsp;·&nbsp; <strong>' + s.bags_count + ' bags</strong><br>';
+    html += '<span style="color:var(--accent)">↳ Sub (pending):</span> ' + (rl ? esc(rl.sample_name) : 'Lot ' + s.replacement_lot_id) + ' · <strong>' + s.bags_count + ' bags</strong><br>';
   });
-  html += '<span style="color:var(--muted)">Total coverable:</span> ';
   html += ok
     ? '<strong style="color:var(--success)">' + total + ' bags ✓</strong>'
     : '<strong style="color:var(--error)">' + total + ' — short by ' + (requested - total) + '</strong>';
@@ -680,7 +819,34 @@ function refreshApproveContext(drawdownId, lineId) {
   subForm.style.display = ok ? 'none' : 'block';
 }
 
-document.getElementById('btn-ds-cancel').onclick = () => document.getElementById('modal-status').classList.remove('open');
+document.getElementById('btn-ds-add-sub').onclick = function() {
+  const lotSel = document.getElementById('ds-sub-lot');
+  const lotId  = lotSel.value;
+  const bags   = parseFloat(document.getElementById("ds-sub-bags").value);
+  const reason = document.getElementById('ds-sub-reason').value.trim();
+  const max    = parseFloat(document.getElementById("ds-sub-bags").max) || 0;
+  if (!lotId)                  { showModalError('modal-status', 'Select a replacement lot.'); return; }
+  if (isNaN(bags) || bags <= 0) { showModalError('modal-status', 'Bags must be greater than zero.'); return; }
+  if (bags > max)              { showModalError('modal-status', 'Bags (' + bags + ') exceed maximum (' + max + ').'); return; }
+  clearModalError('modal-status');
+  pendingSubstitutions.push({ replacement_lot_id: lotId, bags_count: bags, reason: reason });
+  const drawdownId = document.getElementById('ds-drawdown-id').value;
+  const lineId     = document.getElementById('ds-line-id').value;
+  const dd         = PAGE_DATA.drawdowns.find(d => String(d.drawdown_id) === String(drawdownId));
+  const con        = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(dd && dd.contract_id));
+  const cl         = con ? (con.lines || []).find(l => String(l.contract_line_id) === String(lineId)) : null;
+  const lot        = cl && cl.inventory_lot_id ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(cl.inventory_lot_id)) : null;
+  const ddLine     = (dd && dd.lines || []).find(l => String(l.contract_line_id) === String(lineId));
+  const requested  = ddLine ? (ddLine.requested_bags || 0) : (dd ? (dd.requested_bags || 0) : 0);
+  const existingSubs = (PAGE_DATA.lot_substitutions || []).filter(s => String(s.drawdown_id) === String(drawdownId) && String(s.contract_line_id) === String(lineId));
+  refreshSubForm(drawdownId, lineId, lot, requested, lot ? (lot.available_bags || 0) : 0, existingSubs);
+  refreshApproveContext(drawdownId, lineId);
+};
+
+document.getElementById('btn-ds-cancel').onclick = () => {
+  document.getElementById('modal-status').classList.remove('open');
+  document.getElementById('btn-ds-save').disabled = false;
+};
 
 document.getElementById('btn-ds-save').onclick = async () => {
   const btn        = document.getElementById('btn-ds-save'); btn.disabled = true;
@@ -691,7 +857,31 @@ document.getElementById('btn-ds-save').onclick = async () => {
   clearModalError('modal-status');
 
   try {
-    // v2.1: Save any pending substitutions first (drawdown-level, before approving)
+    // ── v3.1: Save bin allocations first (Approved only) ──────────────────────
+    if (status === 'Approved' && Object.keys(binAllocState).length > 0) {
+      // Final client-side validation before sending
+      if (!checkBinAllocComplete()) {
+        showModalError('modal-status', 'Bin allocation incomplete — allocate exactly the requested bags for each line before approving.');
+        btn.disabled = false;
+        return;
+      }
+      for (const lineId of Object.keys(binAllocState)) {
+        const state = binAllocState[lineId];
+        if (!state.bins.length) continue; // no bins on lot — skip
+        const binsPayload = state.bins
+          .filter(function(b) { return b.allocated_bags > 0; })
+          .map(function(b) { return { bin_id: b.bin_id, allocated_bags: b.allocated_bags }; });
+        if (!binsPayload.length) continue;
+        await API.post({
+          action:           'saveDrawdownLineBins',
+          drawdown_id:      drawdownId,
+          drawdown_line_id: state.drawdown_line_id,
+          bins:             binsPayload
+        });
+      }
+    }
+
+    // ── Save pending substitutions (Approved only) ────────────────────────────
     if (status === 'Approved' && pendingSubstitutions.length > 0) {
       for (const sub of pendingSubstitutions) {
         const subData = await API.post({
@@ -703,7 +893,6 @@ document.getElementById('btn-ds-save').onclick = async () => {
           reason:             sub.reason || '',
           drawdown_id:        drawdownId
         });
-        // Merge new sub into PAGE_DATA.lot_substitutions
         if (subData.drawdown_subs) {
           subData.drawdown_subs.forEach(s => {
             const idx = PAGE_DATA.lot_substitutions.findIndex(x => String(x.substitution_id) === String(s.substitution_id));
@@ -716,84 +905,211 @@ document.getElementById('btn-ds-save').onclick = async () => {
       pendingSubstitutions = [];
     }
 
-    // Now update the drawdown status
-    const data = await API.post({
-      action:       'updateDrawdownStatus',
-      drawdown_id:  drawdownId,
-      status:       status
-    });
-    data.drawdowns.forEach(d => {
-      const idx = PAGE_DATA.drawdowns.findIndex(x => String(x.drawdown_id) === String(d.drawdown_id));
-      if (idx >= 0) PAGE_DATA.drawdowns[idx] = d; else PAGE_DATA.drawdowns.push(d);
-    });
+    const data = await API.post({ action: 'updateDrawdownStatus', drawdown_id: drawdownId, status });
+    if (data.drawdowns) {
+      data.drawdowns.forEach(d => {
+        const idx = PAGE_DATA.drawdowns.findIndex(x => String(x.drawdown_id) === String(d.drawdown_id));
+        if (idx >= 0) PAGE_DATA.drawdowns[idx] = d; else PAGE_DATA.drawdowns.push(d);
+      });
+    }
+    if (data.contract_lines) {
+      data.contract_lines.forEach(cl => {
+        if (!cl) return;
+        PAGE_DATA.contracts.forEach(con => {
+          if (!con.lines) return;
+          const li = con.lines.findIndex(l => String(l.contract_line_id) === String(cl.contract_line_id));
+          if (li >= 0) con.lines[li] = cl;
+        });
+      });
+    }
+    if (data.inventory_lots) data.inventory_lots.forEach(l => l && mergeLot(l));
+
     document.getElementById('modal-status').classList.remove('open');
     renderTable();
-    showToast('Status updated.', 'success');
-  } catch (e) { showModalError('modal-status', e.message || 'Update failed.'); }
-  finally { btn.disabled = false; }
+    if (data.invoice_warning) showToast('Status updated. Invoice: ' + data.invoice_warning, 'error');
+    else showToast('Status updated.', 'success');
+  } catch (e) {
+    showModalError('modal-status', e.message || 'Update failed.');
+    btn.disabled = !checkBinAllocComplete();
+  }
 };
 
 function mergeLot(updatedLot) {
   if (!updatedLot) return;
   const idx = PAGE_DATA.inventory_lots.findIndex(l => String(l.lot_id) === String(updatedLot.lot_id));
-  if (idx >= 0) PAGE_DATA.inventory_lots[idx] = updatedLot;
+  if (idx >= 0) {
+    // Preserve bins[] from existing lot — server lot updates don't re-attach bins
+    const existingBins = PAGE_DATA.inventory_lots[idx].bins;
+    PAGE_DATA.inventory_lots[idx] = Object.assign({}, updatedLot, {
+      bins: updatedLot.bins || existingBins || []
+    });
+  }
 }
 
-// ── New Drawdown Modal (v2.1.4) — contract search replaces dropdown ───────────
+// ── New Drawdown Modal — v3.0 multi-line ─────────────────────────────────────
+
+// Internal state: array of line blocks { idx, contract_line_id, requested_bags }
+let ddLineCounter = 0;
+
+// FRACTIONAL BAGS: multi-line kg/lb helper — reads bag_size from the selected product option
+// (data-bagsize) in the same block, divides weight, writes fractional bags (4dp display).
+function ddLineWeightToBags(idx, rawWeight) {
+  const wt  = parseFloat(rawWeight);
+  const sel = document.querySelector('.line-sel[data-idx="' + idx + '"]');
+  const opt = sel && sel.options[sel.selectedIndex];
+  const size = opt ? parseFloat(opt.dataset.bagsize) : NaN;
+  if (!isFinite(wt) || !isFinite(size) || size <= 0) return; // pick a product (bag size) first
+  const input = document.querySelector('.line-bags[data-idx="' + idx + '"]');
+  if (input) input.value = Number((wt / size).toFixed(4));
+}
+
+function buildLineBlock(idx) {
+  const div = document.createElement('div');
+  div.className     = 'dd-line-block';
+  div.dataset.idx   = idx;
+  div.innerHTML = `
+    <div class="dd-line-label">Line ${idx + 1}</div>
+    <button class="remove-line-btn" type="button" onclick="removeLineBlock(${idx})" title="Remove line">×</button>
+    <div class="field-row">
+      <div class="field">
+        <label>Product <span style="color:var(--error)">*</span></label>
+        <select class="line-sel" data-idx="${idx}">
+          <option value="">— Select product —</option>
+        </select>
+      </div>
+      <div class="field" style="max-width:120px">
+        <label class="line-bags-label-${idx}">Bags <span style="color:var(--error)">*</span></label>
+        <input type="text" inputmode="decimal" class="line-bags" data-idx="${idx}" placeholder="0" />
+        <input type="text" inputmode="decimal" class="line-wt" data-idx="${idx}" placeholder="or kg/lb" title="Enter weight to auto-fill bags" oninput="ddLineWeightToBags(${idx}, this.value)" style="font-size:0.7rem;opacity:0.8;margin-top:2px" />
+      </div>
+    </div>`;
+  return div;
+}
+
+function populateLineSelects(contractId) {
+  const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
+  const lines = con && con.lines ? con.lines : [];
+  document.querySelectorAll('.line-sel').forEach(sel => {
+    const idx = sel.dataset.idx;
+    sel.innerHTML = '<option value="">— Select product —</option>' +
+      lines.map(l => {
+        const available = (l.contracted_bags || 0) - (l.drawn_bags || 0);
+        if (available <= 0) return '';
+        return '<option value="' + l.contract_line_id + '" data-available="' + available + '" data-bagsize="' + (l.bag_size || '') + '" data-bagunit="' + (l.bag_size_unit || 'kg') + '">' +
+          esc(l.sample_name) + ' · ' + available + ' bags avail</option>';
+      }).join('');
+
+    sel.onchange = function() {
+      const opt    = sel.options[sel.selectedIndex];
+      const label  = document.querySelector('.line-bags-label-' + idx);
+      const input  = document.querySelector('.line-bags[data-idx="' + idx + '"]');
+      input.value  = '';
+      if (!sel.value || !opt.dataset.available) {
+        if (label) label.innerHTML = 'Bags <span style="color:var(--error)">*</span>';
+        input.removeAttribute('max');
+        return;
+      }
+      const avail   = parseFloat(opt.dataset.available);
+      const bagSize = opt.dataset.bagsize;
+      const bagUnit = opt.dataset.bagunit;
+      input.max     = avail;
+      if (label) label.innerHTML = 'Bags <span style="color:var(--error)">*</span> ' +
+        '<span style="color:var(--accent);font-size:0.65rem">(max ' + avail + (bagSize ? ' · ' + bagSize + ' ' + bagUnit + '/bag' : '') + ')</span>';
+    };
+  });
+}
+
+function addLineBlock() {
+  const contractId = document.getElementById('new-dd-contract').value;
+  if (!contractId) return;
+
+  const wrap = document.getElementById('new-dd-lines-wrap');
+  const idx  = ddLineCounter++;
+  const block = buildLineBlock(idx);
+  wrap.appendChild(block);
+
+  // Populate line select for this block
+  const con   = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId));
+  const lines = con && con.lines ? con.lines : [];
+  const sel   = block.querySelector('.line-sel');
+  sel.innerHTML = '<option value="">— Select product —</option>' +
+    lines.map(l => {
+      const available = (l.contracted_bags || 0) - (l.drawn_bags || 0);
+      if (available <= 0) return '';
+      return '<option value="' + l.contract_line_id + '" data-available="' + available + '" data-bagsize="' + (l.bag_size || '') + '" data-bagunit="' + (l.bag_size_unit || 'kg') + '">' +
+        esc(l.sample_name) + ' · ' + available + ' bags avail</option>';
+    }).join('');
+
+  sel.onchange = function() {
+    const opt   = sel.options[sel.selectedIndex];
+    const label = block.querySelector('.line-bags-label-' + idx);
+    const input = block.querySelector('.line-bags[data-idx="' + idx + '"]');
+    input.value = '';
+    if (!sel.value || !opt.dataset.available) {
+      if (label) label.innerHTML = 'Bags <span style="color:var(--error)">*</span>';
+      input.removeAttribute('max');
+      return;
+    }
+    const avail   = parseFloat(opt.dataset.available);
+    const bagSize = opt.dataset.bagsize;
+    const bagUnit = opt.dataset.bagunit;
+    input.max     = avail;
+    if (label) label.innerHTML = 'Bags <span style="color:var(--error)">*</span> ' +
+      '<span style="color:var(--accent);font-size:0.65rem">(max ' + avail + (bagSize ? ' · ' + bagSize + ' ' + bagUnit + '/bag' : '') + ')</span>';
+  };
+
+  renumberLineLabels();
+}
+
+function removeLineBlock(idx) {
+  const block = document.querySelector('.dd-line-block[data-idx="' + idx + '"]');
+  if (block) block.remove();
+  renumberLineLabels();
+}
+
+function renumberLineLabels() {
+  document.querySelectorAll('.dd-line-block').forEach((block, i) => {
+    const label = block.querySelector('.dd-line-label');
+    if (label) label.textContent = 'Line ' + (i + 1);
+    const removeBtn = block.querySelector('.remove-line-btn');
+    if (removeBtn) removeBtn.style.display = document.querySelectorAll('.dd-line-block').length > 1 ? '' : 'none';
+  });
+}
 
 document.getElementById('btn-new-drawdown').onclick = function() {
   clearModalError('modal-new-dd');
+  ddLineCounter = 0;
   document.getElementById('new-dd-buyer-info').classList.remove('show');
-  document.getElementById('new-dd-bags').value  = '';
-  document.getElementById('new-dd-date').value  = '';
-  document.getElementById('new-dd-notes').value = '';
+  document.getElementById('new-dd-date').value   = '';
+  document.getElementById('new-dd-notes').value  = '';
+  document.getElementById('new-dd-lines-wrap').innerHTML = '';
+  document.getElementById('btn-add-line').disabled = true;
 
-  // Reset line dropdown
-  const lineSel = document.getElementById('new-dd-line');
-  lineSel.innerHTML = '<option value="">— Select contract first —</option>';
-  lineSel.disabled  = true;
-
-  // Active contracts available for drawdown
+  const sel = document.getElementById('new-dd-contract');
+  sel.innerHTML = '<option value="">— Select contract —</option>';
   const activeContracts = PAGE_DATA.contracts.filter(c =>
     c.status === 'Active' || c.status === 'Partially Drawn'
   );
-
-  // Init contract search (re-init each open to reset state)
-  initSearch({
-    inputId:   'new-dd-contract-input',
-    dropId:    'new-dd-contract-drop',
-    hiddenId:  'new-dd-contract-id',
-    items:     () => activeContracts,
-    label:     c => {
-      const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(c.buyer_id));
-      return (buyer ? buyer.company_name + ' · ' : '') + c.contract_number;
-    },
-    value:     c => String(c.contract_id),
-    subLabel:  c => 'Status: ' + c.status,
-    onSelect:  contractId => selectContract(contractId),
-    onClear:   () => selectContract(null)
+  activeContracts.forEach(c => {
+    const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(c.buyer_id));
+    const label = (buyer ? buyer.company_name + ' · ' : '') + esc(c.contract_number);
+    const o = document.createElement('option');
+    o.value = c.contract_id; o.textContent = label;
+    sel.appendChild(o);
   });
-
-  // Reset contract input
-  const contractInput = document.getElementById('new-dd-contract-input');
-  if (contractInput._clearItem) contractInput._clearItem();
 
   document.getElementById('modal-new-dd').classList.add('open');
 };
 
-// Called when a contract is chosen in the search (or cleared)
-function selectContract(contractId) {
-  const lineSel   = document.getElementById('new-dd-line');
-  const buyerInfo = document.getElementById('new-dd-buyer-info');
-  const bagsHint  = document.getElementById('new-dd-bags-hint');
-  const bagsInput = document.getElementById('new-dd-bags');
+document.getElementById('new-dd-contract').onchange = function() {
+  const contractId = this.value;
+  const buyerInfo  = document.getElementById('new-dd-buyer-info');
+  const addBtn     = document.getElementById('btn-add-line');
+  document.getElementById('new-dd-lines-wrap').innerHTML = '';
+  ddLineCounter = 0;
 
-  lineSel.innerHTML = '<option value="">— Select line —</option>';
-  lineSel.disabled  = true;
   buyerInfo.classList.remove('show');
-  bagsHint.textContent = '';
-  bagsInput.value = '';
-  bagsInput.removeAttribute('max');
+  addBtn.disabled = !contractId;
 
   if (!contractId) return;
 
@@ -809,47 +1125,11 @@ function selectContract(contractId) {
     buyerInfo.classList.add('show');
   }
 
-  const lines = con && con.lines ? con.lines : [];
-  lines.forEach(l => {
-    const available = (l.contracted_bags || 0) - (l.drawn_bags || 0);
-    if (available <= 0) return;
-    const o = document.createElement('option');
-    o.value = l.contract_line_id;
-    o.dataset.available = available;
-    o.dataset.bagSize   = l.bag_size || '';
-    o.dataset.bagUnit   = l.bag_size_unit || 'kg';
-    o.textContent = esc(l.sample_name) + ' · ' + available + ' bags available';
-    lineSel.appendChild(o);
-  });
-
-  if (lineSel.options.length === 1) {
-    lineSel.innerHTML = '<option value="">No lines with available bags</option>';
-    lineSel.disabled  = true;
-  } else {
-    lineSel.disabled = false;
-  }
-}
-
-// When line changes — update bags max + hint
-document.getElementById('new-dd-line').onchange = function() {
-  const bagsHint  = document.getElementById('new-dd-bags-hint');
-  const bagsInput = document.getElementById('new-dd-bags');
-  const selected  = this.options[this.selectedIndex];
-
-  bagsInput.value = '';
-  if (!this.value || !selected.dataset.available) {
-    bagsHint.textContent = '';
-    bagsInput.removeAttribute('max');
-    return;
-  }
-
-  const available = parseInt(selected.dataset.available);
-  const bagSize   = selected.dataset.bagSize;
-  const bagUnit   = selected.dataset.bagUnit;
-  bagsInput.max   = available;
-  bagsHint.textContent = '(max ' + available +
-    (bagSize ? ' · ' + bagSize + ' ' + bagUnit + '/bag' : '') + ')';
+  // Auto-add first line block
+  addLineBlock();
 };
+
+document.getElementById('btn-add-line').onclick = addLineBlock;
 
 document.getElementById('btn-new-dd-cancel').onclick = () => {
   document.getElementById('modal-new-dd').classList.remove('open');
@@ -857,43 +1137,82 @@ document.getElementById('btn-new-dd-cancel').onclick = () => {
 
 document.getElementById('btn-new-dd-save').onclick = async function() {
   const btn        = this;
-  const contractId = document.getElementById('new-dd-contract-id').value;
-  const lineId     = document.getElementById('new-dd-line').value;
-  const bags       = parseInt(document.getElementById('new-dd-bags').value);  // v2.1.3: no || 0
-  const lineSel    = document.getElementById('new-dd-line');
-  const selected   = lineSel.options[lineSel.selectedIndex];
-  const available  = selected && selected.dataset.available ? parseInt(selected.dataset.available) : null;
+  const contractId = document.getElementById('new-dd-contract').value;
   clearModalError('modal-new-dd');
 
-  if (!contractId)                   { showModalError('modal-new-dd', 'Please select a contract.'); return; }
-  if (!lineId)                       { showModalError('modal-new-dd', 'Please select a contract line.'); return; }
-  if (isNaN(bags) || bags <= 0)      { showModalError('modal-new-dd', 'Bags must be a whole number greater than zero.'); return; }
-  if (available !== null && bags > available) {
-    showModalError('modal-new-dd', 'Requested bags (' + bags + ') exceed available (' + available + ').');
+  if (!contractId) { showModalError('modal-new-dd', 'Please select a contract.'); return; }
+
+  // Collect and validate all line blocks
+  const lineBlocks = document.querySelectorAll('.dd-line-block');
+  if (!lineBlocks.length) { showModalError('modal-new-dd', 'Add at least one line.'); return; }
+
+  const lines = [];
+  let valid   = true;
+
+  lineBlocks.forEach((block, i) => {
+    if (!valid) return;
+    const sel   = block.querySelector('.line-sel');
+    const input = block.querySelector('.line-bags');
+    const bags  = parseFloat(input.value);
+
+    if (!sel.value) {
+      showModalError('modal-new-dd', 'Line ' + (i + 1) + ': Please select a product.');
+      valid = false; return;
+    }
+    if (isNaN(bags) || bags <= 0) {
+      showModalError('modal-new-dd', 'Line ' + (i + 1) + ': Bags must be greater than zero.');
+      valid = false; return;
+    }
+    const available = sel.options[sel.selectedIndex].dataset.available;
+    if (available && bags > parseFloat(available) + 0.0001) {
+      showModalError('modal-new-dd', 'Line ' + (i + 1) + ': Bags (' + bags + ') exceed available (' + available + ').');
+      valid = false; return;
+    }
+    lines.push({ contract_line_id: sel.value, requested_bags: bags });
+  });
+
+  if (!valid) return;
+
+  // Check for duplicate contract lines in the same submission
+  const lineIds = lines.map(l => String(l.contract_line_id));
+  const uniqueIds = new Set(lineIds);
+  if (uniqueIds.size !== lineIds.length) {
+    showModalError('modal-new-dd', 'The same product line cannot be added more than once. Combine bags in a single row.');
     return;
   }
+
+  // v3.4: Ship date is required.
+  const shipDate = document.getElementById('new-dd-date').value;
+  if (!shipDate) { showModalError('modal-new-dd', 'Ship date is required.'); return; }
 
   btn.disabled = true;
   try {
     const data = await API.post({
-      action:           'saveDrawdown',
-      contract_id:      contractId,
-      contract_line_id: lineId,
-      requested_bags:   bags,
-      shipping_date:    document.getElementById('new-dd-date').value  || '',
-      notes:            document.getElementById('new-dd-notes').value || '',
-      status:           'Pending'
+      action:        'saveDrawdown',
+      contract_id:   contractId,
+      lines:         lines,
+      shipping_date: shipDate,
+      notes:         document.getElementById('new-dd-notes').value || '',
+      status:        'Pending'
     });
 
-    // Merge new drawdown + updated lines into PAGE_DATA
-    if (data.drawdown) {
-      const idx = PAGE_DATA.drawdowns.findIndex(d => String(d.drawdown_id) === String(data.drawdown.drawdown_id));
-      if (idx >= 0) PAGE_DATA.drawdowns[idx] = data.drawdown;
-      else PAGE_DATA.drawdowns.unshift(data.drawdown);
+    // Merge refreshed drawdowns into PAGE_DATA
+    if (data.drawdowns) {
+      data.drawdowns.forEach(d => {
+        const idx = PAGE_DATA.drawdowns.findIndex(x => String(x.drawdown_id) === String(d.drawdown_id));
+        if (idx >= 0) PAGE_DATA.drawdowns[idx] = d; else PAGE_DATA.drawdowns.unshift(d);
+      });
     }
-    if (data.contract) {
-      const ci = PAGE_DATA.contracts.findIndex(c => String(c.contract_id) === String(data.contract.contract_id));
-      if (ci >= 0) PAGE_DATA.contracts[ci] = data.contract;
+    // Merge updated contract lines into their contracts
+    if (data.contract_lines) {
+      data.contract_lines.forEach(cl => {
+        if (!cl) return;
+        PAGE_DATA.contracts.forEach(con => {
+          if (!con.lines) return;
+          const li = con.lines.findIndex(l => String(l.contract_line_id) === String(cl.contract_line_id));
+          if (li >= 0) con.lines[li] = cl;
+        });
+      });
     }
 
     document.getElementById('modal-new-dd').classList.remove('open');
@@ -903,91 +1222,99 @@ document.getElementById('btn-new-dd-save').onclick = async function() {
   finally { btn.disabled = false; }
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-
-// ── Drawdown lot summary ──────────────────────────────────────────────────────
-// For a given drawdown, returns the lots fulfilling it:
-//   Primary lot (from contract_line.inventory_lot_id) + substitution lots.
-// Bags split: primary = requested - sub_total, each sub = substitution.bags_count.
+// ── Lot summary ───────────────────────────────────────────────────────────────
 
 function buildDrawdownLotSummary(drawdown) {
-  // Cancelled drawdowns have no active lot commitment — show nothing.
   if (drawdown.status === 'Cancelled') return { lines: [] };
+  const lines = [];
 
-  const line    = drawdown.contract_line;
-  const lines   = [];
+  // v3.0: use drawdown.lines[] child rows; fall back to legacy header for old data
+  const ddLines = drawdown.lines || [];
+  const linesToProcess = ddLines.length > 0
+    ? ddLines.map(dl => ({
+        contract_line_id: dl.contract_line_id,
+        requested_bags:   dl.requested_bags || 0,
+        inventory_lot_id: dl.inventory_lot_id || (dl.contract_line ? dl.contract_line.inventory_lot_id : ''),
+        bin_allocations:  dl.bin_allocations || []  // v3.1
+      }))
+    : (drawdown.contract_line_id
+        ? [{ contract_line_id: drawdown.contract_line_id, requested_bags: drawdown.requested_bags || 0, inventory_lot_id: drawdown.contract_line ? drawdown.contract_line.inventory_lot_id : '', bin_allocations: [] }]
+        : []);
 
-  if (!line) return { lines: [] };
-
-  const primaryLot = line.inventory_lot_id
-    ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(line.inventory_lot_id))
-    : null;
-
-  // v2.1: Substitutions scoped to THIS drawdown only via drawdown_id.
-  // Legacy records (drawdown_id='') are matched by contract_line_id as fallback.
   const drawdownIdStr = String(drawdown.drawdown_id);
-  const drawdownSubs  = (PAGE_DATA.lot_substitutions || []).filter(s =>
-    s.drawdown_id && String(s.drawdown_id) === drawdownIdStr
-  );
-  const legacySubs = drawdownSubs.length === 0
-    ? (PAGE_DATA.lot_substitutions || []).filter(s =>
-        !s.drawdown_id && String(s.contract_line_id) === String(line.contract_line_id)
-      )
-    : [];
-  const subs = drawdownSubs.length > 0 ? drawdownSubs : legacySubs;
-  const subTotal = subs.reduce((s, x) => s + (x.bags_count || 0), 0);
 
-  // Primary lot bags = requested minus what substitutions cover
-  const primaryBags = Math.max(0, (drawdown.requested_bags || 0) - subTotal);
+  linesToProcess.forEach(ltp => {
+    // v3.6: resolve bag_size + unit from the contract line (authoritative) for weight display
+    let clBagSize = 0, clBagUnit = 'kg';
+    for (const c of (PAGE_DATA.contracts || [])) {
+      const cl = (c.lines || []).find(l => String(l.contract_line_id) === String(ltp.contract_line_id));
+      if (cl) { clBagSize = cl.bag_size || 0; clBagUnit = cl.bag_size_unit || 'kg'; break; }
+    }
+    const primaryLot = ltp.inventory_lot_id
+      ? PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(ltp.inventory_lot_id))
+      : null;
 
-  if (primaryLot && primaryBags > 0) {
-    const loc = primaryLot.location_name || primaryLot.warehouse_name || '';
-    lines.push({
-      is_sub:     false,
-      bags:       primaryBags,
-      lot_name:   primaryLot.sample_name || '—',
-      lot_number: primaryLot.lot_number  || '',
-      location:   loc
+    const drawdownSubs = (PAGE_DATA.lot_substitutions || []).filter(s =>
+      s.drawdown_id && String(s.drawdown_id) === drawdownIdStr && String(s.contract_line_id) === String(ltp.contract_line_id)
+    );
+    const legacySubs = drawdownSubs.length === 0 && ddLines.length === 0
+      ? (PAGE_DATA.lot_substitutions || []).filter(s => !s.drawdown_id && String(s.contract_line_id) === String(ltp.contract_line_id))
+      : [];
+    const subs     = drawdownSubs.length > 0 ? drawdownSubs : legacySubs;
+    const subTotal = subs.reduce((s, x) => s + (x.bags_count || 0), 0);
+    const primaryBags = Math.max(0, ltp.requested_bags - subTotal);
+
+    // v3.1: Enrich bin_allocations with bin_label from the lot's bins[]
+    const enrichedBinAllocs = (ltp.bin_allocations || []).map(function(ba) {
+      if (ba.bin_label) return ba; // already has label
+      const lot  = primaryLot;
+      const lotBins = (lot && lot.bins) ? lot.bins : [];
+      const binRow  = lotBins.find(function(b) { return String(b.bin_id) === String(ba.bin_id); });
+      return Object.assign({}, ba, { bin_label: binRow ? binRow.bin_label : ('Bin ' + ba.bin_id) });
     });
-  } else if (!primaryLot && primaryBags > 0) {
-    lines.push({ is_sub: false, bags: primaryBags, lot_name: 'No lot linked', lot_number: '', location: '' });
-  }
 
-  subs.forEach(s => {
-    const replLot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
-    const loc = replLot ? (replLot.location_name || replLot.warehouse_name || '') : '';
-    lines.push({
-      is_sub:     true,
-      bags:       s.bags_count,
-      lot_name:   replLot ? replLot.sample_name : 'Lot ' + s.replacement_lot_id,
-      lot_number: replLot ? (replLot.lot_number || '') : '',
-      location:   loc
+    if (primaryLot && primaryBags > 0) {
+      lines.push({ is_sub: false, bags: primaryBags, bag_size: clBagSize, bag_size_unit: clBagUnit, lot_name: primaryLot.sample_name || '—', lot_number: primaryLot.lot_number || '', location: primaryLot.location_name || primaryLot.warehouse_name || '', bin_allocations: enrichedBinAllocs });
+    } else if (!primaryLot && primaryBags > 0) {
+      lines.push({ is_sub: false, bags: primaryBags, bag_size: clBagSize, bag_size_unit: clBagUnit, lot_name: 'No lot linked', lot_number: '', location: '', bin_allocations: [] });
+    }
+
+    subs.forEach(s => {
+      const replLot = PAGE_DATA.inventory_lots.find(l => String(l.lot_id) === String(s.replacement_lot_id));
+      lines.push({ is_sub: true, bags: s.bags_count, bag_size: clBagSize, bag_size_unit: clBagUnit, lot_name: replLot ? replLot.sample_name : 'Lot ' + s.replacement_lot_id, lot_number: replLot ? (replLot.lot_number || '') : '', location: replLot ? (replLot.location_name || replLot.warehouse_name || '') : '', bin_allocations: [] });
     });
   });
 
-  return { lines: lines };
+  return { lines };
 }
 
 function toggleDdRow(drawdownId) {
   const k = String(drawdownId);
-  if (expandedRows.has(k)) expandedRows.delete(k);
-  else expandedRows.add(k);
+  if (expandedRows.has(k)) expandedRows.delete(k); else expandedRows.add(k);
   renderTable();
 }
-
 
 async function resendDrawdownEmail(drawdownId) {
   if (!confirm('Resend warehouse notification email for this drawdown?')) return;
   try {
     await API.post({ action: 'resendDrawdownEmail', drawdown_id: drawdownId });
     showToast('Notification email resent.', 'success');
-  } catch (e) {
-    showToast(e.message || 'Failed to resend email.', 'error');
-  }
+  } catch (e) { showToast(e.message || 'Failed to resend email.', 'error'); }
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// v3.6: fractional bag display + weight. fmtBags rounds to 4dp, trims trailing zeros (10→"10", 0.0833→"0.0833").
+// fmtWeight shows bags×bag_size with its unit, e.g. "2 bags (118 kg)". Weight uses full precision then
+// rounds the displayed result to 2dp; omitted when bag_size is unknown/zero.
+function fmtBags(n) { return String(Math.round((parseFloat(n)||0) * 10000) / 10000); }
+function fmtWeight(bags, bagSize, unit) {
+  const b = parseFloat(bags), s = parseFloat(bagSize);
+  if (!isFinite(b) || !isFinite(s) || s <= 0) return '';
+  const w = Math.round(b * s * 100) / 100;
+  return ' <span class="lp-weight">(' + w + ' ' + esc(unit || 'kg') + ')</span>';
+}
 
 function showModalError(modalId, message) {
   const errEl = document.querySelector('#' + modalId + ' .modal-error');
@@ -1001,7 +1328,7 @@ function clearModalError(modalId) {
 }
 function showToast(msg, type) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast '+(type||'');
+  t.textContent = msg; t.className = 'toast ' + (type || '');
   t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
 }
 </script>

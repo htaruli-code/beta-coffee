@@ -1,8 +1,18 @@
 <!DOCTYPE html>
-<!-- Version 2.8.5 | contracts.html -->
-<!-- v2.8.5: Toolbar buyer filter — replaced dropdown with search input + results list (client-side filter, no extra API call).
-     New Contract / Edit Contract modal — buyer dropdown replaced with search input + results list.
-     Selected buyer stored in hidden c-buyer-id input. Pattern mirrors catalogue-library.html v1.4. -->
+<!-- Version 2.9.5 | contracts.html -->
+<!-- v2.9.5: CRITICAL — manifest audit caught that the merged 2.9.x line still had the POSITIONAL DOM-sync bug (inputs[2]/[3]) that swaps contracted_bags/bag_size on inline save after the column reorder. Replaced with id-based sync (cl-bagsize-/cl-bags-/cl-name-/cl-price-), reorder-proof. This is the same fix as the 2.8.10 branch patch, now correctly in the merged feature line. -->
+<!-- v2.9.4: fixed wrong-number bug carried from 2.8.9 branch — kg helper already stored 4dp (2.9.3), now ALL bag DISPLAYS route through new fmtBags() (4dp, trailing zeros trimmed) so long-decimal legacy data + float-drift subtractions render clean. rem===0 color check now uses 0.0001 tolerance. Money calcs keep full precision. -->
+<!-- v2.9.3: FRACTIONAL BAGS merged onto DEV 2.9.2 — contracted_bags inputs (inline+modal+sub) text+inputmode=decimal; kg/lb helpers (contractWeightToBags/modalWeightToBags) back-calc bags 4dp; inline row reordered Bag Size→Bags→or kg/lb (grid 8→9 + header); validation parseFloat; ceiling parseFloat+0.0001 tolerance. Keeps DEV changeContractPage pagination + readonly auto-filled Product Name. -->
+<!-- v2.9.2: Warehouse onchange — warns when warehouse has no contract_prefix or
+     number_seed configured, makes number field editable in that case, and shows
+     inline guidance to configure the warehouse or enter a number manually. -->
+<!-- v2.9.1: PAGE_DATA default now includes currencies fallback so currency dropdown
+     is never empty if getContractsPage fails. Labels updated to clarify optional fields.
+     openContractModal defensive fallbacks added. -->
+<!-- v2.9.0: Contract modal — Warehouse dropdown added (drives auto-numbering).
+     Currency dropdown added (USD/AUD/NZD). Contract Number field: read-only on edit,
+     editable on new (placeholder explains auto-assign). warehouse_id + currency
+     sent in saveContract payload. Server handles number generation and preservation. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -75,6 +85,7 @@
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    input[readonly] { background: var(--surface); color: var(--muted); cursor: default; border-color: var(--border); }
 
     /* ── Substitution panel ─────────────────────────────────────────────────── */
     .sub-panel { background: #fdf4e8; border-top: 1px solid var(--border); padding: 0.6rem 0.75rem; }
@@ -108,8 +119,8 @@
     .sku-ac-clear.show { display: block; }
 
     /* ── Contract line table (v2.6.0) ──────────────────────────────────────── */
-    .line-table-header { display:grid; grid-template-columns:120px 2fr 80px 80px 90px 80px 90px 32px; gap:0.4rem; padding:0.3rem 0.5rem; font-family:var(--font-mono); font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--border); }
-    .line-row { display:grid; grid-template-columns:120px 2fr 80px 80px 90px 80px 90px 32px; gap:0.4rem; padding:0.35rem 0.5rem; border-bottom:1px solid var(--border); align-items:center; }
+    .line-table-header { display:grid; grid-template-columns:120px 2fr 80px 80px 70px 90px 80px 90px 32px; gap:0.4rem; padding:0.3rem 0.5rem; font-family:var(--font-mono); font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--border); }
+    .line-row { display:grid; grid-template-columns:120px 2fr 80px 80px 70px 90px 80px 90px 32px; gap:0.4rem; padding:0.35rem 0.5rem; border-bottom:1px solid var(--border); align-items:center; }
     .line-row:last-child { border-bottom:none; }
     .line-row input, .line-row select { padding:0.3rem 0.4rem; font-size:0.75rem; }
     .btn-add-row { background:none; border:1px dashed var(--border); color:var(--muted); font-family:var(--font-mono); font-size:0.72rem; padding:0.4rem 0.75rem; cursor:pointer; border-radius:var(--radius); width:100%; margin-top:0.5rem; transition:border-color var(--transition),color var(--transition); }
@@ -285,14 +296,24 @@
   </div>
   <div class="toolbar">
     <select id="filter-status" style="width:auto"><option value="">All Statuses</option></select>
+    <select id="filter-warehouse" style="width:auto"><option value="">All Warehouses</option></select>
     <div class="buyer-search-wrap" id="filter-buyer-wrap">
       <input type="text" id="filter-buyer-input" placeholder="Filter by buyer…" autocomplete="off" />
       <button type="button" class="bsd-clear" id="filter-buyer-clear" title="Clear">✕</button>
       <div class="buyer-search-drop" id="filter-buyer-drop"></div>
     </div>
     <input type="hidden" id="filter-buyer" value="" />
+    <select id="filter-page-size" style="width:auto;margin-left:auto" title="Rows per page">
+      <option value="10" selected>10 / page</option>
+      <option value="20">20 / page</option>
+    </select>
   </div>
   <div id="contract-list"><div class="loading">Loading contracts…</div></div>
+  <div id="contracts-pagination" style="display:none;align-items:center;gap:0.5rem;margin-top:1rem;font-family:var(--font-mono);font-size:0.75rem">
+    <button id="cp-prev" onclick="changeContractPage(-1)" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.65rem;border-radius:var(--radius);cursor:pointer;font-family:var(--font-mono);font-size:0.75rem">← Prev</button>
+    <span id="cp-info" style="color:var(--muted);padding:0 0.25rem"></span>
+    <button id="cp-next" onclick="changeContractPage(1)"  style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.65rem;border-radius:var(--radius);cursor:pointer;font-family:var(--font-mono);font-size:0.75rem">Next →</button>
+  </div>
 </div>
 
 <!-- Contract Modal -->
@@ -302,6 +323,8 @@
     <div class="modal-error" id="modal-contract-error"></div>
     <input type="hidden" id="c-id" />
     <input type="hidden" id="c-buyer-id" />
+
+    <!-- Row 1: Buyer + Warehouse -->
     <div class="field-row">
       <div class="field">
         <label>Buyer <span style="color:var(--error)">*</span></label>
@@ -312,20 +335,37 @@
         <span class="buyer-selected-tag empty" id="c-buyer-tag">No buyer selected</span>
       </div>
       <div class="field">
-        <label>Contract Number <span style="color:var(--error)">*</span></label>
-        <input type="text" id="c-number" placeholder="CTR-2026-001" />
+        <label>Warehouse <span style="color:var(--muted);font-size:0.7rem">(optional — enables auto-numbering)</span></label>
+        <select id="c-warehouse">
+          <option value="">— No warehouse (manual number) —</option>
+        </select>
       </div>
     </div>
+
+    <!-- Row 2: Contract Number + Date -->
     <div class="field-row">
+      <div class="field">
+        <label id="c-number-label">Contract Number</label>
+        <input type="text" id="c-number" placeholder="Auto-assigned on save" />
+      </div>
       <div class="field">
         <label>Contract Date <span style="color:var(--error)">*</span></label>
         <input type="date" id="c-date" />
       </div>
+    </div>
+
+    <!-- Row 3: Status + Currency -->
+    <div class="field-row">
       <div class="field">
-        <label>Status</label>
+        <label>Status <span style="color:var(--muted);font-size:0.7rem">(defaults to Draft)</span></label>
         <select id="c-status"></select>
       </div>
+      <div class="field" style="max-width:130px">
+        <label>Currency <span style="color:var(--muted);font-size:0.7rem">(defaults to USD)</span></label>
+        <select id="c-currency"></select>
+      </div>
     </div>
+
     <div class="field">
       <label>Notes</label>
       <textarea id="c-notes"></textarea>
@@ -350,8 +390,9 @@
       <div class="line-table-header">
         <span>SKU</span>
         <span>Product Name *</span>
-        <span>Bags *</span>
         <span>Bag Size</span>
+        <span>Bags *</span>
+        <span>or kg/lb</span>
         <span>Unit</span>
         <span>Unit Price</span>
         <span>Per</span>
@@ -384,11 +425,12 @@
       <div class="field-row">
         <div class="field">
           <label>Contracted Bags <span style="color:var(--error)">*</span></label>
-          <input type="number" id="l-bags" min="1" placeholder="0" />
+          <input type="text" inputmode="decimal" id="l-bags" placeholder="0" />
+          <input type="text" inputmode="decimal" id="l-wt" placeholder="or enter kg/lb" title="Enter weight to auto-fill bags" oninput="modalWeightToBags()" style="font-size:0.7rem;opacity:0.8;margin-top:2px" />
         </div>
         <div class="field">
           <label>Bag Size</label>
-          <input type="number" id="l-bag-size" min="0" step="0.1" placeholder="60" />
+          <input type="text" inputmode="decimal" id="l-bag-size" placeholder="60" />
         </div>
         <div class="field" style="max-width:90px">
           <label>Unit</label>
@@ -500,7 +542,7 @@
       </div>
       <div class="field" style="max-width:120px">
         <label for="sub-bags">Bags <span style="color:var(--error)">*</span> <span id="sub-bags-hint" style="color:var(--accent);font-size:0.65rem"></span></label>
-        <input type="number" id="sub-bags" min="1" placeholder="0" />
+        <input type="text" inputmode="decimal" id="sub-bags" placeholder="0" />
       </div>
     </div>
     <div class="field">
@@ -558,7 +600,13 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.8.5 | contracts.html
+// Version 2.9.3 | contracts.html
+// v2.9.3: Warehouse filter dropdown; pagination 10/20 per page (default 10); newest-first sort.
+// v2.9.2: Warehouse onchange warns when prefix/seed not configured; number field stays editable.
+// v2.9.1: PAGE_DATA default includes currencies + contract_statuses fallbacks.
+//         Modal labels clarified: Warehouse/Status/Currency marked as optional.
+// v2.9.0: Warehouse dropdown, Currency dropdown, readonly contract number on edit.
+// v2.8.5: buyer search input in modal + toolbar filter.
 // v2.8.5: Toolbar buyer filter — replaced dropdown with search input + results list (client-side, no extra API call).
 //          New/Edit Contract modal — buyer dropdown replaced with search input + results list.
 //          Selected buyer stored in hidden c-buyer-id input. initBuyerSearch() shared helper.
@@ -603,7 +651,9 @@ if (typeof Auth    === 'undefined') throw new Error('auth.js not loaded');
 if (typeof API     === 'undefined') throw new Error('api.js not loaded');
 if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 
-let PAGE_DATA = { contracts: [], buyers: [], inventory_lots: [], shipments: [], warehouses: [], product_skus: [], contract_statuses: [], availability_types: [], weight_units: [] };
+let PAGE_DATA = { contracts: [], buyers: [], inventory_lots: [], shipments: [], warehouses: [], product_skus: [], contract_statuses: ['Draft','Active','Completed','Cancelled'], currencies: ['USD','AUD','NZD'], availability_types: [], weight_units: [] };
+let currentPage = 1;
+let PAGE_SIZE   = 10;
 
 (async () => {
   const user = Auth.getUser(); const company = Auth.getCompany();
@@ -623,15 +673,30 @@ function populateFilters() {
   PAGE_DATA.contract_statuses.forEach(s => {
     const o = document.createElement('option'); o.value = s; o.textContent = s; fs.appendChild(o);
   });
-  fs.onchange = renderContracts;
+  fs.onchange = function() { currentPage = 1; renderContracts(); };
+
+  // Warehouse filter
+  const fw = document.getElementById('filter-warehouse');
+  (PAGE_DATA.warehouses || []).forEach(w => {
+    const o = document.createElement('option'); o.value = w.warehouse_id; o.textContent = w.warehouse_name; fw.appendChild(o);
+  });
+  fw.onchange = function() { currentPage = 1; renderContracts(); };
+
+  // Page-size dropdown
+  document.getElementById('filter-page-size').onchange = function() {
+    PAGE_SIZE   = parseInt(this.value) || 10;
+    currentPage = 1;
+    renderContracts();
+  };
+
   // Toolbar buyer search — client-side filter on PAGE_DATA.buyers
   initBuyerSearch({
     inputId:   'filter-buyer-input',
     dropId:    'filter-buyer-drop',
     hiddenId:  'filter-buyer',
     clearId:   'filter-buyer-clear',
-    onSelect:  renderContracts,
-    onClear:   renderContracts
+    onSelect:  function() { currentPage = 1; renderContracts(); },
+    onClear:   function() { currentPage = 1; renderContracts(); }
   });
 }
 
@@ -726,14 +791,36 @@ function initBuyerSearch(opts) {
 function renderContracts() {
   const sf = document.getElementById('filter-status').value;
   const bf = document.getElementById('filter-buyer').value;
-  let cons = PAGE_DATA.contracts;
+  const wf = document.getElementById('filter-warehouse').value;
+
+  let cons = PAGE_DATA.contracts.slice();
   if (sf) cons = cons.filter(c => c.status === sf);
   if (bf) cons = cons.filter(c => String(c.buyer_id) === String(bf));
+  if (wf) cons = cons.filter(c => String(c.warehouse_id) === String(wf));
+
+  // Sort newest → oldest by contract_id
+  cons.sort((a, b) => (b.contract_id || 0) - (a.contract_id || 0));
+
+  const total      = cons.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page  = cons.slice(start, start + PAGE_SIZE);
+
+  // Pagination bar
+  const pgBar  = document.getElementById('contracts-pagination');
+  const pgInfo = document.getElementById('cp-info');
+  const pgPrev = document.getElementById('cp-prev');
+  const pgNext = document.getElementById('cp-next');
+  pgInfo.textContent = 'Page ' + currentPage + ' of ' + totalPages + ' (' + total + ' total)';
+  pgPrev.disabled    = currentPage <= 1;
+  pgNext.disabled    = currentPage >= totalPages;
+  pgBar.style.display = totalPages > 1 ? 'flex' : 'none';
 
   const el = document.getElementById('contract-list');
-  if (!cons.length) { el.innerHTML = '<div class="empty">No contracts found.</div>'; return; }
+  if (!total) { el.innerHTML = '<div class="empty">No contracts found.</div>'; return; }
 
-  el.innerHTML = cons.map(con => {
+  el.innerHTML = page.map(con => {
     const buyer     = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id));
     const lines     = con.lines || [];
     const total     = calcTotal(lines);
@@ -809,20 +896,20 @@ function renderContracts() {
             '</span>' +
           '</span>' +
           '<button class="btn btn-ghost btn-sm" style="padding:0.15rem 0.4rem;font-size:0.65rem" ' +
-            'onclick="openLotPicker(' + l.contract_line_id + ',\'' + esc(l.sku_id||'') + '\',\'' + esc(l.sample_name) + '\')" title="Change lot">⇕</button>' +
+            'onclick="openLotPicker(' + l.contract_line_id + ',\'' + esc(l.sku_id||'') + '\',\'' + esc(l.sample_name) + '\',\'' + esc(con.warehouse_id||'') + '\')" title="Change lot">⇕</button>' +
           '<button class="btn btn-ghost btn-sm" style="padding:0.15rem 0.4rem;font-size:0.65rem;color:var(--muted)" ' +
             'onclick="unlinkLot(' + l.contract_line_id + ')" title="Unlink lot">✕</button>';
       } else {
         lotBtn = '<button class="btn btn-ghost btn-sm" style="font-size:0.68rem" ' +
-          'onclick="openLotPicker(' + l.contract_line_id + ',\'' + esc(l.sku_id||'') + '\',\'' + esc(l.sample_name) + '\')">' +
+          'onclick="openLotPicker(' + l.contract_line_id + ',\'' + esc(l.sku_id||'') + '\',\'' + esc(l.sample_name) + '\',\'' + esc(con.warehouse_id||'') + '\')">' +
           '+ Link Lot</button>';
       }
 
       return '<tr>' +
         '<td>' + esc(l.sample_name) + fwdTag + '</td>' +
-        '<td class="num">' + l.contracted_bags + '</td>' +
-        '<td class="num">' + l.drawn_bags + '</td>' +
-        '<td class="num">' + (l.contracted_bags - l.drawn_bags) + '</td>' +
+        '<td class="num">' + fmtBags(l.contracted_bags) + '</td>' +
+        '<td class="num">' + fmtBags(l.drawn_bags) + '</td>' +
+        '<td class="num">' + fmtBags(l.contracted_bags - l.drawn_bags) + '</td>' +
         '<td class="num">' + (l.unit_price ? l.unit_price + '/' + esc(l.price_unit) : '—') + '</td>' +
         '<td class="num">' + subVal + '</td>' +
         '<td style="min-width:100px">' +
@@ -857,6 +944,12 @@ function renderContracts() {
   }).join('');
 }
 
+function changeContractPage(dir) {
+  currentPage += dir;
+  renderContracts();
+  document.getElementById('contract-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function calcTotal(lines) {
   if (!lines.length) return '—';
   const kg = lines.filter(l => l.price_unit === 'kg').reduce((s,l) => s + l.contracted_bags * l.bag_size * l.unit_price, 0);
@@ -870,10 +963,67 @@ function calcTotal(lines) {
 function openContractModal(contractId) {
   const con = contractId ? PAGE_DATA.contracts.find(c => String(c.contract_id) === String(contractId)) : null;
   document.getElementById('modal-contract-title').textContent = con ? 'Edit Contract' : 'New Contract';
-  document.getElementById('c-id').value     = con ? con.contract_id    : '';
-  document.getElementById('c-number').value = con ? con.contract_number : '';
-  document.getElementById('c-date').value   = con ? toInputDate(con.contract_date) : '';
-  document.getElementById('c-notes').value  = con ? con.notes           : '';
+  document.getElementById('c-id').value    = con ? con.contract_id : '';
+  document.getElementById('c-date').value  = con ? toInputDate(con.contract_date) : '';
+  document.getElementById('c-notes').value = con ? con.notes       : '';
+
+  // Contract Number — read-only on edit (server preserves existing), editable on new
+  const numEl   = document.getElementById('c-number');
+  const numLabel = document.getElementById('c-number-label');
+  if (con) {
+    numEl.value    = con.contract_number || '';
+    numEl.readOnly = true;
+    numLabel.innerHTML = 'Contract Number <span style="color:var(--muted);font-size:0.65rem">(locked)</span>';
+  } else {
+    numEl.value    = '';
+    numEl.readOnly = false;
+    numLabel.innerHTML = 'Contract Number';
+  }
+
+  // Warehouse dropdown — required for auto-numbering
+  const whSel = document.getElementById('c-warehouse');
+  whSel.innerHTML = '<option value="">— No warehouse (manual number) —</option>' +
+    (PAGE_DATA.warehouses || []).map(w =>
+      `<option value="${w.warehouse_id}" ${con && String(con.warehouse_id) === String(w.warehouse_id) ? 'selected' : ''}>${esc(w.warehouse_name)}</option>`
+    ).join('');
+
+  // When warehouse is selected on new contract, update number placeholder
+  whSel.onchange = function() {
+    if (con) return; // edit: number locked on existing contracts
+    const wh    = (PAGE_DATA.warehouses || []).find(w => String(w.warehouse_id) === String(whSel.value));
+    const hasPrefix = wh && wh.contract_prefix && wh.number_seed !== null && wh.number_seed !== undefined && wh.number_seed !== '';
+    // Remove any existing warning
+    var existingWarn = document.getElementById('c-warehouse-warn');
+    if (existingWarn) existingWarn.remove();
+    if (wh && hasPrefix) {
+      numEl.placeholder = 'Auto: ' + wh.contract_prefix + '…';
+      numEl.readOnly    = false;
+      numEl.value       = '';
+    } else if (wh && !hasPrefix) {
+      // Warehouse selected but no prefix/seed — auto-numbering will not fire
+      numEl.placeholder = 'Enter manually (warehouse has no prefix configured)';
+      numEl.readOnly    = false;
+      var warn = document.createElement('div');
+      warn.id        = 'c-warehouse-warn';
+      warn.style.cssText = 'font-family:var(--font-mono);font-size:0.7rem;color:#854f0b;background:#fef9ec;border:1px solid #f0c040;border-radius:4px;padding:0.4rem 0.6rem;margin-top:0.4rem';
+      warn.textContent = '⚠ This warehouse has no contract prefix or starting number set. Enter a contract number manually, or configure the warehouse prefix in Locations.';
+      whSel.parentNode.appendChild(warn);
+    } else {
+      numEl.placeholder = 'Enter contract number';
+      numEl.readOnly    = false;
+      numEl.value       = '';
+    }
+  };
+  // Trigger once on open
+  whSel.onchange();
+
+  // Currency dropdown
+  const currSel = document.getElementById('c-currency');
+  const currencies = PAGE_DATA.currencies || ['USD','AUD','NZD'];
+  const activeCurrency = con ? (con.currency || currencies[0]) : currencies[0];
+  currSel.innerHTML = currencies.map(c =>
+    `<option value="${c}" ${c === activeCurrency ? 'selected' : ''}>${c}</option>`
+  ).join('');
 
   // Init buyer search on modal (re-initialise each open to reset state cleanly)
   initBuyerSearch({
@@ -892,7 +1042,7 @@ function openContractModal(contractId) {
     if (buyerInput._clearBuyer) buyerInput._clearBuyer();
   }
 
-  document.getElementById('c-status').innerHTML = PAGE_DATA.contract_statuses.map(s =>
+  document.getElementById('c-status').innerHTML = (PAGE_DATA.contract_statuses || ['Draft','Active','Completed','Cancelled']).map(s =>
     `<option value="${s}" ${con && con.status===s?'selected':''}>${s}</option>`
   ).join('');
   clearModalError('modal-contract'); document.getElementById('modal-contract').classList.add('open');
@@ -903,16 +1053,28 @@ document.getElementById('btn-c-cancel').onclick = () => document.getElementById(
 
 document.getElementById('btn-c-save').onclick = async () => {
   const btn = document.getElementById('btn-c-save'); btn.disabled = true;
-  const buyerId = document.getElementById('c-buyer-id').value;
+  const buyerId     = document.getElementById('c-buyer-id').value;
+  const warehouseId = document.getElementById('c-warehouse').value;
+  const contractId  = document.getElementById('c-id').value || null;
+  const contractNum = document.getElementById('c-number').value.trim();
+
   if (!buyerId) {
     showModalError('modal-contract', 'Please select a buyer.');
     btn.disabled = false; return;
   }
+  // On new: require manual number only if no warehouse is selected
+  if (!contractId && !warehouseId && !contractNum) {
+    showModalError('modal-contract', 'Enter a contract number or select a warehouse for auto-numbering.');
+    btn.disabled = false; return;
+  }
+
   const payload = {
-    action: 'saveContract',
-    contract_id:     document.getElementById('c-id').value || null,
+    action:          'saveContract',
+    contract_id:     contractId,
     buyer_id:        buyerId,
-    contract_number: document.getElementById('c-number').value,
+    warehouse_id:    warehouseId || null,
+    currency:        document.getElementById('c-currency').value,
+    contract_number: contractNum,   // ignored by server on edit; used on new only if no warehouse
     contract_date:   document.getElementById('c-date').value,
     status:          document.getElementById('c-status').value,
     notes:           document.getElementById('c-notes').value
@@ -1030,6 +1192,23 @@ function openLineModal(contractId, lineId) {
   document.getElementById('modal-line').classList.add('open');
 }
 
+// FRACTIONAL BAGS: kg/lb helpers — divide weight by bag_size, write fractional bags (4dp). Bag is source of truth.
+function contractWeightToBags(i, rawWeight) {
+  const wt   = parseFloat(rawWeight);
+  const size = parseFloat(lineRows[i] && lineRows[i].bag_size);
+  if (!isFinite(wt) || !isFinite(size) || size <= 0) return;
+  const bags = Math.round((wt / size) * 10000) / 10000;
+  lineRows[i].contracted_bags = String(bags);
+  const el = document.getElementById('cl-bags-' + i);
+  if (el) el.value = bags;
+}
+function modalWeightToBags() {
+  const wt   = parseFloat(document.getElementById('l-wt').value);
+  const size = parseFloat(document.getElementById('l-bag-size').value);
+  if (!isFinite(wt) || !isFinite(size) || size <= 0) return;
+  document.getElementById('l-bags').value = Number((wt / size).toFixed(4));
+}
+
 function renderLineRows() {
   var wrap = document.getElementById('l-rows-wrap');
 
@@ -1049,14 +1228,17 @@ function renderLineRows() {
           'onkeydown="cSkuKey(event,' + i + ')" />' +
         '<div class="line-sku-drop" id="csku-drop-' + i + '"></div>' +
       '</div>' +
-      '<input type="text" placeholder="Product name *" value="' + esc(r.sample_name) + '" ' +
-        'oninput="lineRows[' + i + '].sample_name=this.value" style="font-size:0.75rem" />' +
-      '<input type="number" placeholder="Bags *" value="' + (r.contracted_bags||'') + '" min="1" ' +
+      '<input type="text" id="cl-name-' + i + '" placeholder="Product name (select SKU)" value="' + esc(r.sample_name) + '" ' +
+        'readonly style="font-size:0.75rem;background:var(--surface);color:var(--muted);cursor:default" ' +
+        'tabindex="-1" />' +
+      '<input type="text" inputmode="decimal" id="cl-bagsize-' + i + '" placeholder="Bag size *" value="' + (r.bag_size||'') + '" ' +
+        'oninput="lineRows[' + i + '].bag_size=this.value" style="font-size:0.75rem" required />' +
+      '<input type="text" inputmode="decimal" placeholder="Bags *" id="cl-bags-' + i + '" value="' + (r.contracted_bags||'') + '" ' +
         'oninput="lineRows[' + i + '].contracted_bags=this.value" style="font-size:0.75rem" />' +
-      '<input type="number" placeholder="60" value="' + (r.bag_size||'') + '" min="0" step="0.1" ' +
-        'oninput="lineRows[' + i + '].bag_size=this.value" style="font-size:0.75rem" />' +
+      '<input type="text" inputmode="decimal" placeholder="or kg/lb" id="cl-wt-' + i + '" title="Enter weight to auto-fill bags" ' +
+        'oninput="contractWeightToBags(' + i + ', this.value)" style="font-size:0.7rem;opacity:0.8" />' +
       '<select onchange="lineRows[' + i + '].bag_size_unit=this.value">' + selUnit(r.bag_size_unit) + '</select>' +
-      '<input type="number" placeholder="0.00" value="' + (r.unit_price||'') + '" min="0" step="0.01" ' +
+      '<input type="number" id="cl-price-' + i + '" placeholder="0.00" value="' + (r.unit_price||'') + '" min="0" step="0.01" ' +
         'oninput="lineRows[' + i + '].unit_price=this.value" style="font-size:0.75rem" />' +
       '<select onchange="lineRows[' + i + '].price_unit=this.value">' + selUnit(r.price_unit) + '</select>' +
       '<button type="button" class="btn-del-row" onclick="removeLineRow(' + i + ')" title="Remove">✕</button>' +
@@ -1094,11 +1276,11 @@ document.getElementById('btn-l-save').onclick = async function() {
     const parsedSize  = parseFloat(rawBagSize);
     const parsedPrice = parseFloat(rawPrice);
     if (isNaN(parsedBags) || parsedBags <= 0) {
-      showModalError('modal-line', 'Contracted Bags must be a whole number greater than zero.');
+      showModalError('modal-line', 'Contracted Bags must be greater than zero.');
       btn.disabled = false; return;
     }
-    if (rawBagSize !== '' && isNaN(parsedSize)) {
-      showModalError('modal-line', 'Bag Size must be a number (e.g. 60).');
+    if (rawBagSize === '' || isNaN(parsedSize) || parsedSize <= 0) {
+      showModalError('modal-line', 'Bag Size is required (e.g. 60).');
       btn.disabled = false; return;
     }
     if (rawPrice !== '' && isNaN(parsedPrice)) {
@@ -1135,27 +1317,35 @@ document.getElementById('btn-l-save').onclick = async function() {
     document.querySelectorAll('#l-rows-wrap .line-row').forEach(function(rowEl) {
       const i = parseInt(rowEl.dataset.row);
       if (!lineRows[i]) return;
-      const inputs  = rowEl.querySelectorAll('input');
+      // v2.9.5: sync DOM→model by ELEMENT ID, not position. The previous positional
+      // read (inputs[2]=contracted_bags, inputs[3]=bag_size) swapped the two after the
+      // Bag Size/Bags column reorder. Reading by id is reorder-proof. kg/lb box (cl-wt)
+      // is NOT read here — it only feeds contracted_bags live via the helper.
+      const byId = function(p){ var el = document.getElementById(p + i); return el ? el.value : undefined; };
+      var sku  = byId('csku-');       if (sku  !== undefined) lineRows[i].sku_code        = sku;
+      var name = byId('cl-name-');    if (name !== undefined) lineRows[i].sample_name     = name;
+      var bz   = byId('cl-bagsize-'); if (bz   !== undefined) lineRows[i].bag_size        = bz;
+      var bg   = byId('cl-bags-');    if (bg   !== undefined) lineRows[i].contracted_bags = bg;
+      var pr   = byId('cl-price-');   if (pr   !== undefined) lineRows[i].unit_price      = pr;
       const selects = rowEl.querySelectorAll('select');
-      // inputs: 0=sku_code, 1=sample_name, 2=contracted_bags, 3=bag_size, 4=unit_price
-      lineRows[i].sku_code        = inputs[0].value;
-      lineRows[i].sample_name     = inputs[1].value;
-      lineRows[i].contracted_bags = inputs[2].value;
-      lineRows[i].bag_size        = inputs[3].value;
-      lineRows[i].unit_price      = inputs[4].value;
-      lineRows[i].bag_size_unit   = selects[0].value;
-      lineRows[i].price_unit      = selects[1].value;
+      if (selects[0]) lineRows[i].bag_size_unit = selects[0].value;
+      if (selects[1]) lineRows[i].price_unit    = selects[1].value;
     });
 
     for (var i = 0; i < lineRows.length; i++) {
       const r = lineRows[i];
       if (!r.sample_name || !r.sample_name.trim()) {
-        showModalError('modal-line', 'Row ' + (i+1) + ': Product Name is required.');
+        showModalError('modal-line', 'Row ' + (i+1) + ': Product Name is required — select a SKU first.');
         btn.disabled = false; return;
       }
-      const bags = parseInt(r.contracted_bags);
+      const bags = parseFloat(r.contracted_bags);
       if (isNaN(bags) || bags <= 0) {
         showModalError('modal-line', 'Row ' + (i+1) + ': Contracted Bags must be greater than zero.');
+        btn.disabled = false; return;
+      }
+      const bagSz = parseFloat(r.bag_size);
+      if (!r.bag_size || r.bag_size === '' || isNaN(bagSz) || bagSz <= 0) {
+        showModalError('modal-line', 'Row ' + (i+1) + ': Bag Size is required (e.g. 60).');
         btn.disabled = false; return;
       }
     }
@@ -1165,7 +1355,7 @@ document.getElementById('btn-l-save').onclick = async function() {
         sample_name:      r.sample_name.trim(),
         sku_id:           r.sku_id   || '',
         sku_code:         r.sku_code || '',
-        contracted_bags:  parseInt(r.contracted_bags) || 0,
+        contracted_bags:  parseFloat(r.contracted_bags) || 0,
         bag_size:         parseFloat(r.bag_size)      || 0,
         bag_size_unit:    r.bag_size_unit || 'kg',
         unit_price:       parseFloat(r.unit_price)    || 0,
@@ -1290,7 +1480,7 @@ function openSubModal(contractLineId, originalLotId, substitutionId, drawdownId)
   replSel.onchange = function() {
     const opt          = replSel.options[replSel.selectedIndex];
     const effectiveMax = opt && opt.dataset.effectiveMax ? parseInt(opt.dataset.effectiveMax) : null;
-    const lotAvail     = opt && opt.dataset.available    ? parseInt(opt.dataset.available)    : null;
+    const lotAvail     = opt && opt.dataset.available    ? parseFloat(opt.dataset.available)  : null;
     document.getElementById('sub-bags').max = effectiveMax || '';
 
     let hint = '';
@@ -1315,19 +1505,19 @@ document.getElementById('btn-sub-save').onclick = async function() {
   const lineId        = document.getElementById('sub-contract-line-id').value;
   const origLotId     = document.getElementById('sub-original-lot-id').value;
   const replLotId     = document.getElementById('sub-replacement-lot').value;
-  const bags          = parseInt(document.getElementById('sub-bags').value);  // v2.5.2: no || 0 — catch NaN
-  const maxBags       = parseInt(document.getElementById('sub-bags').max) || null;
+  const bags          = parseFloat(document.getElementById("sub-bags").value);
+  const maxBags       = parseFloat(document.getElementById("sub-bags").max) || null;
   clearModalError('modal-sub');
 
   const maxSub  = document.getElementById('sub-bags').dataset.maxSub !== ''
-    ? parseInt(document.getElementById('sub-bags').dataset.maxSub) : null;
+    ? parseFloat(document.getElementById("sub-bags").dataset.maxSub) : null;
   if (!replLotId) { showModalError('modal-sub', 'Please select a replacement lot.'); return; }
-  if (isNaN(bags) || bags <= 0) { showModalError('modal-sub', 'Bags must be a whole number greater than zero.'); return; }
-  if (maxBags !== null && bags > maxBags) {
+  if (isNaN(bags) || bags <= 0) { showModalError('modal-sub', 'Bags must be greater than zero.'); return; }
+  if (maxBags !== null && bags > maxBags + 0.0001) {
     showModalError('modal-sub', 'Bags (' + bags + ') exceed available on replacement lot (' + maxBags + ').');
     return;
   }
-  if (maxSub !== null && bags > maxSub) {
+  if (maxSub !== null && bags > maxSub + 0.0001) {
     showModalError('modal-sub', 'Bags (' + bags + ') exceed the substitution gap (' + maxSub + ' bags needed).');
     return;
   }
@@ -1505,6 +1695,9 @@ document.addEventListener('click', function(e) {
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmt(n) { return parseFloat(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+// v2.9.4: display bags rounded to 4dp, trailing zeros trimmed (10→"10", 0.18644→"0.1864").
+// Math stays full-precision elsewhere; this is display-only and tolerates long-decimal legacy data.
+function fmtBags(n) { return String(Math.round((parseFloat(n)||0) * 10000) / 10000); }
 function showModalError(modalId, message) {
   const errEl = document.querySelector('#' + modalId + ' .modal-error');
   if (!errEl) return;
@@ -1629,7 +1822,7 @@ document.getElementById('btn-import-po-apply').onclick = function() {
 
 var lpDebounce = null;
 
-function openLotPicker(contractLineId, skuId, lineName) {
+function openLotPicker(contractLineId, skuId, lineName, contractWarehouseId) {
   document.getElementById('lp-contract-line-id').value = contractLineId;
   document.getElementById('lp-sku-id').value           = skuId || '';
   document.getElementById('lp-line-label').textContent = lineName ? 'Line: ' + lineName : '';
@@ -1643,11 +1836,33 @@ function openLotPicker(contractLineId, skuId, lineName) {
     (PAGE_DATA.warehouses || []).map(function(w) {
       return '<option value="' + w.warehouse_id + '">' + esc(w.warehouse_name) + '</option>';
     }).join('');
-  whSel.value = '';
+
+  // Pre-select and lock to contract's warehouse when one is set.
+  // Prevents staff linking a lot from a different warehouse/market.
+  if (contractWarehouseId) {
+    whSel.value    = String(contractWarehouseId);
+    whSel.disabled = true;
+    // Show a small hint so staff know it is auto-filtered
+    var hint = document.getElementById('lp-warehouse-hint');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.id        = 'lp-warehouse-hint';
+      hint.style.cssText = 'font-family:var(--font-mono);font-size:0.68rem;color:var(--muted);margin-top:0.2rem';
+      whSel.parentNode.appendChild(hint);
+    }
+    var wh = (PAGE_DATA.warehouses || []).find(function(w) { return String(w.warehouse_id) === String(contractWarehouseId); });
+    hint.textContent = '🔒 Filtered to contract warehouse: ' + (wh ? wh.warehouse_name : contractWarehouseId);
+    hint.style.display = 'block';
+  } else {
+    whSel.value    = '';
+    whSel.disabled = false;
+    var existingHint = document.getElementById('lp-warehouse-hint');
+    if (existingHint) existingHint.style.display = 'none';
+  }
 
   clearModalError('modal-lot-picker');
   document.getElementById('modal-lot-picker').classList.add('open');
-  // Auto-search with SKU pre-filter on open
+  // Auto-search with SKU + warehouse pre-filter on open
   lpSearch('');
 }
 
@@ -1774,10 +1989,8 @@ function cSkuPick(rowIdx, skuId) {
   if (!s) return;
   lineRows[rowIdx].sku_id   = s.sku_id;
   lineRows[rowIdx].sku_code = s.sku_code;
-  // Auto-fill product name if empty
-  if (!lineRows[rowIdx].sample_name && s.sku_name) {
-    lineRows[rowIdx].sample_name = s.sku_name;
-  }
+  // Product Name is read-only — always set from SKU name
+  if (s.sku_name) lineRows[rowIdx].sample_name = s.sku_name;
   cSkuClose(rowIdx);
   renderLineRows();
   // Refocus product name input for that row so staff can adjust if needed
@@ -1940,11 +2153,11 @@ function generateContractPDF(contractId) {
       +   (l.availability_type === 'forward' ? '<br><span class="pdf-fwd-tag">FORWARD' + (l.expected_shipment_id ? ' · ETA ' + fmtDate(l.eta || '') : '') + '</span>' : '')
       + '</td>'
       + (opts.showSku     ? '<td style="font-family:monospace;font-size:9px;color:#8a7060">' + esc(l.sku_code || '—') + '</td>' : '')
-      + '<td class="r"><strong>' + (l.contracted_bags || 0) + '</strong></td>'
+      + '<td class="r"><strong>' + fmtBags(l.contracted_bags || 0) + '</strong></td>'
       + (opts.showBagSize ? '<td class="r">' + (l.bag_size || '—') + esc(l.bag_size_unit || 'kg') + '</td>' : '')
       + (opts.showPrice   ? '<td class="r">' + (l.unit_price ? '$' + fmt(l.unit_price) + '/' + esc(l.price_unit) : '—') + '</td>' : '')
       + (opts.showValue   ? '<td class="r"><strong>$' + fmt(lv, 0) + '</strong></td>' : '')
-      + (opts.showDrawn   ? '<td class="r">' + (l.drawn_bags || 0) + '</td><td class="r" style="color:' + (rem === 0 ? '#1e6640' : '#1a1a1a') + '">' + rem + '</td>' : '')
+      + (opts.showDrawn   ? '<td class="r">' + fmtBags(l.drawn_bags || 0) + '</td><td class="r" style="color:' + (Math.abs(rem) <= 0.0001 ? '#1e6640' : '#1a1a1a') + '">' + fmtBags(rem) + '</td>' : '')
       + (opts.showProgress ? '<td class="c"><div class="pdf-progress-bar"><div class="pdf-progress-fill' + (lp === 100 ? ' done' : '') + '" style="width:' + lp + '%"></div></div><div class="pdf-progress-pct">' + lp + '%</div></td>' : '')
       + '</tr>';
   });
@@ -1968,9 +2181,9 @@ function generateContractPDF(contractId) {
   if (opts.showDrawdown) {
     html += '<div class="pdf-section"><div class="pdf-section-label">Drawdown Summary</div>'
       + '<div class="pdf-stats">'
-      + '<div class="pdf-stat"><div class="pdf-stat-label">Total Contracted</div><div class="pdf-stat-val">' + totalBags + ' bags</div></div>'
-      + '<div class="pdf-stat"><div class="pdf-stat-label">Total Drawn</div><div class="pdf-stat-val">' + drawnBags + ' bags</div></div>'
-      + '<div class="pdf-stat"><div class="pdf-stat-label">Remaining</div><div class="pdf-stat-val">' + remBags + ' bags</div></div>'
+      + '<div class="pdf-stat"><div class="pdf-stat-label">Total Contracted</div><div class="pdf-stat-val">' + fmtBags(totalBags) + ' bags</div></div>'
+      + '<div class="pdf-stat"><div class="pdf-stat-label">Total Drawn</div><div class="pdf-stat-val">' + fmtBags(drawnBags) + ' bags</div></div>'
+      + '<div class="pdf-stat"><div class="pdf-stat-label">Remaining</div><div class="pdf-stat-val">' + fmtBags(remBags) + ' bags</div></div>'
       + '<div class="pdf-stat"><div class="pdf-stat-label">Overall Progress</div><div class="pdf-stat-val">' + pct + '%</div></div>'
       + '</div>'
       + '<div class="pdf-dd-bar"><div class="pdf-dd-fill" style="width:' + pct + '%"></div></div>'
