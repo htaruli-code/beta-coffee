@@ -1,5 +1,29 @@
 <!DOCTYPE html>
-<!-- Version 1.8 | buyer-dashboard.html -->
+<!-- Version 1.15 | buyer-dashboard.html -->
+<!-- v1.15: Restored multi-product Request Delivery — repeatable line blocks (+ Add Product,
+     × Remove), per-line product picker + bags, duplicate guard. Submits lines[] (the shape
+     the server requires; the old single-line submit was failing against the current backend).
+     Needs buyer-api.js v2.6. -->
+<!-- v1.14: Pagination — 10 contracts per page, with prev/next + range indicator below
+     the list. Works with the status filter (resets to page 1 on filter change); pager
+     hidden when only one page. -->
+<!-- v1.13: Contract status filter chips (All / Active / Partially Drawn / Fully Drawn /
+     Draft) above the list, with per-status counts. Built only from statuses present;
+     hidden when there's one or none. Cancelled stays excluded as before. -->
+<!-- v1.12: Delivery Requests collapsed by default with a click-to-expand toggle on the
+     title (shows count). Each contract's panel toggles independently. Shortens the page. -->
+<!-- v1.11: Per-bin rows removed from Delivery Requests breakdown — now shows per-line
+     product name + bags only (no bin detail). -->
+<!-- v1.10: Removed bin label from the Delivery Requests breakdown — too much detail for
+     buyers. Each bin now shows just bags + product name (no 📦 bin code). -->
+<!-- v1.9: Merged multi-line drawdown rendering from the v2.x branch onto this (v1.x)
+     line, which is the source of truth for multi-company auth. Delivery Requests now
+     show a per-Drawdown# breakdown: each product line with its bags, and bin allocations
+     beneath (bin label + bags per bin + product name). Prefers contract-level drawdowns[]
+     with lines[].bin_allocations[] from DataService_Contracts.gs v4.6; falls back to the
+     old per-line shape if the backend isn't upgraded. loadDashboard also treats
+     UNAUTHORIZED as an auth failure (returns to login). All v1.8 company-switcher code
+     is unchanged. -->
 <!-- v1.8: ensureCompanySwitcher() — self-heals the nav switcher for sessions stored
      before company_count existed; asks getMyCompanies once and shows the switcher
      if the email is linked to >1 company. -->
@@ -9,7 +33,7 @@
 <!-- v1.6: Multi-company login. If verifyAuthCode returns multi_company, a company
      picker step is shown; selecting one calls BuyerAPI.selectCompany to obtain the
      session. Single-company login is unchanged. -->
-<!-- v1.5: showLogin() resets IMPERSONATED flag — prevents banner persisting if tab reused for normal OTP login.
+<!-- v1.5: showLogin() resets IMPERSONATED flag — prevents banner persisting if tab reused for normal OTP login. -->
 <!-- v1.4: Login-As impersonation — detects ?impersonate=TOKEN on load, redeems it for a
            real buyer session via redeemImpersonateToken, shows amber "Viewing as staff" banner. -->
 <!-- v1.3: ShipsGo ETA — forward lines now display ShipsGo eta when available (from rowToShipmentPublic via getBuyerDashboardData). No JS change needed — GAS returns shipsgo_eta field if buyer_tracking_enabled. -->
@@ -99,6 +123,19 @@
     .section-title { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
 
     .contracts-list { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2.5rem; }
+    /* v1.13: contract status filter */
+    .status-filter { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+    .status-filter button { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.25rem 0.7rem; cursor: pointer; }
+    .status-filter button:hover { border-color: var(--accent); }
+    .status-filter button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .status-filter .sf-count { opacity: 0.7; margin-left: 0.3rem; }
+    /* v1.14: contracts pagination */
+    .contracts-pager { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin: -1rem 0 2.5rem; }
+    .contracts-pager:empty { display: none; }
+    .pager-btn { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem 0.8rem; cursor: pointer; }
+    .pager-btn:hover:not([disabled]) { border-color: var(--accent); }
+    .pager-btn[disabled] { opacity: 0.4; cursor: default; }
+    .pager-info { font-family: var(--font-mono); font-size: 0.66rem; color: var(--muted); }
     .contract-card { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     .contract-card-head { background: var(--surface); padding: 0.85rem 1.1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
     .contract-num { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; }
@@ -129,10 +166,27 @@
     .badge-forward         { background: #f0ecfe; color: #5b2db0; }
 
     .dd-panel { background: var(--surface2); border-top: 1px solid var(--border); padding: 0.75rem 1rem; }
+    /* v1.12: collapsible Delivery Requests */
+    .dd-panel-toggle { display: flex; align-items: center; gap: 0.4rem; width: 100%; background: none; border: none; cursor: pointer; padding: 0; text-align: left; }
+    .dd-panel-toggle .dd-caret { font-size: 0.6rem; color: var(--muted); transition: transform 0.15s ease; display: inline-block; }
+    .dd-panel.open .dd-caret { transform: rotate(90deg); }
+    .dd-panel-count { font-family: var(--font-mono); font-size: 0.62rem; color: var(--faint); font-weight: 400; }
+    .dd-panel-body { display: none; margin-top: 0.5rem; }
+    .dd-panel.open .dd-panel-body { display: block; }
     .dd-panel-title { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
     .dd-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); padding: 0.25rem 0; border-bottom: 1px dashed var(--border); }
     .dd-row:last-child { border-bottom: none; }
     .dd-bags { color: var(--text); font-weight: 600; }
+    /* merged from v2.x: drawdown ref + per-line/per-bin breakdown */
+    .dd-ref  { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent); font-weight: 600; letter-spacing: 0.03em; }
+    .dd-breakdown { width: 100%; margin: 0.35rem 0 0.1rem 0; padding-left: 0.9rem; border-left: 2px solid var(--border); }
+    .dd-bl-line { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text); padding: 0.2rem 0 0.1rem 0; }
+    .dd-bl-line .dd-bl-name { font-weight: 600; }
+    .dd-bl-line .dd-bl-total { color: var(--muted); }
+    .dd-bl-bins { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.15rem 0 0.3rem 0.8rem; }
+    .dd-bl-bin { font-family: var(--font-mono); font-size: 0.66rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.1rem 0.4rem; }
+    .dd-bl-bin strong { color: var(--text); }
+    .dd-bl-bin .dd-bl-binname { color: var(--accent); }
     .eta-tag { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); display: block; margin-top: 0.15rem; }
     .sub-tag { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent); background: var(--accent-light); padding: 0.1rem 0.35rem; border-radius: 2px; font-weight: 600; margin-top: 0.2rem; }
 
@@ -143,6 +197,14 @@
     .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
     .modal-info { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.65rem 0.85rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.7; }
     .modal-info strong { color: var(--text); }
+    /* v1.15: multi-product request modal */
+    .dd-line-block { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.65rem; margin-bottom: 0.6rem; background: var(--surface); position: relative; }
+    .dd-line-block .dd-remove { position: absolute; top: 0.4rem; right: 0.4rem; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; line-height: 1; padding: 0; }
+    .dd-line-block .dd-remove:hover { color: var(--error); }
+    .dd-line-label { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+    .dd-add-line { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); background: none; border: 1px dashed rgba(196,122,43,0.4); border-radius: var(--radius); padding: 0.4rem 0.85rem; cursor: pointer; width: 100%; margin-bottom: 0.75rem; transition: border-color var(--transition); }
+    .dd-add-line:hover { border-color: var(--accent); }
+    .dd-add-line:disabled { opacity: 0.35; cursor: not-allowed; }
 
     .empty { text-align: center; padding: 3rem 1rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
     .empty-icon { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.4; }
@@ -219,9 +281,11 @@
       <div class="page-sub" id="dash-sub"></div>
     </div>
     <div class="section-title">Active Contracts</div>
+    <div id="status-filter" class="status-filter"></div>
     <div id="contracts-list" class="contracts-list">
       <div class="loading-row"><span class="spinner"></span> Loading your orders…</div>
     </div>
+    <div id="contracts-pager" class="contracts-pager"></div>
   </div>
 </div>
 
@@ -230,15 +294,10 @@
     <div class="modal-title">Request Delivery</div>
     <div class="alert alert-error" id="dd-error"></div>
     <input type="hidden" id="dd-contract-id" />
-    <input type="hidden" id="dd-line-id" />
-    <div class="modal-info" id="dd-line-info"></div>
+    <!-- v1.15: repeatable line blocks rendered by JS (multi-product request) -->
+    <div id="dd-lines-wrap"></div>
+    <button class="dd-add-line" id="btn-dd-add-line">+ Add Product</button>
     <div class="field-row">
-      <div class="field">
-        <label for="dd-bags">Bags requested <span style="color:var(--error)">*</span>
-          <span id="dd-bags-hint" style="color:var(--muted);font-size:0.65rem;font-weight:400"></span>
-        </label>
-        <input type="text" inputmode="numeric" id="dd-bags" placeholder="0" />
-      </div>
       <div class="field">
         <label for="dd-date">Preferred ship date</label>
         <input type="date" id="dd-date" />
@@ -262,7 +321,7 @@
 <script src="js/buyer-api.js"></script>
 <script src="js/buyer-ui.js"></script>
 <script>
-// Version 1.8 | buyer-dashboard.html
+// Version 1.15 | buyer-dashboard.html
 // v1.8: ensureCompanySwitcher() self-heals nav switcher for pre-company_count sessions.
 // v1.7: switch company from nav (openCompanySwitcher); picker reused in switch mode.
 // v1.6: multi-company login picker (step-company + renderCompanyPicker).
@@ -282,6 +341,9 @@ if (typeof BuyerAPI     === 'undefined') throw new Error('buyer-api.js not loade
 if (typeof BuyerUI      === 'undefined') throw new Error('buyer-ui.js not loaded');
 
 let PAGE_DATA    = { buyer: null, contracts: [] };
+let STATUS_FILTER = 'All';  // v1.13: current contract status filter
+let CONTRACT_PAGE = 1;      // v1.14: current page (10 contracts per page)
+const CONTRACTS_PER_PAGE = 10;
 let IMPERSONATED = false;
 
 (async function init() {
@@ -343,6 +405,7 @@ function ensureCompanySwitcher() {
   if (document.getElementById('btn-switch-company')) return;  // already shown
   const buyer = BuyerAuth.getBuyer() || {};
   if (Number(buyer.company_count || 1) > 1) return;           // showDashboard already handled it
+  if (typeof BuyerAPI.getMyCompanies !== 'function') return;  // v1.9: old buyer-api.js — skip self-heal
   BuyerAPI.getMyCompanies().then(function(data) {
     const companies = (data && data.companies) || [];
     if (companies.length > 1) {
@@ -397,8 +460,11 @@ async function loadDashboard() {
     PAGE_DATA  = data;
     renderContracts();
   } catch (e) {
-    const expired = (e.code && e.code === 'SESSION_EXPIRED') || (e.message && e.message.includes('SESSION_EXPIRED'));
-    if (expired) { BuyerAuth.clearSession(); showLogin(); }
+    // merged from v2.5: treat UNAUTHORIZED as an auth failure too (server returns it
+    //   when the token is missing/invalid), so it returns to login instead of a dead end.
+    const code   = (e.code || '') + ' ' + (e.message || '');
+    const isAuth = code.indexOf('SESSION_EXPIRED') !== -1 || code.indexOf('UNAUTHORIZED') !== -1;
+    if (isAuth) { BuyerAuth.clearSession(); showLogin(); }
     else document.getElementById('contracts-list').innerHTML =
       '<div class="empty"><div class="empty-icon">⚠</div>Failed to load. Please refresh.</div>';
   }
@@ -406,12 +472,92 @@ async function loadDashboard() {
 
 function renderContracts() {
   const list = document.getElementById('contracts-list');
-  const contracts = (PAGE_DATA.contracts || []).filter(c => c.status !== 'Cancelled');
-  if (!contracts.length) {
+  // Buyer view excludes Cancelled (unchanged from prior behaviour).
+  const visible = (PAGE_DATA.contracts || []).filter(c => c.status !== 'Cancelled');
+
+  renderStatusFilter(visible);
+
+  if (!visible.length) {
     list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No active contracts found.</div>';
+    document.getElementById('contracts-pager').innerHTML = '';
     return;
   }
-  list.innerHTML = contracts.map(buildContractCard).join('');
+
+  const filtered = STATUS_FILTER === 'All'
+    ? visible
+    : visible.filter(c => c.status === STATUS_FILTER);
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No ' + esc(STATUS_FILTER) + ' contracts.</div>';
+    document.getElementById('contracts-pager').innerHTML = '';
+    return;
+  }
+
+  // v1.14: paginate, 10 per page. Clamp page in case the filtered count shrank.
+  const totalPages = Math.ceil(filtered.length / CONTRACTS_PER_PAGE);
+  if (CONTRACT_PAGE > totalPages) CONTRACT_PAGE = totalPages;
+  if (CONTRACT_PAGE < 1) CONTRACT_PAGE = 1;
+  const start = (CONTRACT_PAGE - 1) * CONTRACTS_PER_PAGE;
+  const pageItems = filtered.slice(start, start + CONTRACTS_PER_PAGE);
+
+  list.innerHTML = pageItems.map(buildContractCard).join('');
+  renderPager(filtered.length, totalPages, start, pageItems.length);
+}
+
+// v1.14: prev/next pager with range indicator. Hidden when only one page.
+function renderPager(total, totalPages, start, shown) {
+  const pager = document.getElementById('contracts-pager');
+  if (!pager) return;
+  if (totalPages <= 1) { pager.innerHTML = ''; return; }
+  const from = start + 1, to = start + shown;
+  pager.innerHTML =
+    '<button type="button" class="pager-btn" ' + (CONTRACT_PAGE <= 1 ? 'disabled' : '') +
+      ' onclick="goContractPage(' + (CONTRACT_PAGE - 1) + ')">‹ Prev</button>' +
+    '<span class="pager-info">' + from + '–' + to + ' of ' + total +
+      ' · page ' + CONTRACT_PAGE + '/' + totalPages + '</span>' +
+    '<button type="button" class="pager-btn" ' + (CONTRACT_PAGE >= totalPages ? 'disabled' : '') +
+      ' onclick="goContractPage(' + (CONTRACT_PAGE + 1) + ')">Next ›</button>';
+}
+
+function goContractPage(p) {
+  CONTRACT_PAGE = p;
+  renderContracts();
+  // scroll back to the top of the list for the new page
+  const el = document.getElementById('contracts-list');
+  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// v1.13: build status filter chips from the statuses actually present, with counts.
+function renderStatusFilter(visible) {
+  const bar = document.getElementById('status-filter');
+  if (!bar) return;
+  // Preserve a sensible order; only show statuses that exist
+  const order = ['Active', 'Partially Drawn', 'Fully Drawn', 'Draft'];
+  const present = order.filter(s => visible.some(c => c.status === s));
+
+  // If the active filter no longer exists in the data, reset to All
+  if (STATUS_FILTER !== 'All' && present.indexOf(STATUS_FILTER) === -1) STATUS_FILTER = 'All';
+
+  // Don't bother showing the bar if there's only one status (or none)
+  if (present.length <= 1) { bar.innerHTML = ''; return; }
+
+  const chip = function(label, value, count) {
+    return '<button type="button" class="' + (STATUS_FILTER === value ? 'active' : '') +
+      '" onclick="setStatusFilter(\'' + value.replace(/'/g, "\\'") + '\')">' +
+      esc(label) + '<span class="sf-count">' + count + '</span></button>';
+  };
+
+  let html = chip('All', 'All', visible.length);
+  present.forEach(function(s) {
+    html += chip(s, s, visible.filter(c => c.status === s).length);
+  });
+  bar.innerHTML = html;
+}
+
+function setStatusFilter(value) {
+  STATUS_FILTER = value;
+  CONTRACT_PAGE = 1;  // v1.14: reset to first page when filter changes
+  renderContracts();
 }
 
 function buildContractCard(con) {
@@ -422,7 +568,7 @@ function buildContractCard(con) {
       '<th>Product</th><th>Type</th><th style="text-align:right">Contracted</th>' +
       '<th style="text-align:right">Drawn</th><th>Progress</th><th></th>' +
       '</tr></thead><tbody>' + lines.map(l => buildLineRow(con, l)).join('') + '</tbody></table>' +
-      buildDrawdownHistory(lines)
+      buildDrawdownHistory(lines, con.drawdowns || [])
     : '<div style="padding:1rem;font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">No lines on this contract.</div>';
 
   return '<div class="contract-card">' +
@@ -471,23 +617,90 @@ function buildLineRow(con, line) {
     '<td>' + requestBtn + '</td></tr>';
 }
 
-function buildDrawdownHistory(lines) {
-  const allDds = lines
-    .flatMap(l => (l.drawdowns || []).map(d => Object.assign({}, d, { sample_name: l.sample_name })))
-    .filter(d => d.status !== 'Cancelled')
-    .sort((a, b) => (b.drawdown_id || 0) - (a.drawdown_id || 0));
+function buildDrawdownHistory(contractLines, contractDrawdowns) {
+  // Merged from v2.x: supports multi-line drawdowns + per-bin breakdown + product names.
+  //   Prefers contract-level drawdowns[] (each with lines[].bin_allocations[]) from the
+  //   v4.6 backend; falls back to the old per-line drawdowns[] shape if absent.
+  const nameByLineId = {};
+  (contractLines || []).forEach(function(l) {
+    nameByLineId[String(l.contract_line_id)] = l.sample_name || '';
+  });
+
+  let allDds;
+  if (contractDrawdowns && contractDrawdowns.length) {
+    allDds = contractDrawdowns.slice();
+  } else {
+    // Legacy fallback: collect from each line's drawdowns[] array
+    allDds = (contractLines || []).flatMap(function(l) {
+      return (l.drawdowns || []).map(function(d) {
+        return Object.assign({}, d, { _legacy_sample_name: l.sample_name });
+      });
+    });
+  }
+  allDds = allDds
+    .filter(function(d) { return d.status !== 'Cancelled'; })
+    .sort(function(a, b) { return (b.drawdown_id || 0) - (a.drawdown_id || 0); });
   if (!allDds.length) return '';
-  const rows = allDds.map(d => {
+
+  const rows = allDds.map(function(d) {
     const statusKey = (d.status || '').toLowerCase();
+    const ddLines   = d.lines || [];
+
+    // Total bags: sum lines[] if present, else legacy header field
+    let totalBags;
+    if (ddLines.length) {
+      totalBags = ddLines.reduce(function(s, l) { return s + (l.requested_bags || 0); }, 0);
+    } else {
+      totalBags = d.requested_bags || 0;
+    }
+
+    // Summary product label
+    let sampleLabel;
+    if (ddLines.length > 1)      sampleLabel = ddLines.length + ' products';
+    else if (ddLines.length === 1) sampleLabel = ddLines[0].sample_name || nameByLineId[String(ddLines[0].contract_line_id)] || '';
+    else                         sampleLabel = d._legacy_sample_name || '';
+
+    // Per-line + per-bin breakdown
+    let breakdownHtml = '';
+    if (ddLines.length) {
+      breakdownHtml = '<div class="dd-breakdown">' + ddLines.map(function(l) {
+        const lineBags = l.requested_bags || 0;
+        const name     = l.sample_name || nameByLineId[String(l.contract_line_id)] || '';
+        // v1.11: per-bin rows removed — breakdown shows per-line product + bags only.
+        return '<div class="dd-bl-line">' +
+          '<span class="dd-bl-name">' + esc(name) + '</span> ' +
+          '<span class="dd-bl-total">· ' + lineBags + ' bag' + (lineBags === 1 ? '' : 's') + '</span>' +
+          '</div>';
+      }).join('') + '</div>';
+    }
+
     return '<div class="dd-row">' +
       '<span class="badge badge-' + statusKey + '">' + esc(d.status) + '</span>' +
-      '<span class="dd-bags">' + (d.requested_bags || 0) + ' bags</span>' +
-      '<span>' + esc(d.sample_name) + '</span>' +
+      (d.drawdown_number ? '<span class="dd-ref">' + esc(d.drawdown_number) + '</span>' : '') +
+      '<span class="dd-bags">' + totalBags + ' bag' + (totalBags === 1 ? '' : 's') + '</span>' +
+      '<span>' + esc(sampleLabel) + '</span>' +
       (d.shipping_date ? '<span>' + fmtDate(d.shipping_date) + '</span>' : '') +
       (d.notes ? '<span style="color:var(--faint)">' + esc(d.notes) + '</span>' : '') +
+      breakdownHtml +
     '</div>';
   }).join('');
-  return '<div class="dd-panel"><div class="dd-panel-title">Delivery Requests</div>' + rows + '</div>';
+  // v1.12: collapsed by default; click the title to expand. Unique id per panel so
+  //   multiple contract cards toggle independently.
+  const pid = 'ddp-' + Math.random().toString(36).slice(2, 9);
+  const count = allDds.length;
+  return '<div class="dd-panel" id="' + pid + '">' +
+    '<button type="button" class="dd-panel-toggle" onclick="toggleDdPanel(\'' + pid + '\')">' +
+      '<span class="dd-caret">▶</span>' +
+      '<span class="dd-panel-title" style="margin-bottom:0">Delivery Requests</span>' +
+      '<span class="dd-panel-count">(' + count + ')</span>' +
+    '</button>' +
+    '<div class="dd-panel-body">' + rows + '</div>' +
+  '</div>';
+}
+
+function toggleDdPanel(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────────
@@ -571,39 +784,195 @@ document.getElementById('impersonate-close').onclick = function(e) {
 };
 
 // ── Drawdown Modal ────────────────────────────────────────────────────────────
-function openDrawdownModal(contractId, lineId, available, bagSize, bagSizeUnit, sampleName) {
-  document.getElementById('dd-contract-id').value  = contractId;
-  document.getElementById('dd-line-id').value      = lineId;
-  document.getElementById('dd-bags').value          = '';
-  document.getElementById('dd-bags').max            = available;
-  document.getElementById('dd-date').value          = '';
-  document.getElementById('dd-notes').value         = '';
+// v1.15: multi-product request modal (ported from v2.x branch). Repeatable line blocks;
+//   submits a lines[] array — the shape the server (handleSubmitBuyerDrawdown) requires.
+var ddLineState     = [];
+var ddLineCount     = 0;
+var ddContractLines = []; // all requestable lines for the open contract
+
+function openDrawdownModal(contractId, preLineId, available, bagSize, bagSizeUnit, sampleName) {
+  document.getElementById('dd-contract-id').value = contractId;
+  document.getElementById('dd-date').value  = '';
+  document.getElementById('dd-notes').value = '';
   hideAlert('dd-error');
-  document.getElementById('dd-bags-hint').textContent = '(max ' + available + ')';
-  document.getElementById('dd-line-info').innerHTML  =
-    '<strong>' + esc(sampleName) + '</strong>' +
-    (bagSize ? ' · ' + bagSize + ' ' + bagSizeUnit + '/bag' : '') +
-    '<br>Available to request: <strong>' + available + ' bags</strong>';
+  ddLineState = [];
+  ddLineCount = 0;
+  document.getElementById('dd-lines-wrap').innerHTML = '';
+
+  const con = (PAGE_DATA.contracts || []).find(function(c) { return String(c.contract_id) === String(contractId); });
+  ddContractLines = (con ? (con.lines || []) : []).filter(function(l) {
+    const avail = (l.contracted_bags || 0) - (l.drawn_bags || 0);
+    return avail > 0;
+  });
+
+  ddAddLineBlock(preLineId, parseInt(available) || 0, bagSize, bagSizeUnit, sampleName);
+  document.getElementById('btn-dd-add-line').disabled = ddContractLines.length <= 1;
   document.getElementById('modal-drawdown').classList.add('open');
-  document.getElementById('dd-bags').focus();
 }
 
-document.getElementById('btn-dd-cancel').onclick = () =>
+function ddBuildLineSelect(excludeIds, selectedId) {
+  return '<option value="">— Select product —</option>' +
+    ddContractLines
+      .filter(function(l) {
+        return !excludeIds.includes(String(l.contract_line_id)) || String(l.contract_line_id) === String(selectedId);
+      })
+      .map(function(l) {
+        const avail = (l.contracted_bags || 0) - (l.drawn_bags || 0);
+        return '<option value="' + l.contract_line_id + '"' +
+          (String(l.contract_line_id) === String(selectedId) ? ' selected' : '') +
+          ' data-available="' + avail + '"' +
+          ' data-bagsize="' + (l.bag_size || '') + '"' +
+          ' data-bagunit="' + esc(l.bag_size_unit || 'kg') + '"' +
+          ' data-name="' + esc(l.sample_name) + '">' +
+          esc(l.sample_name) + ' · ' + avail + ' avail</option>';
+      }).join('');
+}
+
+function ddAddLineBlock(preLineId, preAvailable, preBagSize, preBagSizeUnit, preSampleName) {
+  const idx = ddLineCount++;
+  ddLineState.push({ contract_line_id: String(preLineId || ''), bags: 0 });
+
+  const wrap = document.getElementById('dd-lines-wrap');
+  const block = document.createElement('div');
+  block.className  = 'dd-line-block';
+  block.dataset.idx = idx;
+
+  const currentIds = ddLineState.map(function(s) { return s ? s.contract_line_id : ''; });
+  const selectHtml = ddBuildLineSelect(
+    currentIds.filter(function(id, i) { return i !== idx; }),
+    preLineId
+  );
+
+  const avail   = preAvailable || 0;
+  const bagInfo = preBagSize ? ' · ' + preBagSize + ' ' + (preBagSizeUnit || 'kg') + '/bag' : '';
+
+  block.innerHTML =
+    '<div class="dd-line-label">Product ' + (idx + 1) + '</div>' +
+    '<button class="dd-remove" type="button" onclick="ddRemoveLine(' + idx + ')" title="Remove">×</button>' +
+    '<div style="margin-bottom:0.4rem">' +
+      '<select class="dd-line-sel" data-idx="' + idx + '" style="width:100%;margin-bottom:0.4rem">' + selectHtml + '</select>' +
+    '</div>' +
+    '<div style="display:flex;gap:0.5rem;align-items:center">' +
+      '<label style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);white-space:nowrap">' +
+        'Bags <span style="color:var(--accent);font-size:0.65rem" id="dd-avail-' + idx + '">' +
+        (avail ? '(max ' + avail + bagInfo + ')' : '') + '</span></label>' +
+      '<input type="number" class="dd-bags-input" data-idx="' + idx + '" min="1"' +
+        (avail ? ' max="' + avail + '"' : '') +
+        ' placeholder="0" style="width:90px;font-family:var(--font-mono);font-size:0.78rem;padding:0.35rem 0.5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg)" />' +
+    '</div>';
+
+  wrap.appendChild(block);
+
+  const sel = block.querySelector('.dd-line-sel');
+  sel.onchange = function() {
+    const opt   = sel.options[sel.selectedIndex];
+    const a     = opt && opt.dataset.available ? parseInt(opt.dataset.available) : 0;
+    const bsize = opt ? (opt.dataset.bagsize || '') : '';
+    const bunit = opt ? (opt.dataset.bagunit || 'kg') : 'kg';
+    const info  = bsize ? ' · ' + bsize + ' ' + bunit + '/bag' : '';
+    if (ddLineState[idx]) ddLineState[idx].contract_line_id = sel.value;
+    const hintEl = document.getElementById('dd-avail-' + idx);
+    const input  = block.querySelector('.dd-bags-input');
+    if (hintEl) hintEl.textContent = a ? '(max ' + a + info + ')' : '';
+    if (input)  { input.max = a || ''; input.value = ''; }
+    ddUpdateAddBtn();
+  };
+
+  const bagsInput = block.querySelector('.dd-bags-input');
+  if (bagsInput) {
+    bagsInput.oninput = function() {
+      if (ddLineState[idx]) ddLineState[idx].bags = parseInt(this.value) || 0;
+    };
+  }
+
+  ddUpdateRemoveButtons();
+  ddUpdateAddBtn();
+}
+
+function ddRemoveLine(idx) {
+  const block = document.querySelector('.dd-line-block[data-idx="' + idx + '"]');
+  if (block) block.remove();
+  ddLineState[idx] = null;
+  ddUpdateRemoveButtons();
+  ddUpdateAddBtn();
+  ddRenumberLabels();
+}
+
+function ddRenumberLabels() {
+  document.querySelectorAll('.dd-line-block').forEach(function(block, i) {
+    const label = block.querySelector('.dd-line-label');
+    if (label) label.textContent = 'Product ' + (i + 1);
+  });
+}
+
+function ddUpdateRemoveButtons() {
+  const blocks = document.querySelectorAll('.dd-line-block');
+  blocks.forEach(function(b) {
+    const btn = b.querySelector('.dd-remove');
+    if (btn) btn.style.display = blocks.length > 1 ? '' : 'none';
+  });
+}
+
+function ddUpdateAddBtn() {
+  const activeLines = ddLineState.filter(function(s) { return s !== null; });
+  const selectedIds = activeLines.map(function(s) { return s.contract_line_id; }).filter(Boolean);
+  const remaining   = ddContractLines.filter(function(l) {
+    return !selectedIds.includes(String(l.contract_line_id));
+  });
+  document.getElementById('btn-dd-add-line').disabled = remaining.length === 0;
+}
+
+document.getElementById('btn-dd-add-line').onclick = function() {
+  ddAddLineBlock('', 0, '', 'kg', '');
+};
+
+document.getElementById('btn-dd-cancel').onclick = function() {
   document.getElementById('modal-drawdown').classList.remove('open');
+};
 
 document.getElementById('btn-dd-submit').onclick = async function() {
-  const btn  = this;
-  const bags = parseInt(document.getElementById('dd-bags').value);  // v1.2: no || 0 — catch NaN
-  const max  = parseInt(document.getElementById('dd-bags').max)   || 0;
+  const btn = this;
   hideAlert('dd-error');
-  if (isNaN(bags) || bags <= 0) { showAlert('dd-error', 'Please enter a whole number greater than zero.', 'error'); return; }
-  if (bags > max) { showAlert('dd-error', 'Requested bags (' + bags + ') exceed available (' + max + ').', 'error'); return; }
+
+  const lines = [];
+  var valid = true;
+  document.querySelectorAll('.dd-line-block').forEach(function(block, i) {
+    if (!valid) return;
+    const sel   = block.querySelector('.dd-line-sel');
+    const input = block.querySelector('.dd-bags-input');
+    const bags  = parseInt(input ? input.value : '0');
+    const lineId = sel ? sel.value : '';
+
+    if (!lineId) {
+      showAlert('dd-error', 'Product ' + (i + 1) + ': Please select a product.', 'error');
+      valid = false; return;
+    }
+    if (isNaN(bags) || bags <= 0) {
+      showAlert('dd-error', 'Product ' + (i + 1) + ': Bags must be greater than zero.', 'error');
+      valid = false; return;
+    }
+    const max = parseInt(input ? input.max : '0') || 0;
+    if (max && bags > max) {
+      showAlert('dd-error', 'Product ' + (i + 1) + ': Requested bags (' + bags + ') exceed available (' + max + ').', 'error');
+      valid = false; return;
+    }
+    lines.push({ contract_line_id: lineId, requested_bags: bags });
+  });
+
+  if (!valid) return;
+  if (!lines.length) { showAlert('dd-error', 'Add at least one product.', 'error'); return; }
+
+  const lineIds = lines.map(function(l) { return l.contract_line_id; });
+  if (new Set(lineIds).size !== lineIds.length) {
+    showAlert('dd-error', 'The same product cannot appear more than once. Combine bags in a single row.', 'error');
+    return;
+  }
+
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     const data = await BuyerAPI.submitDrawdown(
       document.getElementById('dd-contract-id').value,
-      document.getElementById('dd-line-id').value,
-      bags,
+      lines,
       document.getElementById('dd-date').value,
       document.getElementById('dd-notes').value
     );
@@ -669,6 +1038,13 @@ function openCompanySwitcher() {
   switchStep('step-company');
   const wrap = document.getElementById('company-list');
   wrap.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading companies…</div>';
+  // v1.9: guard — if the API method is missing (mismatched buyer-api.js), fail visibly
+  //   instead of hanging on "Loading companies…".
+  if (typeof BuyerAPI.getMyCompanies !== 'function') {
+    wrap.innerHTML = '';
+    showAlert('company-error', 'Company switching is unavailable (buyer-api.js needs updating).', 'error');
+    return;
+  }
   BuyerAPI.getMyCompanies().then(function(data) {
     renderCompanyPicker(data.companies || [], function(buyerId) {
       return BuyerAPI.switchCompany(buyerId);
