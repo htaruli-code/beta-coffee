@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<!-- Version 3.8 | drawdowns.html -->
+<!-- Version 3.10 | drawdowns.html -->
+<!-- v3.10: New Drawdown modal shows a live "Next auto #" preview when a contract is selected — computes contract/(localCount + [seq:N] offset + 1), mirroring the server, so staff can confirm it matches UnleashedSoftware before saving (or override via the # field). Display-only; offset read from contract notes [seq:N] tag. -->
+<!-- v3.9: Drawdown # is now an OPTIONAL editable field in New Drawdown modal. Third-party system is authoritative for numbering and cannot be integrated, so staff enter the third-party number at creation to keep them in sync; left blank = auto-number as before. Server collision-checks a manual number against existing non-cancelled drawdowns. -->
 <!-- v3.8: Approve/status modal + bin-alloc now display fractional bags via fmtBags (needed, requested, total avail, short-by, bin avail labels) and the inventory-check ok test uses 0.0001 tolerance (was exact total>=requested). Display+compare only. NOTE: drawdowns SAVED on pre-3.7 (DEV 3.4) stored requested_bags as parseInt(0.5)=0 — those rows show "0 bags needed'; they must be recreated or repaired in the sheet, the display cannot recover a value that was stored as 0. -->
 <!-- v3.7: fixed substitution-modal max truncation — effectiveMax used parseInt(dataset.max), zeroing a fractional available (e.g. 0.274→0) and blocking valid sub bags. Now parseFloat. NOTE: the multi-line "Line N: Bags must be greater than zero'" error on fractional input comes from an OLDER deployed 3.x drawdowns; THIS file (multi-line read = parseFloat, input = text/inputmode=decimal) already accepts 0.274. Deploy this to resolve. -->
 <!-- v3.6: drawdown lot/bin display now shows FRACTIONAL bags (fmtBags 4dp, trailing zeros trimmed) AND weight next to bag count (fmtWeight = bags×bag_size with unit, e.g. "2 bags (118 kg)"). bag_size+unit resolved from the contract line; weight omitted if bag_size unknown. Applies to Bags column, lot summary rows, and bin-allocation rows. Display-only. -->
@@ -256,6 +258,12 @@
       <div class="field">
         <label for="new-dd-date">Ship Date <span style="color:var(--error)">*</span></label>
         <input type="date" id="new-dd-date" />
+      </div>
+      <div class="field">
+        <label for="new-dd-number">Drawdown #</label>
+        <input type="text" id="new-dd-number" placeholder="Auto — or enter to match third-party" autocomplete="off" />
+        <div id="new-dd-seq-preview" style="font-size:0.65rem;color:var(--muted);margin-top:2px"></div>
+        <div style="font-size:0.65rem;color:var(--muted);margin-top:2px">Leave blank to auto-number. Enter a value to match the third-party system (authoritative).</div>
       </div>
     </div>
     <div class="field" style="margin-bottom:0">
@@ -1081,6 +1089,8 @@ document.getElementById('btn-new-drawdown').onclick = function() {
   ddLineCounter = 0;
   document.getElementById('new-dd-buyer-info').classList.remove('show');
   document.getElementById('new-dd-date').value   = '';
+  document.getElementById('new-dd-number').value = '';
+  var seqPrev = document.getElementById('new-dd-seq-preview'); if (seqPrev) seqPrev.textContent = '';
   document.getElementById('new-dd-notes').value  = '';
   document.getElementById('new-dd-lines-wrap').innerHTML = '';
   document.getElementById('btn-add-line').disabled = true;
@@ -1127,7 +1137,29 @@ document.getElementById('new-dd-contract').onchange = function() {
 
   // Auto-add first line block
   addLineBlock();
+
+  // v3.10: show the next auto-sequence so staff can confirm it matches the third-party
+  // (UnleashedSoftware) before saving. Mirrors the server: count this contract's
+  // non-cancelled drawdowns + [seq:N] offset from contract notes.
+  updateSeqPreview(con);
 };
+
+// Reads [seq:N] from contract notes (offset), counts existing non-cancelled drawdowns
+// for the contract, and shows "Next auto #: …/N". Display-only; the server is authoritative.
+function updateSeqPreview(con) {
+  const el = document.getElementById('new-dd-seq-preview');
+  if (!el) return;
+  if (!con) { el.textContent = ''; return; }
+  const m      = con.notes ? String(con.notes).match(/\[seq:\s*(\d+)\s*\]/i) : null;
+  const offset = m ? (parseInt(m[1]) || 0) : 0;
+  const localCount = (PAGE_DATA.drawdowns || []).filter(function(d) {
+    return String(d.contract_id) === String(con.contract_id) && d.status !== 'Cancelled';
+  }).length;
+  const nextN = localCount + offset + 1;
+  el.innerHTML = 'Next auto #: <strong>' + esc(con.contract_number || '') + '/' + nextN + '</strong>'
+    + (offset ? ' <span style="color:var(--accent)">(offset +' + offset + ' from Unleashed)</span>' : '')
+    + ' — leave blank to use this, or type to override.';
+}
 
 document.getElementById('btn-add-line').onclick = addLineBlock;
 
@@ -1192,6 +1224,7 @@ document.getElementById('btn-new-dd-save').onclick = async function() {
       contract_id:   contractId,
       lines:         lines,
       shipping_date: shipDate,
+      drawdown_number: document.getElementById('new-dd-number').value.trim() || '',
       notes:         document.getElementById('new-dd-notes').value || '',
       status:        'Pending'
     });
