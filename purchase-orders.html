@@ -1,4 +1,9 @@
-<!-- Version 2.3.12 | purchase-orders.html -->
+<!-- Version 2.3.13 | purchase-orders.html -->
+<!-- v2.3.13: AUTO-NUMBERING (matches contracts.html v2.9.1). PO Number is read-only on edit
+     (server preserves existing). On new: editable, placeholder shows warehouse po_prefix hint
+     ("Auto: POAU-…") when a warehouse is selected, else "Auto-assigned on save". Save guard:
+     manual PO number only required on new PO when NO warehouse is selected. Label marks the
+     field optional when a warehouse is chosen. Requires Code_Procurement.gs v2.8.8+ + DataService_Procurement.gs auto-number support. -->
 <!-- v2.3.12: PO line RECEIVED badge fixed — was showing raw 6dp received (18.508475/18.5085) and red/partial. Now displays both at 4dp and uses 0.001 tolerance so an effectively-complete fractional line shows green + disables Receive/Edit/Del. Display-side fix; received_bags stays as stored. -->
 <!-- v2.3.11: RECEIVE rounding mismatch fixed at root — kg/lb helpers now STORE 6dp (was 4dp) so multiple converted bins reconcile to the whole PO qty (11+19+472+590 kg / 59 = bins summing to 18.508475, not 18.5084). Boxes still DISPLAY 4dp. Total line snaps to the remaining when within 0.001 tolerance so the eye sees 18.5085/18.5085 not 18.5084/18.5085. -->
 <!-- v2.3.10: Receive modal bin rows gain optional kg/lb helper (recvWeightToBags) — divides entered weight by the shared Bag Size to auto-fill bags, mirroring the PO line entry. Bin grid widened 5→6 cols + matching "or kg/lb" header. Stores 4dp; total math unchanged (full precision + tolerance). -->
@@ -456,8 +461,8 @@
         <select id="po-supplier"></select>
       </div>
       <div class="field">
-        <label>PO Number <span style="color:var(--error)">*</span></label>
-        <input type="text" id="po-number" placeholder="PO-2026-001" />
+        <label id="po-number-label">PO Number</label>
+        <input type="text" id="po-number" placeholder="Auto-assigned on save" />
       </div>
     </div>
     <div class="field-row">
@@ -478,7 +483,7 @@
     <div class="field-row">
       <div class="field">
         <label>Destination Warehouse</label>
-        <select id="po-warehouse" onchange="updatePoLocations()"></select>
+        <select id="po-warehouse"></select>
       </div>
       <div class="field">
         <label>Default Location</label>
@@ -1068,9 +1073,21 @@ function openPoModal(poId) {
 
   document.getElementById('modal-po-title').textContent = po ? 'Edit Purchase Order' : 'New Purchase Order';
   document.getElementById('po-id').value     = po ? po.po_id : '';
-  document.getElementById('po-number').value = po ? po.po_number : '';
   document.getElementById('po-date').value   = po ? toInputDate(po.po_date) : '';
   document.getElementById('po-notes').value  = po ? po.notes   : '';
+
+  // v2.3.13: PO Number — read-only on edit (server preserves), editable on new
+  const numEl    = document.getElementById('po-number');
+  const numLabel = document.getElementById('po-number-label');
+  if (po) {
+    numEl.value    = po.po_number || '';
+    numEl.readOnly = true;
+    numLabel.innerHTML = 'PO Number <span style="color:var(--muted);font-size:0.65rem">(locked)</span>';
+  } else {
+    numEl.value    = '';
+    numEl.readOnly = false;
+    numLabel.innerHTML = 'PO Number';
+  }
 
   const sup = document.getElementById('po-supplier');
   sup.innerHTML = PAGE_DATA.suppliers.map(s =>
@@ -1114,6 +1131,26 @@ function openPoModal(poId) {
       `<option value="${w.warehouse_id}" ${po && String(po.warehouse_id) === String(w.warehouse_id) ? 'selected' : ''}>${esc(w.warehouse_name)}</option>`
     ).join('');
 
+  // v2.3.13: update PO number placeholder + label when warehouse changes (new PO only)
+  function updatePoNumberHint() {
+    if (po) return; // edit: number is locked, no hint needed
+    const wh = (PAGE_DATA.warehouses || []).find(w => String(w.warehouse_id) === String(whSel.value));
+    if (wh && wh.po_prefix) {
+      numEl.placeholder  = 'Auto: ' + wh.po_prefix + '…';
+      numLabel.innerHTML = 'PO Number <span style="color:var(--muted);font-size:0.65rem">(auto from warehouse)</span>';
+    } else {
+      numEl.placeholder  = 'Required — no warehouse selected';
+      numLabel.innerHTML = 'PO Number';
+    }
+  }
+
+  // Chain warehouse onchange: locations + number hint
+  whSel.onchange = function() {
+    updatePoLocations();
+    updatePoNumberHint();
+  };
+  updatePoNumberHint(); // trigger once on open
+
   // Populate locations based on selected warehouse
   updatePoLocations();
 
@@ -1143,6 +1180,17 @@ document.getElementById('btn-po-cancel').onclick = () => document.getElementById
 
 document.getElementById('btn-po-save').onclick = async () => {
   const btn = document.getElementById('btn-po-save');
+
+  // v2.3.13: validation mirrors contracts.html — manual PO number only required
+  // on a NEW PO when no warehouse is selected (warehouse → auto-numbered server-side)
+  const poIdVal     = document.getElementById('po-id').value || '';
+  const warehouseId = document.getElementById('po-warehouse').value || '';
+  const poNumberVal = document.getElementById('po-number').value.trim();
+  if (!poIdVal && !warehouseId && !poNumberVal) {
+    showModalError('modal-po', 'PO Number is required when no warehouse is selected.');
+    return;
+  }
+
   btn.disabled = true;
 
   const payload = {
