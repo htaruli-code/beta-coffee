@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- Version 2.3.1 | inventory.html -->
+<!-- Version 2.4 | inventory.html -->
+<!-- v2.4: show WEIGHT next to bag counts (fmtWeight = bags×bag_size with lot unit) and display fractional bags via fmtBags (4dp, trailing zeros trimmed) across: lot bin rows, drawdown-activity line totals, per-bin allocation tags, and SUB tags. bag_size/unit sourced from the lot (cost_price_unit); weight omitted when bag_size unknown. Display-only. -->
 <!-- v2.3.1: Drawdown activity panel now shows drawn-down bags PER BIN (bin tag + count),
      so multi-bin picks are identifiable. Uses existing bin_allocations[].allocated_bags — no API change.
      v2.2.0: Bin editing from inventory page.
@@ -434,9 +435,9 @@ function renderTable() {
           '<td colspan="3">📦 ' + esc(b.bin_label || '—') + '</td>' +
           '<td colspan="3">' + (locName ? '<span class="legacy-badge">' + esc(locName) + '</span>' : '') + '</td>' +
           '<td colspan="3" class="num">' +
-            b.qty_bags + ' bags' +
+            fmtBags(b.qty_bags) + ' bags' + fmtWeight(b.qty_bags, l.bag_size, l.cost_price_unit) +
             (b.received_bags && b.received_bags !== b.qty_bags
-              ? ' <span style="color:var(--muted);font-size:0.775rem">of ' + b.received_bags + '</span>'
+              ? ' <span style="color:var(--muted);font-size:0.775rem">of ' + fmtBags(b.received_bags) + '</span>'
               : '') +
           '</td>' +
           '<td colspan="4"></td>' +
@@ -562,6 +563,11 @@ function buildLotDrawdownPanel(lotId, lotDrawdowns) {
   const pending    = lotDrawdowns.filter(d => d.status === 'Pending' || d.status === 'Approved').length;
   const dispatched = lotDrawdowns.filter(d => d.status === 'Dispatched' || d.status === 'Delivered').length;
 
+  // v2.4: lot bag size + unit for weight display next to each bin's bag count
+  const panelLot   = (PAGE_DATA.inventory_lots || []).find(l => String(l.lot_id) === String(lotId));
+  const panelBagSz = panelLot ? panelLot.bag_size : 0;
+  const panelUnit  = panelLot ? (panelLot.cost_price_unit || 'kg') : 'kg';
+
   // Derive primaryLineIds for this lot (needed for scoping bin allocations)
   const lid = String(lotId);
   const primaryLineIds = new Set(
@@ -579,7 +585,7 @@ function buildLotDrawdownPanel(lotId, lotDrawdowns) {
   const lines = lotDrawdowns.map(d => {
     const badgeKey = (d.status || 'pending').toLowerCase();
     const subTag   = d.is_substitution
-      ? '<span class="dd-sub-tag">SUB ' + (d.sub_bags_count ? d.sub_bags_count + ' bags' : '') + '</span>'
+      ? '<span class="dd-sub-tag">SUB ' + (d.sub_bags_count ? fmtBags(d.sub_bags_count) + ' bags' : '') + '</span>'
       : '';
     const refNum = d.drawdown_number || d.contract_number || '—';
 
@@ -597,7 +603,8 @@ function buildLotDrawdownPanel(lotId, lotDrawdowns) {
             ll.bin_allocations.map(function(ba) {
               const n = (ba.allocated_bags != null ? ba.allocated_bags : 0);
               return '<span class="dd-bin-tag">📦 ' + esc(ba.bin_label || ('Bin ' + ba.bin_id)) +
-                ' <strong style="color:var(--text)">' + n + ' bag' + (n === 1 ? '' : 's') + '</strong></span>';
+                ' <strong style="color:var(--text)">' + fmtBags(n) + ' bag' + (n === 1 ? '' : 's') + '</strong>' +
+                fmtWeight(n, panelBagSz, panelUnit) + '</span>';
             }).join('') +
           '</div>'
         : '';
@@ -605,7 +612,7 @@ function buildLotDrawdownPanel(lotId, lotDrawdowns) {
         '<div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap">' +
           '<span>' + esc(ll.sample_name || '—') + '</span>' +
           '<span style="color:var(--muted)">·</span>' +
-          '<span class="dd-bags">' + (ll.requested_bags || 0) + ' bags</span>' +
+          '<span class="dd-bags">' + fmtBags(ll.requested_bags || 0) + ' bags' + fmtWeight(ll.requested_bags || 0, panelBagSz, panelUnit) + '</span>' +
         '</div>' +
         binsHtml +
       '</div>';
@@ -949,6 +956,16 @@ document.getElementById('btn-bins-save').onclick = async function() {
 };
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// v2.4: fractional bag display + weight next to bag counts on bins.
+// fmtBags rounds to 4dp, trims trailing zeros (1.5→"1.5", 1→"1"). fmtWeight shows
+// bags×bag_size with unit, e.g. " (90 kg)"; omitted when bag_size unknown/zero.
+function fmtBags(n) { return String(Math.round((parseFloat(n)||0) * 10000) / 10000); }
+function fmtWeight(bags, bagSize, unit) {
+  const b = parseFloat(bags), s = parseFloat(bagSize);
+  if (!isFinite(b) || !isFinite(s) || s <= 0) return '';
+  const w = Math.round(b * s * 100) / 100;
+  return ' <span style="color:var(--muted);font-weight:400">(' + w + ' ' + esc(unit || 'kg') + ')</span>';
+}
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast ' + (type||'');
