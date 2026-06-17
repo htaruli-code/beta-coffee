@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- Version 3.13 | drawdowns.html -->
+<!-- Version 3.14 | drawdowns.html -->
+<!-- v3.14: New Drawdown line block — kg/lb weight input now sits BESIDE the Bags input (flex row) instead of stacked below it, so each Line N block is shorter. Bags 70px + weight 80px side by side; field max-width 200px. Layout only. -->
 <!-- v3.13: Add Lot Substitution → Replacement Lot is now a typeahead (same ddc- pattern as the contract picker) instead of a long select. Searchable by SKU + product name + lot number; each row shows SKU · product · qty avail (was product + qty only). Selection writes lot_id to hidden #ds-sub-lot and applies per-lot max (min of available_bags and gap) to the bags input. Add-sub max check now uses 0.0001 tolerance + fmtBags. Pure client-side, no GS change. -->
 <!-- v3.12: New Drawdown contract picker rebuilt as a typeahead matching the New Contracts buyer-search pattern (initContractSearch): text input + clickable dropdown of results (contract # with buyer/status subtitle), keyboard nav (↑/↓/Enter/Esc), clear button, selected tag, blur-to-close. Filters active/partially-drawn contracts by contract # + buyer name. Selection writes contract_id to the hidden #new-dd-contract and fires its existing onchange, so all downstream logic (buyer info, line blocks, seq preview, save) is unchanged. Replaces the v3.11 hide-options-in-select approach. Pure client-side, no GS change. -->
 <!-- v3.10: New Drawdown modal shows a live "Next auto #" preview when a contract is selected — computes contract/(localCount + [seq:N] offset + 1), mirroring the server, so staff can confirm it matches UnleashedSoftware before saving (or override via the # field). Display-only; offset read from contract notes [seq:N] tag. -->
@@ -1106,10 +1107,12 @@ function buildLineBlock(idx) {
           <option value="">— Select product —</option>
         </select>
       </div>
-      <div class="field" style="max-width:120px">
+      <div class="field" style="max-width:200px">
         <label class="line-bags-label-${idx}">Bags <span style="color:var(--error)">*</span></label>
-        <input type="text" inputmode="decimal" class="line-bags" data-idx="${idx}" placeholder="0" />
-        <input type="text" inputmode="decimal" class="line-wt" data-idx="${idx}" placeholder="or kg/lb" title="Enter weight to auto-fill bags" oninput="ddLineWeightToBags(${idx}, this.value)" style="font-size:0.7rem;opacity:0.8;margin-top:2px" />
+        <div style="display:flex;gap:0.35rem;align-items:center">
+          <input type="text" inputmode="decimal" class="line-bags" data-idx="${idx}" placeholder="0" style="width:70px" />
+          <input type="text" inputmode="decimal" class="line-wt" data-idx="${idx}" placeholder="or kg/lb" title="Enter weight to auto-fill bags" oninput="ddLineWeightToBags(${idx}, this.value)" style="width:80px;font-size:0.7rem;opacity:0.8" />
+        </div>
       </div>
     </div>`;
   return div;
