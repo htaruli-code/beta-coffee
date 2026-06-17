@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<!-- Version 3.10 | drawdowns.html -->
+<!-- Version 3.13 | drawdowns.html -->
+<!-- v3.13: Add Lot Substitution → Replacement Lot is now a typeahead (same ddc- pattern as the contract picker) instead of a long select. Searchable by SKU + product name + lot number; each row shows SKU · product · qty avail (was product + qty only). Selection writes lot_id to hidden #ds-sub-lot and applies per-lot max (min of available_bags and gap) to the bags input. Add-sub max check now uses 0.0001 tolerance + fmtBags. Pure client-side, no GS change. -->
+<!-- v3.12: New Drawdown contract picker rebuilt as a typeahead matching the New Contracts buyer-search pattern (initContractSearch): text input + clickable dropdown of results (contract # with buyer/status subtitle), keyboard nav (↑/↓/Enter/Esc), clear button, selected tag, blur-to-close. Filters active/partially-drawn contracts by contract # + buyer name. Selection writes contract_id to the hidden #new-dd-contract and fires its existing onchange, so all downstream logic (buyer info, line blocks, seq preview, save) is unchanged. Replaces the v3.11 hide-options-in-select approach. Pure client-side, no GS change. -->
 <!-- v3.10: New Drawdown modal shows a live "Next auto #" preview when a contract is selected — computes contract/(localCount + [seq:N] offset + 1), mirroring the server, so staff can confirm it matches UnleashedSoftware before saving (or override via the # field). Display-only; offset read from contract notes [seq:N] tag. -->
 <!-- v3.9: Drawdown # is now an OPTIONAL editable field in New Drawdown modal. Third-party system is authoritative for numbering and cannot be integrated, so staff enter the third-party number at creation to keep them in sync; left blank = auto-number as before. Server collision-checks a manual number against existing non-cancelled drawdowns. -->
 <!-- v3.8: Approve/status modal + bin-alloc now display fractional bags via fmtBags (needed, requested, total avail, short-by, bin avail labels) and the inventory-check ok test uses 0.0001 tolerance (was exact total>=requested). Display+compare only. NOTE: drawdowns SAVED on pre-3.7 (DEV 3.4) stored requested_bags as parseInt(0.5)=0 — those rows show "0 bags needed'; they must be recreated or repaired in the sheet, the display cannot recover a value that was stored as 0. -->
@@ -57,6 +59,32 @@
     label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
     .field { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
     .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    /* ── Contract search typeahead (v3.12, mirrors New Contracts buyer search) ── */
+    .ddc-search-wrap { position: relative; display: block; }
+    .ddc-search-wrap input { width: 100%; }
+    .ddc-search-drop {
+      position: absolute; z-index: 300; top: calc(100% + 2px); left: 0;
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+      min-width: 100%; max-height: 240px; overflow-y: auto; display: none;
+    }
+    .ddc-search-drop.open { display: block; }
+    .ddc-item {
+      padding: 0.4rem 0.75rem; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono); font-size: 0.75rem; color: var(--text);
+    }
+    .ddc-item:last-child { border-bottom: none; }
+    .ddc-item:hover, .ddc-item.ddc-active { background: var(--surface); }
+    .ddc-item .ddc-item-sub { color: var(--muted); font-size: 0.68rem; }
+    .ddc-clear { position: absolute; right: 0.5rem; top: 0.55rem;
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 0.95rem; padding: 0; line-height: 1; display: none; }
+    .ddc-clear.show { display: block; }
+    .ddc-selected-tag { display: inline-flex; align-items: center; gap: 0.35rem;
+      font-family: var(--font-mono); font-size: 0.72rem; margin-top: 0.3rem;
+      background: #edf7f0; color: #1e6640; padding: 0.15rem 0.5rem; border-radius: var(--radius); }
+    .ddc-selected-tag.empty { background: transparent; color: var(--muted); padding-left: 0; }
     .dd-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
     .dd-table th { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.75rem; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
     .dd-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -204,7 +232,12 @@
         <div class="field-row" style="margin-top:0.6rem">
           <div class="field">
             <label>Replacement Lot</label>
-            <select id="ds-sub-lot"></select>
+            <div class="ddc-search-wrap" id="dsl-search-wrap">
+              <input type="text" id="dsl-search-input" placeholder="Search by SKU, product or lot…" autocomplete="off" />
+              <button type="button" class="ddc-clear" id="dsl-search-clear" title="Clear">×</button>
+              <div class="ddc-search-drop" id="dsl-search-drop"></div>
+            </div>
+            <input type="hidden" id="ds-sub-lot" />
           </div>
           <div class="field" style="max-width:100px">
             <label>Bags <span id="ds-sub-bags-hint" style="color:var(--accent);font-weight:400"></span></label>
@@ -237,13 +270,17 @@
 
     <div class="modal-buyer-info" id="new-dd-buyer-info"></div>
 
-    <!-- Contract selector -->
+    <!-- Contract selector — typeahead (matches New Contracts buyer search) -->
     <div class="field-row">
       <div class="field">
-        <label for="new-dd-contract">Contract <span style="color:var(--error)">*</span></label>
-        <select id="new-dd-contract">
-          <option value="">— Select contract —</option>
-        </select>
+        <label for="ddc-search-input">Contract <span style="color:var(--error)">*</span></label>
+        <div class="ddc-search-wrap" id="ddc-search-wrap">
+          <input type="text" id="ddc-search-input" placeholder="Search by contract # or buyer…" autocomplete="off" />
+          <button type="button" class="ddc-clear" id="ddc-search-clear" title="Clear">×</button>
+          <div class="ddc-search-drop" id="ddc-search-drop"></div>
+        </div>
+        <input type="hidden" id="new-dd-contract" />
+        <span class="ddc-selected-tag empty" id="ddc-search-tag">No contract selected</span>
       </div>
     </div>
 
@@ -317,6 +354,7 @@ let PAGE_DATA = {
     PAGE_DATA = data;
     populateFilters();
     renderTable();
+    initContractSearch();   // v3.12: wire the New Drawdown contract typeahead
   } catch (e) { showToast('Failed to load.', 'error'); }
 })();
 
@@ -756,28 +794,111 @@ function refreshSubForm(drawdownId, lineId, primaryLot, requested, primaryAvail,
     '</div>';
   }).join('');
 
-  const lotSel = document.getElementById('ds-sub-lot');
-  lotSel.innerHTML = '<option value="">— Select lot —</option>' +
-    PAGE_DATA.inventory_lots
-      .filter(l => String(l.lot_id) !== String(origLotId) && (l.available_bags || 0) > 0)
-      .map(l => {
-        const effectiveMax = Math.min(l.available_bags, gap);
-        return '<option value="' + l.lot_id + '" data-avail="' + l.available_bags + '" data-max="' + effectiveMax + '">' +
-          esc(l.sample_name) + ' · ' + l.available_bags + ' avail</option>';
-      }).join('');
-
   const hintEl = document.getElementById('ds-sub-bags-hint');
   hintEl.textContent = gap > 0 ? '(gap: ' + gap + ')' : '';
   document.getElementById('ds-sub-bags').value = '';
   document.getElementById('ds-sub-bags').max   = gap;
   document.getElementById('ds-sub-reason').value = '';
 
-  lotSel.onchange = function() {
-    const opt          = lotSel.options[lotSel.selectedIndex];
-    const effectiveMax = opt && opt.dataset.max ? parseFloat(opt.dataset.max) : gap;
-    document.getElementById('ds-sub-bags').max = effectiveMax;
-    hintEl.textContent = effectiveMax > 0 ? '(max ' + effectiveMax + ')' : '';
-  };
+  // v3.13: replacement-lot typeahead (mirrors contract search). Lists candidate lots
+  // (not the original, with availability) searchable by SKU + product name + lot number;
+  // each row shows SKU · product · qty avail. On select, writes lot_id to hidden #ds-sub-lot
+  // and applies the per-lot max (min of available_bags and the remaining gap) to the bags input.
+  initReplacementLotSearch(origLotId, gap);
+}
+
+function initReplacementLotSearch(origLotId, gap) {
+  const input  = document.getElementById('dsl-search-input');
+  const drop   = document.getElementById('dsl-search-drop');
+  const hidden = document.getElementById('ds-sub-lot');
+  const clear  = document.getElementById('dsl-search-clear');
+  const bagsEl = document.getElementById('ds-sub-bags');
+  const hintEl = document.getElementById('ds-sub-bags-hint');
+  if (!input || !drop || !hidden) return;
+
+  // reset
+  input.value = ''; hidden.value = '';
+  drop.classList.remove('open'); drop.innerHTML = '';
+  if (clear) clear.classList.remove('show');
+
+  function candidates() {
+    return PAGE_DATA.inventory_lots
+      .filter(l => String(l.lot_id) !== String(origLotId) && (l.available_bags || 0) > 0);
+  }
+  function rowLabel(l) {
+    return (l.sku_code ? l.sku_code + ' · ' : '') + (l.sample_name || ('Lot ' + l.lot_id));
+  }
+
+  function showDrop(items) {
+    if (!items.length) { drop.classList.remove('open'); drop.innerHTML = ''; return; }
+    drop.innerHTML = items.map(l =>
+      '<div class="ddc-item" data-id="' + l.lot_id + '">' +
+        (l.sku_code ? '<span style="color:var(--accent);font-weight:600">' + esc(l.sku_code) + '</span> · ' : '') +
+        esc(l.sample_name || ('Lot ' + l.lot_id)) +
+        '<div class="ddc-item-sub">' + (l.lot_number ? esc(l.lot_number) + ' · ' : '') +
+          fmtBags(l.available_bags) + ' avail</div>' +
+      '</div>'
+    ).join('');
+    drop.classList.add('open');
+    drop.querySelectorAll('.ddc-item').forEach(el => {
+      el.onmousedown = e => { e.preventDefault(); pick(String(el.dataset.id)); };
+    });
+  }
+
+  function pick(id) {
+    const l = PAGE_DATA.inventory_lots.find(x => String(x.lot_id) === String(id));
+    if (!l) return;
+    hidden.value = id;
+    input.value  = rowLabel(l) + ' · ' + fmtBags(l.available_bags) + ' avail';
+    drop.classList.remove('open');
+    if (clear) clear.classList.add('show');
+    const effectiveMax = Math.min(parseFloat(l.available_bags) || 0, gap);
+    bagsEl.max = effectiveMax;
+    if (hintEl) hintEl.textContent = effectiveMax > 0 ? '(max ' + fmtBags(effectiveMax) + ')' : '';
+  }
+
+  function clearSel() {
+    hidden.value = ''; input.value = '';
+    drop.classList.remove('open');
+    if (clear) clear.classList.remove('show');
+    bagsEl.max = gap;
+    if (hintEl) hintEl.textContent = gap > 0 ? '(gap: ' + fmtBags(gap) + ')' : '';
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    hidden.value = '';
+    if (clear) clear.classList.remove('show');
+    if (!q) { drop.classList.remove('open'); return; }
+    const matches = candidates().filter(l =>
+      ((l.sku_code || '') + ' ' + (l.sample_name || '') + ' ' + (l.lot_number || '')).toLowerCase().includes(q)
+    ).slice(0, 15);
+    showDrop(matches);
+  });
+
+  input.addEventListener('keydown', e => {
+    const items  = drop.querySelectorAll('.ddc-item');
+    const active = drop.querySelector('.ddc-active');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? (active.nextElementSibling || items[0]) : items[0];
+      if (active) active.classList.remove('ddc-active');
+      if (next) next.classList.add('ddc-active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active ? (active.previousElementSibling || items[items.length-1]) : items[items.length-1];
+      if (active) active.classList.remove('ddc-active');
+      if (prev) prev.classList.add('ddc-active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active) pick(active.dataset.id);
+    } else if (e.key === 'Escape') {
+      drop.classList.remove('open');
+    }
+  });
+
+  input.addEventListener('blur', () => { setTimeout(() => drop.classList.remove('open'), 150); });
+  if (clear) clear.onclick = clearSel;
 }
 
 function removePendingSub(idx, drawdownId, lineId) {
@@ -835,7 +956,7 @@ document.getElementById('btn-ds-add-sub').onclick = function() {
   const max    = parseFloat(document.getElementById("ds-sub-bags").max) || 0;
   if (!lotId)                  { showModalError('modal-status', 'Select a replacement lot.'); return; }
   if (isNaN(bags) || bags <= 0) { showModalError('modal-status', 'Bags must be greater than zero.'); return; }
-  if (bags > max)              { showModalError('modal-status', 'Bags (' + bags + ') exceed maximum (' + max + ').'); return; }
+  if (bags > max + 0.0001)     { showModalError('modal-status', 'Bags (' + fmtBags(bags) + ') exceed maximum (' + fmtBags(max) + ').'); return; }
   clearModalError('modal-status');
   pendingSubstitutions.push({ replacement_lot_id: lotId, bags_count: bags, reason: reason });
   const drawdownId = document.getElementById('ds-drawdown-id').value;
@@ -1095,21 +1216,105 @@ document.getElementById('btn-new-drawdown').onclick = function() {
   document.getElementById('new-dd-lines-wrap').innerHTML = '';
   document.getElementById('btn-add-line').disabled = true;
 
-  const sel = document.getElementById('new-dd-contract');
-  sel.innerHTML = '<option value="">— Select contract —</option>';
-  const activeContracts = PAGE_DATA.contracts.filter(c =>
-    c.status === 'Active' || c.status === 'Partially Drawn'
-  );
-  activeContracts.forEach(c => {
-    const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(c.buyer_id));
-    const label = (buyer ? buyer.company_name + ' · ' : '') + esc(c.contract_number);
-    const o = document.createElement('option');
-    o.value = c.contract_id; o.textContent = label;
-    sel.appendChild(o);
-  });
+  // v3.12: contract picker is now a typeahead (mirrors New Contracts buyer search).
+  // Reset it on each open; selection writes contract_id to the hidden #new-dd-contract
+  // and fires its onchange (which loads buyer info, line blocks, seq preview).
+  if (window._ddcSearch && window._ddcSearch._clear) window._ddcSearch._clear();
 
   document.getElementById('modal-new-dd').classList.add('open');
 };
+
+// Typeahead driver for the contract picker. Filters active contracts by
+// (contract_number + buyer company_name), renders a clickable dropdown, and on
+// select writes the id to the hidden field + fires its onchange. Keyboard: ↑/↓/Enter/Esc.
+function initContractSearch() {
+  const input  = document.getElementById('ddc-search-input');
+  const drop   = document.getElementById('ddc-search-drop');
+  const hidden = document.getElementById('new-dd-contract');
+  const clear  = document.getElementById('ddc-search-clear');
+  const tag    = document.getElementById('ddc-search-tag');
+  if (!input || !drop || !hidden) return;
+
+  function activeContracts() {
+    return PAGE_DATA.contracts.filter(c => c.status === 'Active' || c.status === 'Partially Drawn');
+  }
+  function buyerName(c) {
+    const b = PAGE_DATA.buyers.find(x => String(x.buyer_id) === String(c.buyer_id));
+    return b ? b.company_name : '';
+  }
+
+  function showDrop(items) {
+    if (!items.length) { drop.classList.remove('open'); drop.innerHTML = ''; return; }
+    drop.innerHTML = items.map(c =>
+      '<div class="ddc-item" data-id="' + c.contract_id + '">' +
+        esc(c.contract_number) +
+        '<div class="ddc-item-sub">' + esc(buyerName(c) || '—') + ' · ' + esc(c.status) + '</div>' +
+      '</div>'
+    ).join('');
+    drop.classList.add('open');
+    drop.querySelectorAll('.ddc-item').forEach(el => {
+      el.onmousedown = e => { e.preventDefault(); pick(String(el.dataset.id)); };
+    });
+  }
+
+  function pick(id) {
+    const c = PAGE_DATA.contracts.find(x => String(x.contract_id) === String(id));
+    if (!c) return;
+    hidden.value = id;
+    input.value  = c.contract_number + (buyerName(c) ? ' · ' + buyerName(c) : '');
+    drop.classList.remove('open');
+    if (clear) clear.classList.add('show');
+    if (tag) { tag.textContent = 'Selected: ' + c.contract_number; tag.className = 'ddc-selected-tag'; }
+    hidden.onchange();   // fire existing downstream logic
+  }
+
+  function clearSel() {
+    hidden.value = '';
+    input.value  = '';
+    drop.classList.remove('open');
+    if (clear) clear.classList.remove('show');
+    if (tag) { tag.textContent = 'No contract selected'; tag.className = 'ddc-selected-tag empty'; }
+    hidden.onchange();
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    hidden.value = '';
+    if (clear) clear.classList.remove('show');
+    if (tag) { tag.textContent = 'No contract selected'; tag.className = 'ddc-selected-tag empty'; }
+    if (!q) { drop.classList.remove('open'); return; }
+    const matches = activeContracts().filter(c =>
+      ((c.contract_number || '') + ' ' + buyerName(c)).toLowerCase().includes(q)
+    ).slice(0, 15);
+    showDrop(matches);
+  });
+
+  input.addEventListener('keydown', e => {
+    const items  = drop.querySelectorAll('.ddc-item');
+    const active = drop.querySelector('.ddc-active');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? (active.nextElementSibling || items[0]) : items[0];
+      if (active) active.classList.remove('ddc-active');
+      if (next) next.classList.add('ddc-active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active ? (active.previousElementSibling || items[items.length-1]) : items[items.length-1];
+      if (active) active.classList.remove('ddc-active');
+      if (prev) prev.classList.add('ddc-active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active) pick(active.dataset.id);
+    } else if (e.key === 'Escape') {
+      drop.classList.remove('open');
+    }
+  });
+
+  input.addEventListener('blur', () => { setTimeout(() => drop.classList.remove('open'), 150); });
+  if (clear) clear.onclick = clearSel;
+
+  window._ddcSearch = { _clear: clearSel, _pick: pick };
+}
 
 document.getElementById('new-dd-contract').onchange = function() {
   const contractId = this.value;
