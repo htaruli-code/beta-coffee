@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<!-- Version 3.14 | drawdowns.html -->
+<!-- Version 3.18 | drawdowns.html -->
+<!-- v3.18: prefix-swap fallback handles hyphenated prefixes (e.g. drawdown_prefix "DSSNZ-" + base "-00004017") by dropping the doubled separator. NOTE: if preview still shows "/N" suffix-only, drawdown_prefix is empty in the payload — likely stale getDrawdownsPage cache (4.8 deployed but cached payload predates it) or no drawdown_prefix on the warehouse; see DiagnoseDrawdownPrefix.gs. -->
+<!-- v3.17: preview prefix swap now works with drawdown_prefix ALONE — if contract_prefix is present it strips it exactly (matches server); otherwise it strips the leading alphabetic prefix from contract_number and prepends drawdown_prefix. Suffix-only fallback now only when drawdown_prefix itself is absent (needs DataService 4.8 in the payload). -->
+<!-- v3.16: FIX Next-auto-# preview was wrong (showed contract prefix DSONZ not drawdown prefix DSSNZ, and count+1 instead of count). Now mirrors server getDrawdownNumber exactly: ref = drawdown_prefix + contract_number-minus-contract_prefix; number = count===0 ? ref : ref+/count (no +1, no suffix at 0). Uses drawdown_prefix/contract_prefix from the v4.8 payload; falls back to suffix-only if prefixes absent. -->
+<!-- v3.15: All Buyers filter (drawdowns list toolbar) converted from a plain select to a typeahead search picker (same ddc- pattern) — searchable by buyer name, clickable dropdown, keyboard nav, clear button. Empty box = All Buyers. Selection writes buyer_id to hidden #filter-buyer and re-renders; renderTable unchanged. Pure client-side, no GS change. -->
 <!-- v3.14: New Drawdown line block — kg/lb weight input now sits BESIDE the Bags input (flex row) instead of stacked below it, so each Line N block is shorter. Bags 70px + weight 80px side by side; field max-width 200px. Layout only. -->
 <!-- v3.13: Add Lot Substitution → Replacement Lot is now a typeahead (same ddc- pattern as the contract picker) instead of a long select. Searchable by SKU + product name + lot number; each row shows SKU · product · qty avail (was product + qty only). Selection writes lot_id to hidden #ds-sub-lot and applies per-lot max (min of available_bags and gap) to the bags input. Add-sub max check now uses 0.0001 tolerance + fmtBags. Pure client-side, no GS change. -->
 <!-- v3.12: New Drawdown contract picker rebuilt as a typeahead matching the New Contracts buyer-search pattern (initContractSearch): text input + clickable dropdown of results (contract # with buyer/status subtitle), keyboard nav (↑/↓/Enter/Esc), clear button, selected tag, blur-to-close. Filters active/partially-drawn contracts by contract # + buyer name. Selection writes contract_id to the hidden #new-dd-contract and fires its existing onchange, so all downstream logic (buyer info, line blocks, seq preview, save) is unchanged. Replaces the v3.11 hide-options-in-select approach. Pure client-side, no GS change. -->
@@ -204,7 +208,12 @@
   </div>
   <div class="toolbar">
     <select id="filter-status" style="width:auto"><option value="">All Statuses</option></select>
-    <select id="filter-buyer"  style="width:auto"><option value="">All Buyers</option></select>
+    <div class="ddc-search-wrap" id="fb-search-wrap" style="display:inline-block;width:200px;vertical-align:top">
+      <input type="text" id="fb-search-input" placeholder="All Buyers — search…" autocomplete="off" />
+      <button type="button" class="ddc-clear" id="fb-search-clear" title="Clear">×</button>
+      <div class="ddc-search-drop" id="fb-search-drop"></div>
+    </div>
+    <input type="hidden" id="filter-buyer" value="" />
   </div>
   <div id="dd-wrap"><div class="loading">Loading drawdowns…</div></div>
   <div class="pagination" id="dd-pagination" style="display:none">
@@ -368,19 +377,90 @@ function populateFilters() {
     o.value = s; o.textContent = s;
     fs.appendChild(o);
   });
-  const fb      = document.getElementById('filter-buyer');
-  const seen    = new Set();
+  // v3.15: buyer filter is a typeahead (long buyer list). Build the distinct buyer set
+  // that appears in drawdowns, then wire the search picker. Hidden #filter-buyer holds the id.
+  const fbSeen = new Set();
+  const fbBuyers = [];
   PAGE_DATA.drawdowns.forEach(d => {
     const con = PAGE_DATA.contracts.find(c => String(c.contract_id) === String(d.contract_id));
-    if (!con || seen.has(String(con.buyer_id))) return;
-    seen.add(String(con.buyer_id));
+    if (!con || fbSeen.has(String(con.buyer_id))) return;
+    fbSeen.add(String(con.buyer_id));
     const buyer = PAGE_DATA.buyers.find(b => String(b.buyer_id) === String(con.buyer_id));
-    if (!buyer) return;
-    const o = document.createElement('option');
-    o.value = buyer.buyer_id; o.textContent = buyer.company_name;
-    fb.appendChild(o);
+    if (buyer) fbBuyers.push(buyer);
   });
-  fs.onchange = fb.onchange = function() { currentPage = 1; renderTable(); };
+  fbBuyers.sort((a, b) => String(a.company_name).localeCompare(String(b.company_name)));
+  initBuyerFilterSearch(fbBuyers);
+  fs.onchange = function() { currentPage = 1; renderTable(); };
+}
+
+// Typeahead for the buyer filter (mirrors the contract/replacement-lot pickers).
+function initBuyerFilterSearch(buyers) {
+  const input  = document.getElementById('fb-search-input');
+  const drop   = document.getElementById('fb-search-drop');
+  const hidden = document.getElementById('filter-buyer');
+  const clear  = document.getElementById('fb-search-clear');
+  if (!input || !drop || !hidden) return;
+
+  function apply() { currentPage = 1; renderTable(); }
+
+  function showDrop(items) {
+    if (!items.length) { drop.classList.remove('open'); drop.innerHTML = ''; return; }
+    drop.innerHTML = items.map(b =>
+      '<div class="ddc-item" data-id="' + b.buyer_id + '">' + esc(b.company_name) + '</div>'
+    ).join('');
+    drop.classList.add('open');
+    drop.querySelectorAll('.ddc-item').forEach(el => {
+      el.onmousedown = e => { e.preventDefault(); pick(String(el.dataset.id), el.textContent); };
+    });
+  }
+  function pick(id, name) {
+    hidden.value = id;
+    input.value  = name;
+    drop.classList.remove('open');
+    if (clear) clear.classList.add('show');
+    apply();
+  }
+  function clearSel() {
+    hidden.value = '';
+    input.value  = '';
+    drop.classList.remove('open');
+    if (clear) clear.classList.remove('show');
+    apply();
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    hidden.value = '';
+    if (clear) clear.classList.remove('show');
+    // typing with empty box = "All Buyers" (no filter)
+    if (!q) { drop.classList.remove('open'); apply(); return; }
+    const matches = buyers.filter(b => b.company_name.toLowerCase().includes(q)).slice(0, 15);
+    showDrop(matches);
+  });
+
+  input.addEventListener('keydown', e => {
+    const items  = drop.querySelectorAll('.ddc-item');
+    const active = drop.querySelector('.ddc-active');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? (active.nextElementSibling || items[0]) : items[0];
+      if (active) active.classList.remove('ddc-active');
+      if (next) next.classList.add('ddc-active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active ? (active.previousElementSibling || items[items.length-1]) : items[items.length-1];
+      if (active) active.classList.remove('ddc-active');
+      if (prev) prev.classList.add('ddc-active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active) pick(active.dataset.id, active.textContent);
+    } else if (e.key === 'Escape') {
+      drop.classList.remove('open');
+    }
+  });
+
+  input.addEventListener('blur', () => { setTimeout(() => drop.classList.remove('open'), 150); });
+  if (clear) clear.onclick = clearSel;
 }
 
 // ── Table render ──────────────────────────────────────────────────────────────
@@ -1358,13 +1438,49 @@ function updateSeqPreview(con) {
   const el = document.getElementById('new-dd-seq-preview');
   if (!el) return;
   if (!con) { el.textContent = ''; return; }
+
+  // Mirror server getDrawdownNumber + saveDrawdownWithLines exactly:
+  //   ref     = drawdown_prefix + (contract_number minus contract_prefix)
+  //   count   = existing non-cancelled drawdowns on this contract + [seq:N] offset
+  //   number  = count === 0 ? ref : ref + '/' + count   (NO +1; no suffix when 0)
   const m      = con.notes ? String(con.notes).match(/\[seq:\s*(\d+)\s*\]/i) : null;
   const offset = m ? (parseInt(m[1]) || 0) : 0;
   const localCount = (PAGE_DATA.drawdowns || []).filter(function(d) {
     return String(d.contract_id) === String(con.contract_id) && d.status !== 'Cancelled';
   }).length;
-  const nextN = localCount + offset + 1;
-  el.innerHTML = 'Next auto #: <strong>' + esc(con.contract_number || '') + '/' + nextN + '</strong>'
+  const count = localCount + offset;
+
+  // Build the drawdown reference: replace the contract-number's prefix with the
+  // drawdown prefix. Works when contract_prefix is known (exact strip); falls back
+  // to stripping the leading alphabetic prefix if only drawdown_prefix is available.
+  const cPrefix = con.contract_prefix || '';
+  const dPrefix = con.drawdown_prefix || '';
+  const cNum    = String(con.contract_number || '');
+  let ref = '';
+  if (dPrefix) {
+    let base = '';
+    if (cPrefix && cNum.indexOf(cPrefix) === 0) {
+      base = cNum.slice(cPrefix.length);              // exact strip (matches server)
+    } else {
+      const mm = cNum.match(/^[A-Za-z]+(.*)$/);       // strip leading letters as prefix
+      if (mm) base = mm[1];
+    }
+    // dPrefix may carry a trailing separator (e.g. "DSSNZ-") and base may start with
+    // one too (e.g. "-00004017") → avoid a doubled separator.
+    if (base && /[-_/ ]$/.test(dPrefix) && /^[-_/ ]/.test(base)) base = base.slice(1);
+    if (base) ref = dPrefix + base;
+  }
+
+  if (!ref) {
+    // drawdown_prefix unavailable — show suffix only, honestly
+    el.innerHTML = 'Next auto #: <strong>/' + (count === 0 ? '(none)' : count) + '</strong>'
+      + (offset ? ' <span style="color:var(--accent)">(offset +' + offset + ' from Unleashed)</span>' : '')
+      + ' — leave blank to auto-number, or type to override.';
+    return;
+  }
+
+  const number = (count === 0) ? ref : ref + '/' + count;
+  el.innerHTML = 'Next auto #: <strong>' + esc(number) + '</strong>'
     + (offset ? ' <span style="color:var(--accent)">(offset +' + offset + ' from Unleashed)</span>' : '')
     + ' — leave blank to use this, or type to override.';
 }
