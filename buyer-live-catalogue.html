@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<!-- Version 1.0 | buyer-live-catalogue.html -->
+<!-- v1.0: Session-authenticated live catalogue. Buyer browses ALL available coffees in
+            their home warehouse (no token / no email link). Gated server-side on
+            buyer.live_catalogue_enabled (staff toggle in buyers.html). One API call on
+            load (getLiveCatalogue), one on submit (submitLiveCatalogue). Lot UI + intent
+            two-step UX mirror buyer-catalogue.html v1.21; auth shell mirrors
+            buyer-dashboard.html v1.15 (session gate + impersonation + company banner). -->
+<!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Catalogue — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --surface2: #faf3ea;
+      --border: #f0e8da; --border2: #e8d8c4; --accent: #c47a2b; --accent2: #a0611f;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --radius: 6px; --transition: 160ms ease;
+    }
+    body { background: var(--surface); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 1.5rem; background: #fff; border-bottom: 1px solid var(--border); }
+    .topbar-left { display: flex; align-items: center; gap: 1rem; }
+    .brand { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; }
+    .nav-link { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 0.35rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius); transition: all var(--transition); }
+    .nav-link:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar-right { display: flex; align-items: center; gap: 0.85rem; }
+    .nav-buyer { font-size: 0.78rem; color: var(--text); font-weight: 500; }
+    .btn-logout { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: none; border: none; cursor: pointer; }
+    .btn-logout:hover { color: var(--error); }
+
+    .impersonate-bar { display: none; background: #fff8e8; border-bottom: 1px solid #f5d89a; color: #854f0b; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.04em; padding: 0.45rem 1.5rem; text-align: center; }
+    .impersonate-bar.show { display: block; }
+
+    .wrap { max-width: 680px; margin: 0 auto; padding: 2rem 1rem; }
+    .card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2rem; margin-bottom: 1.25rem; }
+    .card-title { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .card-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.6; }
+
+    .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; margin-bottom: 1.5rem; }
+    .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding-top: 0.1rem; flex-shrink: 0; }
+    .info-value { font-size: 0.82rem; color: var(--text); text-align: right; max-width: 65%; }
+
+    .section-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .section-label span { color: var(--accent); }
+
+    .lot-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 0.75rem; transition: border-color var(--transition); }
+    .lot-card:hover { border-color: var(--border2); }
+    .lot-card.selected { border-color: var(--accent); background: #fffcf7; }
+    .lot-card-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border); cursor: pointer; }
+    .lot-card.selected .lot-card-header { background: #fef5e7; }
+    .lot-checkbox { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+    .lot-sample-id { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); font-weight: 500; }
+    .lot-name { font-size: 0.85rem; color: var(--text); font-weight: 500; flex: 1; }
+    .lot-body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; }
+    .lot-stat { padding: 0.6rem 1rem; border-right: 1px solid var(--border); }
+    .lot-stat:last-child { border-right: none; }
+    .lot-stat-label { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .lot-stat-value { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text); font-weight: 500; }
+    .lot-stat-value.price { color: var(--accent); }
+
+    .lot-reserve-row { display: none; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; background: #fffbf4; border-top: 1px solid var(--border); }
+    .lot-card.selected .lot-reserve-row { display: flex; }
+    .lot-reserve-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+    .lot-reserve-input { width: 100px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.82rem; color: var(--text); padding: 0.3rem 0.6rem; outline: none; transition: border-color var(--transition); }
+    .lot-reserve-input:focus { border-color: var(--accent); }
+    .lot-reserve-input.input-error { border-color: var(--error); }
+    .lot-reserve-hint { font-size: 0.75rem; color: var(--muted); line-height: 1.4; flex: 1; }
+    .lot-reserve-hint.hint-error { color: var(--error); font-weight: 500; }
+
+    .field { margin-bottom: 1.25rem; }
+    label { display: block; font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.45rem; }
+    select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--font-sans); font-size: 0.85rem; padding: 0.65rem 0.875rem; outline: none; border-radius: var(--radius); transition: border-color var(--transition); }
+    select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; line-height: 1.6; }
+
+    .btn { width: 100%; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.875rem 1rem; cursor: pointer; border-radius: var(--radius); transition: opacity var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { opacity: 0.85; }
+
+    #state-loading, #state-error, #state-success, #state-form, #state-disabled, #state-gate { display: none; }
+    .st-spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2.5rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-msg { font-family: var(--font-mono); font-size: 0.82rem; color: var(--error); text-align: center; padding: 1rem 0; line-height: 1.6; }
+    .success-icon { font-size: 2.5rem; text-align: center; margin-bottom: 1rem; }
+    .success-title { font-family: var(--font-mono); font-size: 1rem; font-weight: 600; text-align: center; color: var(--success); margin-bottom: 0.75rem; }
+    .success-detail { font-size: 0.82rem; color: var(--muted); text-align: center; line-height: 1.7; }
+    .success-detail strong { color: var(--text); }
+    .gate-icon { font-size: 2rem; text-align: center; margin-bottom: 1rem; }
+    .gate-title { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 600; text-align: center; color: var(--text); margin-bottom: 0.5rem; }
+    .gate-sub { font-size: 0.82rem; color: var(--muted); text-align: center; line-height: 1.6; }
+
+    .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; z-index: 9999; border-radius: var(--radius); animation: fadeIn 0.2s ease; }
+    .st-toast--error { border-color: var(--error); color: var(--error); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .no-lots { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; }
+
+    .intent-card-full { display: flex; align-items: flex-start; gap: 0.75rem; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 0.75rem 1rem; cursor: pointer; margin-bottom: 0.5rem; background: var(--bg); user-select: none; transition: border-color var(--transition), background var(--transition); }
+    .intent-card-full:last-child { margin-bottom: 0; }
+    .intent-card-full:hover { border-color: var(--border2); background: var(--surface); }
+    .intent-card-full:hover .intent-card-radio { border-color: var(--accent); }
+    .intent-card-radio { width: 16px; height: 16px; border: 2px solid var(--border2); border-radius: 50%; flex-shrink: 0; margin-top: 2px; transition: border-color var(--transition); }
+    .intent-card-title { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--text); margin-bottom: 0.15rem; }
+    .intent-card-desc { font-size: 0.74rem; color: var(--muted); line-height: 1.45; }
+
+    .strip-pills { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0; }
+    .strip-pill { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.04em; padding: 0.35rem 0.875rem; border-radius: 20px; border: 1.5px solid var(--border2); background: var(--bg); color: var(--muted); cursor: pointer; white-space: nowrap; transition: all var(--transition); }
+    .strip-pill:hover { border-color: var(--accent); color: var(--text); }
+    .strip-pill.active { border-color: var(--accent); background: var(--accent); color: #ffffff; }
+
+    body.mode-sample .lot-reserve-row { display: none !important; }
+
+    /* Login redirect notice */
+    .login-redirect { max-width: 460px; margin: 4rem auto; text-align: center; }
+    .login-redirect .card { padding: 2.5rem 2rem; }
+  </style>
+</head>
+<body class="mode-sample">
+
+  <!-- Impersonation banner -->
+  <div class="impersonate-bar" id="impersonate-bar">
+    👁 Viewing as staff — you are browsing this buyer's live catalogue.
+    <a href="#" id="impersonate-close" style="color:inherit;margin-left:0.75rem;text-decoration:underline">Close tab</a>
+  </div>
+
+  <!-- Top bar -->
+  <div class="topbar" id="topbar" style="display:none">
+    <div class="topbar-left">
+      <span class="brand">Sample Tracker</span>
+      <a class="nav-link" href="buyer-dashboard.html">← My Orders</a>
+    </div>
+    <div class="topbar-right">
+      <span class="nav-buyer" id="nav-buyer"></span>
+      <button class="btn-logout" id="btn-logout" style="display:none">Log out</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- Loading -->
+    <div id="state-loading">
+      <div class="card"><div class="st-spinner"></div></div>
+    </div>
+
+    <!-- Not logged in → redirect notice -->
+    <div id="state-gate">
+      <div class="login-redirect">
+        <div class="card">
+          <div class="gate-icon">🔒</div>
+          <div class="gate-title">Please log in</div>
+          <div class="gate-sub">You need to be signed in to view the live catalogue.<br>Redirecting you to login…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access not enabled -->
+    <div id="state-disabled">
+      <div class="card">
+        <div class="gate-icon">📓</div>
+        <div class="gate-title">Live Catalogue Not Available</div>
+        <div class="gate-sub">
+          The live catalogue isn't enabled for your account yet.<br>
+          Please contact our team if you'd like access to browse available coffees directly.
+        </div>
+        <div style="margin-top:1.5rem;text-align:center">
+          <a class="nav-link" href="buyer-dashboard.html">← Back to My Orders</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="state-error">
+      <div class="card">
+        <div class="card-title">Something went wrong</div>
+        <div class="error-msg" id="error-msg">Unable to load the live catalogue. Please refresh and try again.</div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div id="state-form">
+      <div class="card">
+        <div class="card-title" id="form-title">Live Catalogue</div>
+        <div class="card-sub" id="form-sub"></div>
+        <div class="info-block">
+          <div class="info-row">
+            <span class="info-label">Warehouse</span>
+            <span class="info-value" id="info-warehouse">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Company</span>
+            <span class="info-value" id="info-company">—</span>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-bottom:0.75rem">What would you like to do?</div>
+        <div id="intent-cards-full" style="margin-bottom:1.25rem"></div>
+        <div id="intent-strip" style="display:none; margin-bottom:1.25rem">
+          <div class="strip-pills" id="strip-pills"></div>
+        </div>
+
+        <div class="section-label" style="margin-top:0.25rem">
+          <span>Available Coffees</span>
+          <span id="selected-count"></span>
+        </div>
+        <div id="lot-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label for="sel-beans">Beans Type <span style="color:var(--error)">*</span></label>
+          <select id="sel-beans"><option value="">— Select —</option></select>
+        </div>
+        <div class="field">
+          <label for="sel-notes">Notes <span style="color:var(--muted);font-size:0.65rem;text-transform:none">(optional)</span></label>
+          <textarea id="sel-notes" rows="3" maxlength="500" placeholder="e.g. 200g per lot, vacuum packed…"></textarea>
+        </div>
+        <button class="btn" id="btn-submit" disabled>Request Samples</button>
+      </div>
+    </div>
+
+    <!-- Success -->
+    <div id="state-success">
+      <div class="card">
+        <div class="success-icon">✓</div>
+        <div class="success-title" id="success-title">Request Submitted</div>
+        <div class="success-detail" id="success-detail"></div>
+        <div style="margin-top:1.5rem;text-align:center">
+          <a class="nav-link" href="buyer-dashboard.html">← Back to My Orders</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/buyer-config.js"></script>
+  <script src="js/buyer-auth.js"></script>
+  <script src="js/buyer-api.js"></script>
+  <script>
+    // Version 1.0 | buyer-live-catalogue.html script
+    // Session-auth live catalogue: gate on login → one call getLiveCatalogue → render →
+    // one call submitLiveCatalogue. UI mirrors buyer-catalogue.html v1.21.
+
+    // ── Dependency check ──────────────────────────────────────────────────────
+    if (typeof BUYER_API_URL === 'undefined' || typeof BuyerAuth === 'undefined' || typeof BuyerAPI === 'undefined') {
+      document.getElementById('state-loading').style.display = 'none';
+      document.getElementById('state-error').style.display   = 'block';
+      document.getElementById('error-msg').textContent = 'Configuration error. Please contact support.';
+      throw new Error('Buyer dependencies not loaded');
+    }
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let PAGE_DATA         = null;
+    let CATALOGUE_INTENT  = 'sample_only';
+    let AVAILABLE_INTENTS = [];
+    let INTENT_CONFIRMED  = false;
+    let IMPERSONATED      = false;
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function esc(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function showState(name) {
+      ['loading','gate','disabled','error','form','success'].forEach(function(s) {
+        const el = document.getElementById('state-' + s);
+        if (el) el.style.display = (s === name) ? 'block' : 'none';
+      });
+    }
+    function toast(msg, isError) {
+      const el = document.createElement('div');
+      el.className   = 'st-toast' + (isError ? ' st-toast--error' : '');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function() { el.remove(); }, 3500);
+    }
+    function btnLabel(mode) {
+      if (mode === 'reserve')            return 'RESERVE BAGS';
+      if (mode === 'reserve_and_sample') return 'RESERVE BAGS + REQUEST SAMPLES';
+      return 'REQUEST SAMPLES';
+    }
+
+    // ── Intent ────────────────────────────────────────────────────────────────
+    function buildAvailableIntents(hasAvailableLots) {
+      const intents = [{
+        id: 'sample_only', title: 'Request Samples Only',
+        desc: 'Receive physical samples to taste. No bags reserved — no commitment.'
+      }];
+      if (hasAvailableLots) {
+        intents.push({ id: 'reserve', title: 'Reserve Bags',
+          desc: 'Enter quantities to hold your allocation at your agreed price. No payment now.' });
+        intents.push({ id: 'reserve_and_sample', title: 'Reserve Bags + Request Samples',
+          desc: 'Hold your allocation and receive physical samples alongside your order.' });
+      }
+      return intents;
+    }
+    function renderIntentCards() {
+      const container = document.getElementById('intent-cards-full');
+      container.innerHTML = '';
+      AVAILABLE_INTENTS.forEach(function(intent) {
+        const card = document.createElement('div');
+        card.className = 'intent-card-full';
+        card.innerHTML =
+          '<div class="intent-card-radio"></div><div>' +
+          '<div class="intent-card-title">' + esc(intent.title) + '</div>' +
+          '<div class="intent-card-desc">'  + esc(intent.desc)  + '</div></div>';
+        card.addEventListener('click', (function(id){ return function(){ selectIntent(id); }; })(intent.id));
+        container.appendChild(card);
+      });
+    }
+    function renderStripPills() {
+      const container = document.getElementById('strip-pills');
+      container.innerHTML = '';
+      AVAILABLE_INTENTS.forEach(function(intent) {
+        const pill = document.createElement('button');
+        pill.className   = 'strip-pill' + (intent.id === CATALOGUE_INTENT ? ' active' : '');
+        pill.textContent = intent.id === CATALOGUE_INTENT ? '✓ ' + intent.title : intent.title;
+        pill.addEventListener('click', (function(id){ return function(){ selectIntent(id); }; })(intent.id));
+        container.appendChild(pill);
+      });
+    }
+    function selectIntent(mode) {
+      const firstSelection = !INTENT_CONFIRMED;
+      CATALOGUE_INTENT = mode;
+      INTENT_CONFIRMED = true;
+      if (firstSelection) {
+        document.getElementById('intent-cards-full').style.display = 'none';
+        document.getElementById('intent-strip').style.display      = '';
+      }
+      renderStripPills();
+      if (mode === 'sample_only') document.body.classList.add('mode-sample');
+      else document.body.classList.remove('mode-sample');
+      const btn     = document.getElementById('btn-submit');
+      const checked = document.querySelectorAll('.lot-checkbox:checked').length;
+      btn.disabled = checked === 0;
+      if (checked > 0) btn.textContent = btnLabel(mode);
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    function renderForm() {
+      document.getElementById('form-title').textContent =
+        'Live Catalogue — ' + esc(PAGE_DATA.buyer_company || '');
+      document.getElementById('form-sub').textContent =
+        'All available coffees in your warehouse. Choose what you\'d like to do, then select the lots you\'re interested in.';
+      document.getElementById('info-warehouse').textContent = PAGE_DATA.warehouse_name || '—';
+      document.getElementById('info-company').textContent   = PAGE_DATA.buyer_company  || '—';
+
+      const beansSel = document.getElementById('sel-beans');
+      (PAGE_DATA.beans_options || ['NO Sample','Green Sample','Roasted Sample']).forEach(function(b) {
+        const opt = document.createElement('option');
+        opt.value = b; opt.textContent = b;
+        beansSel.appendChild(opt);
+      });
+
+      const lots = PAGE_DATA.lots || [];
+      const hasAvailableLots = lots.some(function(l) { return (l.available_bags || 0) > 0; });
+      AVAILABLE_INTENTS = buildAvailableIntents(hasAvailableLots);
+      renderIntentCards();
+      renderLots();
+    }
+    function renderLots() {
+      const listEl = document.getElementById('lot-list');
+      const lots   = PAGE_DATA.lots || [];
+      if (!lots.length) {
+        listEl.innerHTML = '<div class="no-lots">No coffees are currently available in your warehouse. Please check back soon.</div>';
+        return;
+      }
+      listEl.innerHTML = '';
+      lots.forEach(function(lot) {
+        const priceStr = lot.sale_price
+          ? '$' + parseFloat(lot.sale_price).toFixed(2) + ' / ' + (lot.sale_price_unit || 'kg')
+          : '—';
+        const bagSize = lot.bag_size ? lot.bag_size + ' kg' : '—';
+        const avail   = (lot.available_bags !== null && lot.available_bags !== undefined)
+          ? lot.available_bags + ' bags' : '—';
+
+        const reserveRowHtml =
+          '<div class="lot-reserve-row">' +
+            '<span class="lot-reserve-label">Reserve Bags</span>' +
+            '<input type="text" inputmode="numeric" pattern="[0-9]*" class="lot-reserve-input" ' +
+              'id="reserve-' + esc(lot.detail_id) + '" placeholder="0" ' +
+              'data-max="' + (lot.available_bags || 0) + '" oninput="onReserveInput(this)" ' +
+              'title="Max ' + (lot.available_bags || 0) + ' bags available" />' +
+            '<span class="lot-reserve-hint">Optional — enter a quantity to reserve bags now. Max: <strong>' +
+              (lot.available_bags || 0) + ' bags</strong>.</span>' +
+          '</div>';
+
+        const card = document.createElement('div');
+        card.className  = 'lot-card';
+        card.dataset.id = lot.detail_id;
+        card.innerHTML  =
+          '<div class="lot-card-header">' +
+            '<input type="checkbox" class="lot-checkbox" id="lot-cb-' + esc(lot.detail_id) + '" ' +
+              'value="' + esc(lot.detail_id) + '" onchange="onLotCheck()" />' +
+            '<span class="lot-sample-id">' + esc(lot.sample_id) + '</span>' +
+            '<span class="lot-name">' + esc(lot.sample_name) + '</span>' +
+          '</div>' +
+          '<div class="lot-body">' +
+            '<div class="lot-stat"><div class="lot-stat-label">Available</div><div class="lot-stat-value">' + esc(avail) + '</div></div>' +
+            '<div class="lot-stat"><div class="lot-stat-label">Bag Size</div><div class="lot-stat-value">' + esc(bagSize) + '</div></div>' +
+            '<div class="lot-stat"><div class="lot-stat-label">Your Price</div><div class="lot-stat-value price">' + esc(priceStr) + '</div></div>' +
+          '</div>' + reserveRowHtml;
+
+        card.querySelector('.lot-card-header').addEventListener('click', function(e) {
+          if (e.target.type === 'checkbox') return;
+          const cb = card.querySelector('.lot-checkbox');
+          cb.checked = !cb.checked;
+          onLotCheck();
+        });
+        listEl.appendChild(card);
+      });
+    }
+
+    function onReserveInput(inp) {
+      const row  = inp.closest('.lot-reserve-row');
+      const hint = row ? row.querySelector('.lot-reserve-hint') : null;
+      const max  = parseInt(inp.dataset.max) || 0;
+      const stripped = inp.value.replace(/[^0-9]/g, '');
+      if (inp.value !== stripped) inp.value = stripped;
+      if (stripped === '') {
+        inp.classList.remove('input-error');
+        if (hint) { hint.classList.remove('hint-error'); hint.textContent = 'Optional — enter a quantity to reserve bags now. Max: ' + max + ' bags.'; }
+        return;
+      }
+      const parsed = parseInt(stripped, 10);
+      if (parsed > max) {
+        inp.value = String(max); inp.classList.add('input-error');
+        if (hint) { hint.classList.add('hint-error'); hint.textContent = 'Only ' + max + ' bag' + (max === 1 ? '' : 's') + ' available — value reduced.'; }
+        return;
+      }
+      if (parsed === 0) {
+        inp.classList.add('input-error');
+        if (hint) { hint.classList.add('hint-error'); hint.textContent = 'Enter at least 1 bag, or leave blank.'; }
+        return;
+      }
+      inp.classList.remove('input-error');
+      if (hint) { hint.classList.remove('hint-error'); hint.textContent = 'Reserving ' + parsed + ' bag' + (parsed === 1 ? '' : 's') + ' (max ' + max + ').'; }
+    }
+
+    function onLotCheck() {
+      const checked = document.querySelectorAll('.lot-checkbox:checked');
+      document.querySelectorAll('.lot-card').forEach(function(card) {
+        const cb = card.querySelector('.lot-checkbox');
+        card.classList.toggle('selected', cb && cb.checked);
+        if (cb && !cb.checked) {
+          const inp = card.querySelector('.lot-reserve-input');
+          if (inp) inp.value = '';
+        }
+      });
+      document.getElementById('selected-count').textContent = checked.length ? checked.length + ' selected' : '';
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = checked.length === 0;
+      if (checked.length > 0) btn.textContent = btnLabel(CATALOGUE_INTENT);
+    }
+
+    // ── Submit — one API call: submitLiveCatalogue ────────────────────────────
+    document.getElementById('btn-submit').addEventListener('click', async function() {
+      const selectedIds = Array.from(document.querySelectorAll('.lot-checkbox:checked')).map(function(cb){ return cb.value; });
+      const beans  = document.getElementById('sel-beans').value;
+      const notes  = document.getElementById('sel-notes').value.trim();
+      const intent = CATALOGUE_INTENT;
+
+      if (!selectedIds.length) { toast('Select at least one lot.', true); return; }
+      if (!beans)              { toast('Please select a beans type.', true); return; }
+
+      const bags_to_reserve = {};
+      let reserveError = null;
+      if (intent !== 'sample_only') {
+        selectedIds.forEach(function(dId) {
+          const inp = document.getElementById('reserve-' + dId);
+          if (!inp) return;
+          const raw = inp.value.trim();
+          if (raw === '' || raw === '0') return;
+          const qty = parseInt(raw);
+          if (isNaN(qty) || qty <= 0) return;
+          const max = parseInt(inp.dataset.max) || 0;
+          if (qty > max) {
+            const lot = (PAGE_DATA.lots || []).find(function(l){ return String(l.detail_id) === String(dId); });
+            reserveError = '"' + (lot ? lot.sample_name : dId) + '": only ' + max + ' bag' + (max === 1 ? '' : 's') + ' available.';
+            return;
+          }
+          bags_to_reserve[dId] = qty;
+        });
+        if (reserveError) { toast(reserveError, true); return; }
+        if (intent === 'reserve' && Object.keys(bags_to_reserve).length === 0) {
+          toast('Please enter a bag quantity for at least one lot, or choose "Request Samples Only".', true);
+          return;
+        }
+      }
+
+      const hasReservations = Object.keys(bags_to_reserve).length > 0;
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true; btn.textContent = 'SUBMITTING…';
+
+      try {
+        const result = await BuyerAPI.submitLiveCatalogue({
+          selected_detail_ids: selectedIds,
+          bags_to_reserve:     bags_to_reserve,
+          beans:               beans,
+          notes:               notes,
+          intent:              intent
+        });
+        const titleMap = {
+          reserve:            'Reservation Submitted',
+          reserve_and_sample: 'Reservation & Sample Request Submitted',
+          sample_only:        'Sample Request Submitted'
+        };
+        document.getElementById('success-title').textContent = titleMap[intent] || 'Request Submitted';
+        let html = 'Thank you, <strong>' + esc(PAGE_DATA.buyer_name || PAGE_DATA.buyer_company) + '</strong>.<br><br>' +
+          'We have received your request for <strong>' + result.lot_count + ' lot' +
+          (result.lot_count === 1 ? '' : 's') + '</strong>.<br>';
+        if (hasReservations) {
+          html += '<strong>' + result.reserved_lot_count + ' lot' +
+            (result.reserved_lot_count === 1 ? '' : 's') + '</strong> flagged for reservation — our team will confirm shortly.<br>';
+        } else {
+          html += 'Our team will be in touch shortly to confirm and arrange dispatch.<br>';
+        }
+        html += '<br><span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted)">Reference: Outbound #' + result.outbound_id + '</span>';
+        document.getElementById('success-detail').innerHTML = html;
+        showState('success');
+      } catch (err) {
+        const code = (err.code || '') + ' ' + (err.message || '');
+        if (code.indexOf('UNAUTHORIZED') !== -1 || code.indexOf('SESSION_EXPIRED') !== -1) {
+          BuyerAuth.clearSession();
+          redirectToLogin();
+          return;
+        }
+        toast(err.message || 'Submission failed. Please try again.', true);
+        btn.disabled = false; btn.textContent = btnLabel(intent);
+      }
+    });
+
+    // ── Auth shell ────────────────────────────────────────────────────────────
+    function redirectToLogin() {
+      showState('gate');
+      setTimeout(function() {
+        // Live catalogue has no login form of its own — login lives on the dashboard.
+        window.location.href = 'buyer-dashboard.html';
+      }, 1400);
+    }
+
+    function renderTopbar() {
+      const buyer = BuyerAuth.getBuyer() || {};
+      document.getElementById('topbar').style.display = 'flex';
+      document.getElementById('nav-buyer').textContent = buyer.company_name || '';
+      if (IMPERSONATED) {
+        document.getElementById('impersonate-bar').classList.add('show');
+        document.getElementById('btn-logout').style.display = 'none';
+      } else {
+        document.getElementById('btn-logout').style.display = 'inline';
+      }
+    }
+
+    document.getElementById('btn-logout').onclick = async function() {
+      try { await BuyerAPI.logout(); } catch (e) {}
+      BuyerAuth.clearSession();
+      window.location.href = 'buyer-dashboard.html';
+    };
+    document.getElementById('impersonate-close').onclick = function(e) {
+      e.preventDefault();
+      window.close();
+    };
+
+    // ── Init — one API call: getLiveCatalogue ─────────────────────────────────
+    (async function init() {
+      showState('loading');
+
+      // Impersonation: ?impersonate=TOKEN redeems a staff-issued session (same as dashboard).
+      const urlParams = new URLSearchParams(window.location.search);
+      const impToken  = urlParams.get('impersonate');
+      if (impToken) {
+        history.replaceState(null, '', window.location.pathname);
+        try {
+          const data = await BuyerAPI.post({ action: 'redeemImpersonateToken', impersonate_token: impToken });
+          BuyerAuth.setSession(data.session_token, data.buyer);
+          IMPERSONATED = true;
+        } catch (e) {
+          redirectToLogin();
+          return;
+        }
+      }
+
+      if (!BuyerAuth.isLoggedIn()) { redirectToLogin(); return; }
+
+      renderTopbar();
+
+      try {
+        PAGE_DATA = await BuyerAPI.getLiveCatalogue();
+      } catch (err) {
+        const code = (err.code || '') + ' ' + (err.message || '');
+        if (code.indexOf('UNAUTHORIZED') !== -1 || code.indexOf('SESSION_EXPIRED') !== -1) {
+          BuyerAuth.clearSession();
+          redirectToLogin();
+          return;
+        }
+        document.getElementById('error-msg').textContent = err.message || 'Unable to load the live catalogue.';
+        showState('error');
+        return;
+      }
+
+      if (!PAGE_DATA || PAGE_DATA.enabled === false) {
+        showState('disabled');
+        return;
+      }
+
+      renderForm();
+      showState('form');
+    })();
+  </script>
+</body>
+</html>

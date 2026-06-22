@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- Version 1.16 | buyer-dashboard.html -->
-<!-- v1.16: FRACTIONAL BAGS on buyer drawdown — bags input now text/inputmode=decimal (was type=number min=1, which blocked 0.5); all bag reads/validations/max parseInt→parseFloat with 0.0001 tolerance; added kg/lb helper (ddWeightToBags) mirroring the staff page; totals display via fmtBags. Fixes "0.5 rejected as 0" + adds weight-entry. -->
+<!-- v1.16: Live Catalogue nav link (→ buyer-live-catalogue.html). Shown once logged in;
+            the live catalogue page itself gates access per buyer.live_catalogue_enabled. -->
 <!-- v1.15: Restored multi-product Request Delivery — repeatable line blocks (+ Add Product,
      × Remove), per-line product picker + bags, duplicate guard. Submits lines[] (the shape
      the server requires; the old single-line submit was failing against the current backend).
@@ -226,6 +227,8 @@
 <nav class="nav">
   <span class="nav-brand">Order Portal</span>
   <div class="nav-right">
+    <a class="nav-buyer" id="nav-live-catalogue" href="buyer-live-catalogue.html"
+       style="display:none;text-decoration:none;color:var(--accent);border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.6rem;letter-spacing:0.04em">Live Catalogue →</a>
     <span class="nav-buyer" id="nav-buyer"></span>
     <button class="btn-logout" id="btn-nav-logout" style="display:none">Sign out</button>
   </div>
@@ -395,6 +398,8 @@ function showLogin() {
   document.getElementById('dashboard-screen').style.display = 'none';
   document.getElementById('btn-nav-logout').style.display   = 'none';
   document.getElementById('nav-buyer').textContent          = '';
+  var lcLink0 = document.getElementById('nav-live-catalogue');  // v1.16
+  if (lcLink0) lcLink0.style.display = 'none';
 }
 
 // v1.8: if the nav switcher isn't shown but this email may have >1 company, ask the
@@ -445,6 +450,9 @@ function showDashboard() {
       : 'Welcome back, ' + (buyer.contact_person || buyer.company_name) + '.';
   }
   ensureCompanySwitcher();  // v1.8: show switcher even if stored buyer lacks company_count
+  // v1.16: reveal Live Catalogue link once logged in (page itself gates access).
+  var lcLink = document.getElementById('nav-live-catalogue');
+  if (lcLink) lcLink.style.display = 'inline-block';
   // v1.4: show impersonation banner; hide logout for impersonated sessions
   if (IMPERSONATED) {
     document.getElementById('impersonate-bar').classList.add('show');
@@ -670,7 +678,7 @@ function buildDrawdownHistory(contractLines, contractDrawdowns) {
         // v1.11: per-bin rows removed — breakdown shows per-line product + bags only.
         return '<div class="dd-bl-line">' +
           '<span class="dd-bl-name">' + esc(name) + '</span> ' +
-          '<span class="dd-bl-total">· ' + fmtBags(lineBags) + ' bag' + (lineBags === 1 ? '' : 's') + '</span>' +
+          '<span class="dd-bl-total">· ' + lineBags + ' bag' + (lineBags === 1 ? '' : 's') + '</span>' +
           '</div>';
       }).join('') + '</div>';
     }
@@ -678,7 +686,7 @@ function buildDrawdownHistory(contractLines, contractDrawdowns) {
     return '<div class="dd-row">' +
       '<span class="badge badge-' + statusKey + '">' + esc(d.status) + '</span>' +
       (d.drawdown_number ? '<span class="dd-ref">' + esc(d.drawdown_number) + '</span>' : '') +
-      '<span class="dd-bags">' + fmtBags(totalBags) + ' bag' + (totalBags === 1 ? '' : 's') + '</span>' +
+      '<span class="dd-bags">' + totalBags + ' bag' + (totalBags === 1 ? '' : 's') + '</span>' +
       '<span>' + esc(sampleLabel) + '</span>' +
       (d.shipping_date ? '<span>' + fmtDate(d.shipping_date) + '</span>' : '') +
       (d.notes ? '<span style="color:var(--faint)">' + esc(d.notes) + '</span>' : '') +
@@ -806,7 +814,7 @@ function openDrawdownModal(contractId, preLineId, available, bagSize, bagSizeUni
     return avail > 0;
   });
 
-  ddAddLineBlock(preLineId, parseFloat(available) || 0, bagSize, bagSizeUnit, sampleName);
+  ddAddLineBlock(preLineId, parseInt(available) || 0, bagSize, bagSizeUnit, sampleName);
   document.getElementById('btn-dd-add-line').disabled = ddContractLines.length <= 1;
   document.getElementById('modal-drawdown').classList.add('open');
 }
@@ -829,29 +837,9 @@ function ddBuildLineSelect(excludeIds, selectedId) {
       }).join('');
 }
 
-// v1.16: fractional bags — display helper (4dp, trailing zeros trimmed)
-function fmtBags(n) { return String(Math.round((parseFloat(n)||0) * 10000) / 10000); }
-
-// v1.16: kg/lb → bags helper, mirrors the staff drawdown page. Reads the line's
-// stored bag_size, divides the entered weight, writes the result into the bags input
-// and the line state. No-ops if no product/bag size is selected yet.
-function ddWeightToBags(idx, rawWeight) {
-  const st = ddLineState[idx];
-  if (!st) return;
-  const wt   = parseFloat(rawWeight);
-  const size = parseFloat(st.bag_size);
-  if (!isFinite(wt) || !isFinite(size) || size <= 0) return;  // pick a product first
-  const bags  = Math.round((wt / size) * 10000) / 10000;
-  const block = document.querySelector('.dd-line-block[data-idx="' + idx + '"]');
-  const input = block ? block.querySelector('.dd-bags-input') : null;
-  if (input) input.value = bags;
-  st.bags = bags;
-  if (typeof ddUpdateAddBtn === 'function') ddUpdateAddBtn();
-}
-
 function ddAddLineBlock(preLineId, preAvailable, preBagSize, preBagSizeUnit, preSampleName) {
   const idx = ddLineCount++;
-  ddLineState.push({ contract_line_id: String(preLineId || ''), bags: 0, bag_size: parseFloat(preBagSize) || 0, available: parseFloat(preAvailable) || 0 });
+  ddLineState.push({ contract_line_id: String(preLineId || ''), bags: 0 });
 
   const wrap = document.getElementById('dd-lines-wrap');
   const block = document.createElement('div');
@@ -873,15 +861,13 @@ function ddAddLineBlock(preLineId, preAvailable, preBagSize, preBagSizeUnit, pre
     '<div style="margin-bottom:0.4rem">' +
       '<select class="dd-line-sel" data-idx="' + idx + '" style="width:100%;margin-bottom:0.4rem">' + selectHtml + '</select>' +
     '</div>' +
-    '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">' +
+    '<div style="display:flex;gap:0.5rem;align-items:center">' +
       '<label style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);white-space:nowrap">' +
         'Bags <span style="color:var(--accent);font-size:0.65rem" id="dd-avail-' + idx + '">' +
-        (avail ? '(max ' + fmtBags(avail) + bagInfo + ')' : '') + '</span></label>' +
-      '<input type="text" inputmode="decimal" class="dd-bags-input" data-idx="' + idx + '"' +
+        (avail ? '(max ' + avail + bagInfo + ')' : '') + '</span></label>' +
+      '<input type="number" class="dd-bags-input" data-idx="' + idx + '" min="1"' +
+        (avail ? ' max="' + avail + '"' : '') +
         ' placeholder="0" style="width:90px;font-family:var(--font-mono);font-size:0.78rem;padding:0.35rem 0.5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg)" />' +
-      '<input type="text" inputmode="decimal" class="dd-wt-input" data-idx="' + idx + '"' +
-        ' placeholder="or kg/lb" title="Enter weight to auto-fill bags" oninput="ddWeightToBags(' + idx + ', this.value)"' +
-        ' style="width:90px;font-size:0.7rem;opacity:0.85;padding:0.35rem 0.5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg)" />' +
     '</div>';
 
   wrap.appendChild(block);
@@ -889,26 +875,22 @@ function ddAddLineBlock(preLineId, preAvailable, preBagSize, preBagSizeUnit, pre
   const sel = block.querySelector('.dd-line-sel');
   sel.onchange = function() {
     const opt   = sel.options[sel.selectedIndex];
-    const a     = opt && opt.dataset.available ? parseFloat(opt.dataset.available) : 0;
+    const a     = opt && opt.dataset.available ? parseInt(opt.dataset.available) : 0;
     const bsize = opt ? (opt.dataset.bagsize || '') : '';
     const bunit = opt ? (opt.dataset.bagunit || 'kg') : 'kg';
     const info  = bsize ? ' · ' + bsize + ' ' + bunit + '/bag' : '';
-    if (ddLineState[idx]) {
-      ddLineState[idx].contract_line_id = sel.value;
-      ddLineState[idx].bag_size = parseFloat(bsize) || 0;   // for kg/lb helper
-      ddLineState[idx].available = a;
-    }
+    if (ddLineState[idx]) ddLineState[idx].contract_line_id = sel.value;
     const hintEl = document.getElementById('dd-avail-' + idx);
     const input  = block.querySelector('.dd-bags-input');
-    if (hintEl) hintEl.textContent = a ? '(max ' + fmtBags(a) + info + ')' : '';
-    if (input)  { input.value = ''; }
+    if (hintEl) hintEl.textContent = a ? '(max ' + a + info + ')' : '';
+    if (input)  { input.max = a || ''; input.value = ''; }
     ddUpdateAddBtn();
   };
 
   const bagsInput = block.querySelector('.dd-bags-input');
   if (bagsInput) {
     bagsInput.oninput = function() {
-      if (ddLineState[idx]) ddLineState[idx].bags = parseFloat(this.value) || 0;
+      if (ddLineState[idx]) ddLineState[idx].bags = parseInt(this.value) || 0;
     };
   }
 
@@ -967,8 +949,7 @@ document.getElementById('btn-dd-submit').onclick = async function() {
     if (!valid) return;
     const sel   = block.querySelector('.dd-line-sel');
     const input = block.querySelector('.dd-bags-input');
-    const idx   = parseInt(block.dataset.idx);
-    const bags  = parseFloat(input ? input.value : '0');
+    const bags  = parseInt(input ? input.value : '0');
     const lineId = sel ? sel.value : '';
 
     if (!lineId) {
@@ -979,9 +960,9 @@ document.getElementById('btn-dd-submit').onclick = async function() {
       showAlert('dd-error', 'Product ' + (i + 1) + ': Bags must be greater than zero.', 'error');
       valid = false; return;
     }
-    const max = (ddLineState[idx] && ddLineState[idx].available) ? parseFloat(ddLineState[idx].available) : 0;
-    if (max && bags > max + 0.0001) {
-      showAlert('dd-error', 'Product ' + (i + 1) + ': Requested bags (' + fmtBags(bags) + ') exceed available (' + fmtBags(max) + ').', 'error');
+    const max = parseInt(input ? input.max : '0') || 0;
+    if (max && bags > max) {
+      showAlert('dd-error', 'Product ' + (i + 1) + ': Requested bags (' + bags + ') exceed available (' + max + ').', 'error');
       valid = false; return;
     }
     lines.push({ contract_line_id: lineId, requested_bags: bags });

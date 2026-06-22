@@ -1,5 +1,11 @@
 <!DOCTYPE html>
-<!-- Version 1.16 | all-samples.html -->
+<!-- Version 1.18 | all-samples.html -->
+<!-- v1.18: PDF export of filtered results — column show/hide toggles, custom large title,
+            custom multi-line note. Native print-to-PDF (window.print + @media print), no
+            external library, no extra API call (uses the current filtered rows). -->
+<!-- v1.17: Buyer-preview filter. Staff pick a live-catalogue-enabled buyer (dropdown narrowed
+            to the selected warehouse) to see exactly what that buyer sees — their warehouse,
+            available>0, active lots — plus that buyer's level price in a Buyer Price column. -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -101,6 +107,41 @@
     .st-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.8rem; padding: 0.75rem 1.25rem; z-index: 9999; box-shadow: 0 2px 8px rgba(0,0,0,0.08); animation: fadeIn 0.2s ease; }
     .st-toast--error { border-color: #f5c6c6; color: #a32d2d; background: #fdf0ee; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+    /* ── PDF export (v1.18) ────────────────────────────────────────────────── */
+    .pdf-modal-overlay { position: fixed; inset: 0; background: rgba(26,26,26,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .pdf-modal-overlay.open { display: flex; }
+    .pdf-modal { background: #fff; border: 1px solid var(--border); border-radius: 10px; width: 520px; max-width: 92vw; max-height: 88vh; overflow-y: auto; padding: 1.5rem; }
+    .pdf-modal h3 { font-family: var(--font-mono); font-size: 1rem; margin-bottom: 1rem; }
+    .pdf-field { margin-bottom: 1rem; }
+    .pdf-field label { display: block; font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .pdf-field input[type=text], .pdf-field textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius, 6px); padding: 0.55rem 0.75rem; font-family: var(--font-sans); font-size: 0.85rem; outline: none; }
+    .pdf-field input[type=text]:focus, .pdf-field textarea:focus { border-color: var(--accent); }
+    .pdf-field textarea { resize: vertical; line-height: 1.5; }
+    .pdf-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem 1rem; }
+    .pdf-col-row { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.74rem; cursor: pointer; }
+    .pdf-col-row input { accent-color: var(--accent); width: 14px; height: 14px; }
+    .pdf-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem; }
+
+    /* Print area — hidden on screen, the only thing shown when printing. */
+    #pdf-print-area { display: none; }
+    @media print {
+      html, body { height: auto; overflow: visible; background: #fff; }
+      body > *:not(#pdf-print-area) { display: none !important; }
+      #pdf-print-area {
+        display: block !important; position: static; width: 100%;
+        background: #fff; padding: 32px 36px; color: #1a1a1a;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      .pdf-doc-title { font-size: 24px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
+      .pdf-doc-note { font-size: 11px; line-height: 1.55; color: #333; white-space: pre-wrap; margin-bottom: 16px; }
+      .pdf-doc-meta { font-family: monospace; font-size: 9px; color: #8a7060; border-bottom: 2px solid #c47a2b; padding-bottom: 10px; margin-bottom: 16px; }
+      .pdf-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+      .pdf-table th { font-family: monospace; font-size: 8px; letter-spacing: 0.05em; text-transform: uppercase; color: #8a7060; text-align: left; padding: 6px 7px; border-bottom: 1.5px solid #e8ddd0; background: #fdf8f2; }
+      .pdf-table td { padding: 5px 7px; border-bottom: 1px solid #f0e8da; vertical-align: top; }
+      .pdf-table tr { page-break-inside: avoid; }
+      .pdf-foot { margin-top: 18px; font-family: monospace; font-size: 8px; color: #8a7060; display: flex; justify-content: space-between; border-top: 1px solid #f0e8da; padding-top: 8px; }
+      @page { margin: 14mm; }
+    }
   </style>
 </head>
 <body>
@@ -131,6 +172,7 @@
 
         <div class="toolbar">
           <select id="filter-warehouse"><option value="">All Warehouses</option></select>
+          <select id="filter-buyer" title="Preview what a buyer sees in their live catalogue"><option value="">— Preview as Buyer —</option></select>
           <select id="filter-coffee-type"><option value="">All Types</option></select>
           <select id="filter-eval">
             <option value="">All Evaluations</option>
@@ -145,6 +187,7 @@
           </select>
           <input type="text" id="filter-search" placeholder="Search ID, name, origin code…" style="min-width:190px" />
           <span class="toolbar-spacer"></span>
+          <button class="btn btn-ghost btn-sm" id="btn-export-pdf" title="Generate a PDF of the current filtered results">⎙ Export PDF</button>
           <span id="result-count" style="font-size:0.8rem;color:var(--muted)"></span>
         </div>
 
@@ -159,13 +202,14 @@
                 <th data-col="coffee_type">Type</th>
                 <th data-col="available_bags">Bags</th>
                 <th data-col="buyer_available">Avail Now</th>
+                <th data-col="buyer_price">Buyer Price</th>
                 <th data-col="sample_type">Sample Type</th>
                 <th data-col="supplier">Supplier</th>
                 <th data-col="eval_status">Evaluation</th>
               </tr>
             </thead>
             <tbody id="all-samples-tbody">
-              <tr><td colspan="10" class="st-empty"><div class="st-spinner"></div></td></tr>
+              <tr><td colspan="11" class="st-empty"><div class="st-spinner"></div></td></tr>
             </tbody>
           </table>
           <div class="pagination-bar">
@@ -199,6 +243,32 @@
     </div>
   </div>
 
+  <!-- v1.18: PDF export modal (placed before scripts so its elements exist when the script binds) -->
+  <div class="pdf-modal-overlay" id="pdf-modal">
+    <div class="pdf-modal">
+      <h3>Export PDF</h3>
+      <div class="pdf-field">
+        <label for="pdf-title">Title (large)</label>
+        <input type="text" id="pdf-title" placeholder="e.g. Available Coffees — Allpress Espresso NZ" />
+      </div>
+      <div class="pdf-field">
+        <label for="pdf-note">Note / Intro (optional, multi-line)</label>
+        <textarea id="pdf-note" rows="4" placeholder="Add any context, terms, or a message for the recipient…"></textarea>
+      </div>
+      <div class="pdf-field">
+        <label>Columns to include</label>
+        <div class="pdf-cols" id="pdf-cols"></div>
+      </div>
+      <div class="pdf-modal-actions">
+        <button class="btn btn-ghost btn-sm" id="pdf-cancel">Cancel</button>
+        <button class="btn btn-sm" id="pdf-generate">Generate PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.18: hidden print target — populated on Generate, shown only during window.print() -->
+  <div id="pdf-print-area"></div>
+
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
@@ -211,9 +281,11 @@
     let currentPage      = 1;
     let sortCol          = 'detail_id';
     let sortDir          = 'desc';
-    let PAGE_DATA        = { details: [], inboundMap: {}, suppliers: [], warehouses: [], coffeeTypes: [] };
+    let PAGE_DATA        = { details: [], inboundMap: {}, suppliers: [], warehouses: [], coffeeTypes: [], buyers: [], prices: [] };
     let filtered         = [];
     let selectedDetailId = null;
+    let selectedBuyer    = null;   // v1.17: {buyer_id, company_name, warehouse_id, buyer_level} or null
+    let priceMap         = {};     // v1.17: priceMap[detail_id][level] = {sale_price, sale_price_unit}
 
     // ── Init ──────────────────────────────────────────────────────────────────
     (async () => {
@@ -235,7 +307,14 @@
 
       await loadData(null);
 
-      filterWH.addEventListener('change',                                    () => loadData(filterWH.value || null));
+      filterWH.addEventListener('change', () => {
+        // v1.17: warehouse change reloads data AND repopulates the buyer dropdown (buyers are
+        // narrowed to the selected warehouse). Reset any active buyer preview first.
+        selectedBuyer = null;
+        document.getElementById('filter-buyer').value = '';
+        loadData(filterWH.value || null);
+      });
+      document.getElementById('filter-buyer').addEventListener('change', onBuyerChange);
       document.getElementById('filter-coffee-type').addEventListener('change', applyFilters);
       document.getElementById('filter-eval').addEventListener('change',        applyFilters);
       document.getElementById('filter-active').addEventListener('change',      applyFilters);
@@ -274,11 +353,54 @@
           const o = document.createElement('option'); o.value = t; o.textContent = t;
           ctSel.appendChild(o);
         });
+
+        // v1.17: index prices by detail_id → level for fast buyer-level lookup.
+        priceMap = {};
+        (PAGE_DATA.prices || []).forEach(p => {
+          const id = String(p.detail_id);
+          if (!priceMap[id]) priceMap[id] = {};
+          priceMap[id][p.level] = { sale_price: p.sale_price, sale_price_unit: p.sale_price_unit };
+        });
+
+        // v1.17: populate the buyer-preview dropdown, narrowed to the selected warehouse.
+        populateBuyerDropdown(warehouseId);
+
         applyFilters();
       } catch (err) {
         document.getElementById('all-samples-tbody').innerHTML =
-          '<tr><td colspan="10" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+          '<tr><td colspan="11" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
+    }
+
+    // ── Buyer preview (v1.17) ─────────────────────────────────────────────────
+    // Dropdown lists live-catalogue-enabled buyers, narrowed to the selected warehouse.
+    function populateBuyerDropdown(warehouseId) {
+      const sel = document.getElementById('filter-buyer');
+      sel.innerHTML = '<option value="">— Preview as Buyer —</option>';
+      let list = PAGE_DATA.buyers || [];
+      if (warehouseId) list = list.filter(b => String(b.warehouse_id) === String(warehouseId));
+      list.forEach(b => {
+        const o = document.createElement('option');
+        o.value = b.buyer_id;
+        o.textContent = b.company_name + (b.buyer_level ? ' (' + b.buyer_level + ')' : '');
+        sel.appendChild(o);
+      });
+      sel.disabled = list.length === 0;
+    }
+
+    function onBuyerChange() {
+      const id = document.getElementById('filter-buyer').value;
+      if (!id) { selectedBuyer = null; applyFilters(); return; }
+      selectedBuyer = (PAGE_DATA.buyers || []).find(b => String(b.buyer_id) === String(id)) || null;
+      applyFilters();
+    }
+
+    // Buyer-level price for a detail, mirroring the live catalogue (buyer's level only).
+    function buyerPriceFor(detailId) {
+      if (!selectedBuyer) return null;
+      const byLevel = priceMap[String(detailId)];
+      if (!byLevel) return null;
+      return byLevel[selectedBuyer.buyer_level] || null;
     }
 
     // ── Filter + Sort ─────────────────────────────────────────────────────────
@@ -315,9 +437,28 @@
         (d.supplier                  || '').toLowerCase().includes(search)
       );
 
+      // v1.17: buyer preview — show EXACTLY what the selected buyer sees in their live catalogue:
+      // their warehouse, active lots, buyer_available > 0. Also attach that buyer's level price.
+      if (selectedBuyer) {
+        rows = rows.filter(d => {
+          const inb = (PAGE_DATA.inboundMap || {})[d.inbound_id] || {};
+          const inWarehouse = String(inb.warehouse_id) === String(selectedBuyer.warehouse_id);
+          const isActive    = d.is_active !== false && d.is_active !== 'FALSE';
+          const avail       = Number(d.buyer_available) || 0;
+          return inWarehouse && isActive && avail > 0;
+        });
+        rows = rows.map(d => {
+          const bp = buyerPriceFor(d.detail_id);
+          return Object.assign({}, d, {
+            buyer_price:      bp ? bp.sale_price : null,
+            buyer_price_unit: bp ? bp.sale_price_unit : null
+          });
+        });
+      }
+
       rows.sort((a, b) => {
         let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
-        if (sortCol === 'detail_id' || sortCol === 'available_bags' || sortCol === 'buyer_available') {
+        if (sortCol === 'detail_id' || sortCol === 'available_bags' || sortCol === 'buyer_available' || sortCol === 'buyer_price') {
           av = Number(av) || 0; bv = Number(bv) || 0;
           return sortDir === 'asc' ? av - bv : bv - av;
         }
@@ -354,7 +495,7 @@
 
       tbody.innerHTML = '';
       if (!pageRows.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="st-empty">No samples found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="st-empty">No samples found.</td></tr>';
         return;
       }
 
@@ -371,6 +512,7 @@
           '<td>' + (d.coffee_type ? '<span class="badge badge-type">' + UI.esc(d.coffee_type) + '</span>' : '<span style="color:var(--muted)">—</span>') + '</td>' +
           '<td style="font-family:var(--font-mono)">' + (d.available_bags || '—') + '</td>' +
           '<td style="font-family:var(--font-mono);color:var(--accent);font-weight:500">' + (d.buyer_available !== undefined && d.buyer_available !== '' ? d.buyer_available : '—') + '</td>' +
+          '<td style="font-family:var(--font-mono)">' + (selectedBuyer ? (d.buyer_price !== null && d.buyer_price !== undefined ? '$' + Number(d.buyer_price).toFixed(2) + '/' + (d.buyer_price_unit || 'kg') : '<span style="color:var(--muted)">—</span>') : '<span style="color:var(--muted)">—</span>') + '</td>' +
           '<td style="font-size:0.78rem">' + UI.esc(d.sample_type || '—') + '</td>' +
           '<td>' + UI.esc(d.supplier || '—') + '</td>' +
           '<td>' + evalBadge(d.eval_status) + '</td>';
@@ -492,6 +634,106 @@
         btn.textContent = '✉ Send Evaluation to Supplier';
       }
     }
+    // ── PDF Export (v1.18) ────────────────────────────────────────────────────
+    // Native print-to-PDF (matches contracts.html). Builds a hidden print area from the
+    // CURRENT filtered rows (respects all filters incl. buyer preview), then window.print().
+    // No extra API call — all data is already in `filtered`.
+    // Column set mirrors the on-screen table; Buyer Price only meaningful when a buyer is selected.
+    var PDF_COLUMNS = [
+      { key: 'detail_id',         label: 'ID',          get: function(d){ return '#' + d.detail_id; } },
+      { key: 'sample_id',         label: 'Sample ID',   get: function(d){ return d.sample_id || '—'; } },
+      { key: 'sample_name',       label: 'Name',        get: function(d){ return d.sample_name || '—'; } },
+      { key: 'origin_sample_code',label: 'Origin Code', get: function(d){ return d.origin_sample_code || '—'; } },
+      { key: 'coffee_type',       label: 'Type',        get: function(d){ return d.coffee_type || '—'; } },
+      { key: 'available_bags',    label: 'Bags',        get: function(d){ return d.available_bags || '—'; } },
+      { key: 'buyer_available',   label: 'Avail Now',   get: function(d){ return (d.buyer_available !== undefined && d.buyer_available !== '') ? d.buyer_available : '—'; } },
+      { key: 'buyer_price',       label: 'Buyer Price', get: function(d){ return (d.buyer_price !== null && d.buyer_price !== undefined) ? '$' + Number(d.buyer_price).toFixed(2) + '/' + (d.buyer_price_unit || 'kg') : '—'; } },
+      { key: 'sample_type',       label: 'Sample Type', get: function(d){ return d.sample_type || '—'; } },
+      { key: 'supplier',          label: 'Supplier',    get: function(d){ return d.supplier || '—'; } },
+      { key: 'eval_status',       label: 'Evaluation',  get: function(d){ return d.eval_status || 'Pending'; } }
+    ];
+    // Default checked columns (omit the noisier ones; Buyer Price on only when previewing a buyer).
+    var PDF_DEFAULT_ON = ['sample_id','sample_name','origin_sample_code','coffee_type','buyer_available','buyer_price'];
+
+    function openPdfModal() {
+      // Build column toggles fresh each open so Buyer Price default reflects current preview.
+      var wrap = document.getElementById('pdf-cols');
+      wrap.innerHTML = '';
+      PDF_COLUMNS.forEach(function(col) {
+        var on = PDF_DEFAULT_ON.indexOf(col.key) !== -1;
+        if (col.key === 'buyer_price' && !selectedBuyer) on = false;  // no buyer → no price
+        var id = 'pdfcol-' + col.key;
+        var row = document.createElement('label');
+        row.className = 'pdf-col-row';
+        row.innerHTML = '<input type="checkbox" id="' + id + '" ' + (on ? 'checked' : '') + ' /> ' + col.label;
+        wrap.appendChild(row);
+      });
+      // Prefill a sensible default title.
+      var titleInput = document.getElementById('pdf-title');
+      if (!titleInput.value) {
+        titleInput.value = selectedBuyer
+          ? 'Available Coffees — ' + selectedBuyer.company_name
+          : 'Sample List';
+      }
+      document.getElementById('pdf-modal').classList.add('open');
+    }
+
+    function generatePdf() {
+      var title = (document.getElementById('pdf-title').value || '').trim();
+      var note  = (document.getElementById('pdf-note').value || '').trim();
+      var cols  = PDF_COLUMNS.filter(function(c) {
+        var cb = document.getElementById('pdfcol-' + c.key);
+        return cb && cb.checked;
+      });
+      if (!cols.length) { alert('Select at least one column.'); return; }
+
+      var company = Auth.getCompany();
+      var whName  = document.getElementById('filter-warehouse');
+      var whText  = whName.options[whName.selectedIndex] ? whName.options[whName.selectedIndex].textContent : 'All Warehouses';
+
+      var html = '';
+      if (title) html += '<div class="pdf-doc-title">' + UI.esc(title) + '</div>';
+      if (note)  html += '<div class="pdf-doc-note">' + UI.esc(note) + '</div>';
+      html += '<div class="pdf-doc-meta">' +
+                (company ? UI.esc(company.company_name) + ' &middot; ' : '') +
+                UI.esc(whText) +
+                (selectedBuyer ? ' &middot; Buyer: ' + UI.esc(selectedBuyer.company_name) + ' (' + UI.esc(selectedBuyer.buyer_level || '') + ')' : '') +
+                ' &middot; ' + filtered.length + ' sample' + (filtered.length !== 1 ? 's' : '') +
+              '</div>';
+
+      html += '<table class="pdf-table"><thead><tr>';
+      cols.forEach(function(c) { html += '<th>' + UI.esc(c.label) + '</th>'; });
+      html += '</tr></thead><tbody>';
+      filtered.forEach(function(d) {
+        html += '<tr>';
+        cols.forEach(function(c) { html += '<td>' + UI.esc(String(c.get(d))) + '</td>'; });
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+
+      html += '<div class="pdf-foot">' +
+                '<span>' + (company ? UI.esc(company.company_name) : '') + '</span>' +
+                '<span>Generated ' + new Date().toISOString().split('T')[0] + '</span>' +
+              '</div>';
+
+      var area = document.getElementById('pdf-print-area');
+      area.innerHTML = html;
+      area.style.display = 'block';
+      document.getElementById('pdf-modal').classList.remove('open');
+      window.print();
+      area.style.display = 'none';
+      area.innerHTML = '';
+    }
+
+    document.getElementById('btn-export-pdf').addEventListener('click', openPdfModal);
+    document.getElementById('pdf-cancel').addEventListener('click', function() {
+      document.getElementById('pdf-modal').classList.remove('open');
+    });
+    document.getElementById('pdf-generate').addEventListener('click', generatePdf);
+    document.getElementById('pdf-modal').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');  // click backdrop to close
+    });
   </script>
+
 </body>
 </html>

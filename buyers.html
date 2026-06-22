@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<!-- Version 1.19 | buyers.html -->
+<!-- Version 1.20 | buyers.html -->
+<!-- v1.20: Live Catalogue access — edit-modal checkbox + per-row toggle button.
+            Sends live_catalogue_enabled via saveBuyer; row toggle calls toggleBuyerLiveCatalogue.
+            Gates buyer-live-catalogue.html (session-auth live catalogue). -->
 <!-- Theme: Warm Precision v1.0 | accent=#c47a2b surface=#fdf8f2 border=#f0e8da -->
 <html lang="en">
 <head>
@@ -152,12 +155,13 @@
             <th>Min Bags</th>
             <th>Contact Person</th>
             <th>Email</th>
+            <th>Live Cat.</th><!-- v1.20 -->
             <th style="display:none">Address</th><!-- v1.9.8: hidden -->
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="buyers-tbody">
-          <tr><td colspan="9" class="st-empty"><div class="st-spinner"></div></td></tr>
+          <tr><td colspan="10" class="st-empty"><div class="st-spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -216,6 +220,17 @@
         <div class="field">
           <label for="b-warehouse">Home Warehouse <span style="color:var(--error)">*</span></label>
           <select id="b-warehouse"></select>
+        </div>
+      </div>
+
+      <!-- v1.20: Live Catalogue access toggle -->
+      <div class="field" style="margin-top:0.5rem">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0">
+          <input type="checkbox" id="b-live-catalogue" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" />
+          <span style="font-family:var(--font-mono);font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">Live Catalogue Access</span>
+        </label>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:0.35rem;line-height:1.4">
+          When enabled, this buyer can browse all available coffees in their home warehouse via the live catalogue and request samples / reserve bags.
         </div>
       </div>
 
@@ -290,7 +305,7 @@
       const level   = document.getElementById('filter-level').value;
 
       document.getElementById('buyers-tbody').innerHTML =
-        '<tr><td colspan="9" class="st-empty"><div class="st-spinner"></div></td></tr>';
+        '<tr><td colspan="10" class="st-empty"><div class="st-spinner"></div></td></tr>';
       document.getElementById('pagination-bar').style.display = 'none';
 
       try {
@@ -317,7 +332,7 @@
         renderPagination();
       } catch (err) {
         document.getElementById('buyers-tbody').innerHTML =
-          '<tr><td colspan="9" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
+          '<tr><td colspan="10" class="st-empty" style="color:var(--error)">' + UI.esc(err.message) + '</td></tr>';
       }
     }
 
@@ -453,6 +468,10 @@
         <td>${minimumsCell(b.buyer_id)}</td>
         <td>${UI.esc(b.contact_person || '—')}</td>
         <td>${UI.esc(b.email || '—')}</td>
+        <td><button class="btn btn-ghost btn-sm btn-toggle-lc" data-buyer-id="${b.buyer_id}" data-enabled="${b.live_catalogue_enabled ? '1' : '0'}"
+              style="${b.live_catalogue_enabled ? 'color:var(--accent);border-color:var(--accent)' : ''}"
+              title="${b.live_catalogue_enabled ? 'Live catalogue ON — click to disable' : 'Live catalogue OFF — click to enable'}">
+              ${b.live_catalogue_enabled ? '● On' : '○ Off'}</button></td>
         <td style="display:none">${UI.esc(b.address || '—')}</td>
         <td><button class="btn btn-ghost btn-sm" onclick="openEdit(${b.buyer_id})">Edit</button>
             ${b.email ? `<button class="btn btn-ghost btn-sm btn-login-as" data-buyer-id="${b.buyer_id}" data-buyer-name="${UI.esc(b.company_name).replace(/"/g,'&quot;')}" style="margin-left:0.4rem">Login As</button>` : ''}</td>
@@ -482,6 +501,7 @@
       document.getElementById('b-country').value   = '';
       document.getElementById('b-level').value     = '';
       document.getElementById('b-warehouse').value = '';
+      document.getElementById('b-live-catalogue').checked = false;  // v1.20
       renderMinimumsGrid(null);  // v1.8
       UI.openModal('modal-buyer');
     });
@@ -498,6 +518,7 @@
       document.getElementById('b-email').value   = b.email || '';
       document.getElementById('b-country').value = b.country_id;
       document.getElementById('b-level').value   = b.buyer_level || '';
+      document.getElementById('b-live-catalogue').checked = !!b.live_catalogue_enabled;  // v1.20
       // v1.9.7: re-populate then set value
       populateWarehouseSelect();
       (function() {
@@ -570,6 +591,37 @@
       loginAsBuyer(btn.dataset.buyerId, btn.dataset.buyerName);
     });
 
+    // v1.20: Event delegation for Live Catalogue toggle — one API call, optimistic UI.
+    document.getElementById('buyers-tbody').addEventListener('click', async function(e) {
+      const btn = e.target.closest('.btn-toggle-lc');
+      if (!btn) return;
+      const buyerId   = btn.dataset.buyerId;
+      const current   = btn.dataset.enabled === '1';
+      const nextVal   = !current;
+      btn.disabled    = true;
+      const prevText  = btn.textContent;
+      btn.textContent = '…';
+      try {
+        const result = await API.toggleBuyerLiveCatalogue(buyerId, nextVal);
+        const on = !!result.live_catalogue_enabled;
+        // Update button state in place — no full reload needed.
+        btn.dataset.enabled = on ? '1' : '0';
+        btn.textContent     = on ? '● On' : '○ Off';
+        btn.style.color       = on ? 'var(--accent)' : '';
+        btn.style.borderColor = on ? 'var(--accent)' : '';
+        btn.title = on ? 'Live catalogue ON — click to disable' : 'Live catalogue OFF — click to enable';
+        // Keep PAGE_DATA in sync so a later Edit modal shows the right checkbox.
+        const b = PAGE_DATA.buyers.find(x => String(x.buyer_id) === String(buyerId));
+        if (b) b.live_catalogue_enabled = on;
+        UI.toastSuccess('Live catalogue ' + (on ? 'enabled' : 'disabled') + '.');
+      } catch (err) {
+        btn.textContent = prevText;
+        UI.toastError(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
     // ── Save ──────────────────────────────────────────────────────────────────
     document.getElementById('btn-save').addEventListener('click', async () => {
       const companyName = document.getElementById('b-company').value.trim();
@@ -597,7 +649,8 @@
           contact_person: document.getElementById('b-contact').value.trim(),
           email:          email,
           buyer_level:    buyerLevel,   // v1.3
-          warehouse_id:   warehouseId   // v1.6
+          warehouse_id:   warehouseId,  // v1.6
+          live_catalogue_enabled: document.getElementById('b-live-catalogue').checked  // v1.20
         });
         // v1.8: save minimums for this buyer
         await saveMinimumsForBuyer(result.buyer_id);
