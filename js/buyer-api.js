@@ -1,6 +1,8 @@
-// Version 2.5
+// Version 2.6
 // buyer-api.js — All API calls for buyer-facing pages.
 // Calls BUYER_API_URL (defined in buyer-config.js).
+// v2.6: submitDrawdown now sends lines[] (server requires the array shape). Pairs with
+//         buyer-dashboard v1.15 multi-product request modal.
 // v2.5: getMyCompanies() + switchCompany() — logged-in company switch, no re-OTP.
 // v2.4: selectCompany() — multi-company login picker (calls selectBuyerCompany).
 // v2.3: post() now unwraps { success, data } envelope — mirrors main api.js.
@@ -62,14 +64,15 @@ const BuyerAPI = (() => {
     return post({ action: 'getBuyerDashboard' });
   }
 
-  async function submitDrawdown(contractId, contractLineId, requestedBags, shippingDate, notes) {
+  // v2.6: submitDrawdown sends a lines[] array (server requires it). Each line is
+  //   { contract_line_id, requested_bags }. Single-product requests pass a one-item array.
+  async function submitDrawdown(contractId, lines, shippingDate, notes) {
     return post({
-      action:           'submitBuyerDrawdown',
-      contract_id:      contractId,
-      contract_line_id: contractLineId,
-      requested_bags:   requestedBags,
-      shipping_date:    shippingDate || '',
-      notes:            notes        || ''
+      action:        'submitBuyerDrawdown',
+      contract_id:   contractId,
+      lines:         lines,
+      shipping_date: shippingDate || '',
+      notes:         notes        || ''
     });
   }
 
