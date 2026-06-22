@@ -1,4 +1,5 @@
-// Version 1.34
+// Version 1.35
+// v1.35: toggleBuyerLiveCatalogue — fast per-row live-catalogue access toggle (buyers.html v1.20).
 // v1.34: generateSupplierLink — generates token + returns link (no email).
 //        sendSupplierLink — emails existing token (no regen). Split for Link modal UX.
 // v1.31: stampOutboundPrices — was defined in Code.gs (v2.7.6) and called in outbound.html
@@ -133,6 +134,14 @@ const API = (() => {
 
   async function saveBuyer(buyerData) {
     return post(Object.assign({ action: 'saveBuyer', session_token: Auth.getToken() }, buyerData));
+  }
+
+  // v1.35: fast per-row live-catalogue toggle. Pass enabled (bool) to set explicitly,
+  // or omit it to let the server invert the current flag.
+  async function toggleBuyerLiveCatalogue(buyerId, enabled) {
+    const payload = { action: 'toggleBuyerLiveCatalogue', session_token: Auth.getToken(), buyer_id: buyerId };
+    if (enabled !== undefined) payload.enabled = enabled;
+    return post(payload);
   }
 
   // ─── Outbound ──────────────────────────────────────────────────────────────
@@ -325,7 +334,7 @@ const API = (() => {
     getSamplesPage, getSuppliersPage, getInboundDetailPage,
     saveSupplier, saveInbound, saveDetail, generateSupplierLink, sendSupplierLink, updateTracking,
     getSupplierPage, supplierSubmit,
-    getBuyersPage, saveBuyer,
+    getBuyersPage, saveBuyer, toggleBuyerLiveCatalogue,
     getOutboundPage, saveOutbound, saveOutboundDetail, updateOutboundStatus,
     saveSamplePrice, saveSamplePricesAll, savePriceTier,
     getBuyerReservePage, submitReservation,

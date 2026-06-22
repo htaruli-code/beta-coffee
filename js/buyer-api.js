@@ -1,6 +1,8 @@
-// Version 2.6
+// Version 2.7
 // buyer-api.js — All API calls for buyer-facing pages.
 // Calls BUYER_API_URL (defined in buyer-config.js).
+// v2.7: getLiveCatalogue() + submitLiveCatalogue() — session-auth live catalogue
+//         (buyer-live-catalogue.html v1.0). Session token attached automatically.
 // v2.6: submitDrawdown now sends lines[] (server requires the array shape). Pairs with
 //         buyer-dashboard v1.15 multi-product request modal.
 // v2.5: getMyCompanies() + switchCompany() — logged-in company switch, no re-OTP.
@@ -89,5 +91,16 @@ const BuyerAPI = (() => {
     return post({ action: 'logoutBuyer' });
   }
 
-  return { post, sendAuthCode, verifyAuthCode, selectCompany, getMyCompanies, switchCompany, getDashboard, submitDrawdown, logout };
+  // v2.7: Live catalogue — one call per page load. Returns { enabled, lots[], ... }.
+  async function getLiveCatalogue() {
+    return post({ action: 'getLiveCatalogue' });
+  }
+
+  // v2.7: Live catalogue submit — one call. payload:
+  //   { selected_detail_ids[], bags_to_reserve{}, beans, notes, intent }
+  async function submitLiveCatalogue(payload) {
+    return post(Object.assign({ action: 'submitLiveCatalogue' }, payload));
+  }
+
+  return { post, sendAuthCode, verifyAuthCode, selectCompany, getMyCompanies, switchCompany, getDashboard, submitDrawdown, logout, getLiveCatalogue, submitLiveCatalogue };
 })();
