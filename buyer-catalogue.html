@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- Version 1.21 | buyer-catalogue.html -->
+<!-- Version 1.22 | buyer-catalogue.html -->
+<!-- v1.22: cache-bust static js include (?v) so browsers fetch fresh after deploys. -->
 <!-- v1.21: Intent selector moved from submission card to header card (above lot list).
             Two-step UX: full cards on load → compact pill strip after selection.
             Dynamic intent list: Reserve options hidden when no lot has available bags.
@@ -264,7 +265,7 @@
     </div>
   </div>
 
-  <script src="js/config.js"></script>
+  <script src="js/config.js?v=1.2"></script>
   <script>
     // Version 1.21 | buyer-catalogue.html script
     // v1.21: Intent moved to top of header card (above lot list). Two-step UX — full cards
