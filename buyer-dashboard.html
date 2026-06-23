@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- Version 1.17 | buyer-dashboard.html -->
+<!-- Version 1.18 | buyer-dashboard.html -->
+<!-- v1.18: cache-bust static js includes (?v) so browsers fetch fresh after deploys. -->
 <!-- v1.17: Live Catalogue link shown ONLY when buyer.live_catalogue_enabled is true (flag from
             the dashboard payload, no extra call). Flag OFF → button never appears. -->
 <!-- v1.16: Live Catalogue nav link (→ buyer-live-catalogue.html). Shown once logged in;
@@ -322,10 +323,10 @@
 
 <div id="buyer-toast"></div>
 
-<script src="js/buyer-config.js"></script>
-<script src="js/buyer-auth.js"></script>
-<script src="js/buyer-api.js"></script>
-<script src="js/buyer-ui.js"></script>
+<script src="js/buyer-config.js?v=2.0"></script>
+<script src="js/buyer-auth.js?v=2.2"></script>
+<script src="js/buyer-api.js?v=2.7"></script>
+<script src="js/buyer-ui.js?v=2.0"></script>
 <script>
 // Version 1.15 | buyer-dashboard.html
 // v1.8: ensureCompanySwitcher() self-heals nav switcher for pre-company_count sessions.

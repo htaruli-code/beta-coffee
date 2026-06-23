@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- Version 1.0 | buyer-live-catalogue.html -->
+<!-- Version 1.1 | buyer-live-catalogue.html -->
+<!-- v1.1: cache-bust buyer-api.js (?v=2.7) so browsers load the version with getLiveCatalogue. -->
 <!-- v1.0: Session-authenticated live catalogue. Buyer browses ALL available coffees in
             their home warehouse (no token / no email link). Gated server-side on
             buyer.live_catalogue_enabled (staff toggle in buyers.html). One API call on
@@ -241,9 +242,9 @@
 
   </div>
 
-  <script src="js/buyer-config.js"></script>
-  <script src="js/buyer-auth.js"></script>
-  <script src="js/buyer-api.js"></script>
+  <script src="js/buyer-config.js?v=2.0"></script>
+  <script src="js/buyer-auth.js?v=2.2"></script>
+  <script src="js/buyer-api.js?v=2.7"></script><!-- v1.1: cache-bust → force fresh buyer-api (getLiveCatalogue) -->
   <script>
     // Version 1.0 | buyer-live-catalogue.html script
     // Session-auth live catalogue: gate on login → one call getLiveCatalogue → render →
