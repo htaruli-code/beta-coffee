@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<!-- Version 1.16 | buyer-dashboard.html -->
+<!-- Version 1.17 | buyer-dashboard.html -->
+<!-- v1.17: Live Catalogue link shown ONLY when buyer.live_catalogue_enabled is true (flag from
+            the dashboard payload, no extra call). Flag OFF → button never appears. -->
 <!-- v1.16: Live Catalogue nav link (→ buyer-live-catalogue.html). Shown once logged in;
             the live catalogue page itself gates access per buyer.live_catalogue_enabled. -->
 <!-- v1.15: Restored multi-product Request Delivery — repeatable line blocks (+ Add Product,
@@ -450,9 +452,11 @@ function showDashboard() {
       : 'Welcome back, ' + (buyer.contact_person || buyer.company_name) + '.';
   }
   ensureCompanySwitcher();  // v1.8: show switcher even if stored buyer lacks company_count
-  // v1.16: reveal Live Catalogue link once logged in (page itself gates access).
+  // v1.17: keep the Live Catalogue link HIDDEN by default. It is revealed in loadDashboard()
+  // ONLY when data.buyer.live_catalogue_enabled is true. If the flag is OFF, the button never
+  // appears at all (per requirement).
   var lcLink = document.getElementById('nav-live-catalogue');
-  if (lcLink) lcLink.style.display = 'inline-block';
+  if (lcLink) lcLink.style.display = 'none';
   // v1.4: show impersonation banner; hide logout for impersonated sessions
   if (IMPERSONATED) {
     document.getElementById('impersonate-bar').classList.add('show');
@@ -467,6 +471,11 @@ async function loadDashboard() {
   try {
     const data = await BuyerAPI.getDashboard();
     PAGE_DATA  = data;
+    // v1.17: show the Live Catalogue link ONLY if this buyer has the flag enabled.
+    // Flag comes from the same dashboard payload (DataService_Contracts v4.8) — no extra call.
+    var lcLink = document.getElementById('nav-live-catalogue');
+    if (lcLink) lcLink.style.display =
+      (data.buyer && data.buyer.live_catalogue_enabled) ? 'inline-block' : 'none';
     renderContracts();
   } catch (e) {
     // merged from v2.5: treat UNAUTHORIZED as an auth failure too (server returns it
