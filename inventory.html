@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- Version 2.4 | inventory.html -->
+<!-- Version 2.5 | inventory.html -->
+<!-- v2.5: Received & Available lot columns now display fixed 2 decimal places (fmt2: 9 → "9.00", 2.5 → "2.50"). Per-bin rows keep fmtBags (4dp trimmed). Display-only — no data/API change. NOTE: location→location transfers (inventory-transfer.html) do NOT change Received/Available (those are lot-level: received − dispatched/delivered drawdowns); a transfer only moves bins within the warehouse. Bin rows here reflect the new layout on next page load. -->
 <!-- v2.4: show WEIGHT next to bag counts (fmtWeight = bags×bag_size with lot unit) and display fractional bags via fmtBags (4dp, trailing zeros trimmed) across: lot bin rows, drawdown-activity line totals, per-bin allocation tags, and SUB tags. bag_size/unit sourced from the lot (cost_price_unit); weight omitted when bag_size unknown. Display-only. -->
 <!-- v2.3.1: Drawdown activity panel now shows drawn-down bags PER BIN (bin tag + count),
      so multi-bin picks are identifiable. Uses existing bin_allocations[].allocated_bags — no API change.
@@ -265,7 +266,8 @@
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script>
-// Version 2.3.1 | inventory.html
+// Version 2.5 | inventory.html
+// v2.5: Received & Available columns display 2dp via fmt2(); transfers don't change these (lot-level).
 // v2.3.1: buildLotDrawdownPanel — bin tags now include per-bin drawn-down bag count.
 // v2.3.0: _binsModalLotId guard prevents mid-save overwrite (D7).
 //         updateBinTotal shows explicit warning when total is 0 (I7).
@@ -415,8 +417,8 @@ function renderTable() {
       '<td>' + esc(l.lot_number || '—') + '</td>' +
       '<td>' + esc(l.warehouse_name || '—') + '</td>' +
       '<td>' + esc(l.coffee_type || '—') + '</td>' +
-      '<td class="num">' + l.received_bags + '</td>' +
-      '<td class="num ' + availClass + '">' + l.available_bags + '</td>' +
+      '<td class="num">' + fmt2(l.received_bags) + '</td>' +
+      '<td class="num ' + availClass + '">' + fmt2(l.available_bags) + '</td>' +
       '<td class="num">' + l.bag_size + ' ' + esc(l.cost_price_unit || 'kg') + '</td>' +
       '<td class="num">' + (l.cost_price ? l.cost_price + ' / ' + esc(l.cost_price_unit || 'kg') : '—') + '</td>' +
       '<td>' + fmtDate(l.received_date) + '</td>' +
@@ -960,6 +962,8 @@ function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // fmtBags rounds to 4dp, trims trailing zeros (1.5→"1.5", 1→"1"). fmtWeight shows
 // bags×bag_size with unit, e.g. " (90 kg)"; omitted when bag_size unknown/zero.
 function fmtBags(n) { return String(Math.round((parseFloat(n)||0) * 10000) / 10000); }
+// fmt2 — fixed 2 decimal places for the Received/Available lot columns (e.g. 9 → "9.00", 2.5 → "2.50").
+function fmt2(n) { return (parseFloat(n) || 0).toFixed(2); }
 function fmtWeight(bags, bagSize, unit) {
   const b = parseFloat(bags), s = parseFloat(bagSize);
   if (!isFinite(b) || !isFinite(s) || s <= 0) return '';

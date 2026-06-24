@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<!-- Version 2.2 | inventory-transfer.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transfer Inventory — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --surface2: #f7eee1; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 0.25rem; flex: 1; margin: 0 1rem; flex-wrap: wrap; }
+    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
+    .nav-links a:hover { background: var(--surface2); color: var(--text); }
+    .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
+    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
+    .nav-user:hover { color: var(--accent); }
+
+    /* v2.0: full-width page, 5% margin each side */
+    .page { width: 90%; margin: 0 auto; padding: 2rem 0 3rem; }
+    .page-header { margin-bottom: 1.5rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
+    .section-label { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.6rem 1.1rem; cursor: pointer; border-radius: var(--radius); transition: background var(--transition); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.68rem; }
+
+    input, select { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.82rem; padding: 0.55rem 0.875rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); width: 100%; }
+    input:focus, select:focus { border-color: var(--accent); }
+    input:disabled, select:disabled { opacity: 0.6; cursor: not-allowed; background: var(--surface2); }
+    input[readonly] { background: var(--surface2); color: var(--muted); cursor: default; }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; font-family: var(--font-mono); }
+    .req { color: var(--error); }
+    .hint { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); margin-top: 0.3rem; }
+    .weight { color: var(--accent); }
+    /* qty input + live weight badge on the right */
+    .qty-wrap { display: flex; align-items: stretch; gap: 0.6rem; flex-wrap: wrap; }
+    .qty-wrap input[data-qty] { flex: 1 1 160px; }
+    .qty-wrap input[data-wt] { flex: 1 1 140px; font-size: 0.78rem; opacity: 0.85; }
+    .qty-or { flex: 0 0 auto; display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+    .qty-weight { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 120px; padding: 0 1rem; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; color: var(--accent); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); white-space: nowrap; }
+    .qty-weight:empty { display: none; }
+
+    .line-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .field { display: flex; flex-direction: column; margin-bottom: 1rem; flex: 1; min-width: 200px; }
+    .field.half { flex: 1 1 calc(50% - 0.5rem); }
+    .field.full { flex: 1 1 100%; }
+
+    .form-error { display: none; background: rgba(192, 57, 43, 0.08); border: 1px solid var(--error); color: var(--error); font-family: var(--font-mono); font-size: 0.78rem; padding: 0.65rem 0.85rem; border-radius: var(--radius); margin-bottom: 1rem; }
+    .form-error.show { display: block; }
+
+    /* repeatable transfer line block */
+    .tline { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1rem 0.25rem; margin-bottom: 1rem; background: var(--bg); position: relative; }
+    .tline-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .tline-no { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .tline-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 0.25rem; }
+    .tline-remove:hover { color: var(--error); }
+    .tline.invalid { border-color: var(--error); }
+    .line-warn { display: none; color: var(--error); font-family: var(--font-mono); font-size: 0.7rem; margin: 0 0 0.75rem; }
+    .line-warn.show { display: block; }
+
+    /* SKU/Lot search typeahead (mirrors drawdowns ddc- pattern) */
+    .ddc-search-wrap { position: relative; display: block; }
+    .ddc-search-wrap input { width: 100%; }
+    .ddc-search-drop { position: absolute; z-index: 300; top: calc(100% + 2px); left: 0; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 18px rgba(0,0,0,0.10); min-width: 100%; max-height: 240px; overflow-y: auto; display: none; }
+    .ddc-search-drop.open { display: block; }
+    .ddc-item { padding: 0.4rem 0.75rem; cursor: pointer; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 0.75rem; color: var(--text); }
+    .ddc-item:last-child { border-bottom: none; }
+    .ddc-item:hover, .ddc-item.ddc-active { background: var(--surface); }
+    .ddc-item .ddc-item-sub { color: var(--muted); font-size: 0.68rem; }
+    .ddc-clear { position: absolute; right: 0.5rem; top: 0.6rem; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.95rem; padding: 0; line-height: 1; display: none; }
+    .ddc-clear.show { display: block; }
+
+    .summary { display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.85rem 1rem; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text); margin: 1rem 0; line-height: 1.7; }
+    .summary.show { display: block; }
+    .summary b { color: var(--accent); }
+    .summary .sum-line { padding: 0.1rem 0; }
+    .summary .sum-total { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); font-weight: 600; }
+
+    .footer-row { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-top: 0.5rem; flex-wrap: wrap; }
+    .footer-actions { display: flex; gap: 0.75rem; }
+
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.75rem 1.25rem; border-radius: var(--radius); background: var(--text); color: #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; } .toast.error { background: var(--error); } .toast.success { background: var(--success); }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    .empty { color: var(--muted); font-family: var(--font-mono); font-size: 0.78rem; padding: 1rem 0; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
+  <div class="nav-links">
+    <a href="all-samples.html" id="nav-all-samples">All Samples</a>
+    <a href="purchase-orders.html" id="nav-po">Purchase Orders</a>
+    <a href="shipments.html" id="nav-shipments">Shipments</a>
+    <a href="inventory.html" id="nav-inventory">Inventory</a>
+    <a href="inventory-locations.html" id="nav-locations">Locations</a>
+    <a href="inventory-transfer.html" id="nav-transfer" class="active">Transfer</a>
+    <a href="product-skus.html" id="nav-skus">SKU</a>
+    <a href="suppliers.html" id="nav-suppliers">Suppliers</a>
+    <a href="contracts.html" id="nav-contracts">Contracts</a>
+    <a href="drawdowns.html" id="nav-drawdowns">Drawdowns</a>
+  </div>
+  <span class="nav-user" id="nav-user"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">Transfer Inventory</div>
+    <div class="page-sub">Move bags between locations within the same warehouse — one source, one destination, many bins.</div>
+  </div>
+
+  <div id="form-wrap">
+    <div class="loading">Loading…</div>
+  </div>
+</div>
+
+<!-- Form template — placed BEFORE the <script> so bindings resolve at parse time -->
+<template id="tpl-form">
+  <div class="card">
+    <div class="form-error" id="form-error"></div>
+
+    <!-- Header: source context shared by every line -->
+    <div class="section-label">Source &amp; Destination</div>
+
+    <!-- Line 1: Warehouse -->
+    <div class="line-row">
+      <div class="field full">
+        <label>Warehouse <span class="req">*</span></label>
+        <select id="f-warehouse"></select>
+        <div class="hint">Only warehouses holding stock are listed.</div>
+      </div>
+    </div>
+
+    <!-- Line 2: From location + Destination location -->
+    <div class="line-row">
+      <div class="field half">
+        <label>From Location <span class="req">*</span></label>
+        <select id="f-from" disabled></select>
+        <div class="hint">Picking the source narrows every line below to its contents.</div>
+      </div>
+      <div class="field half">
+        <label>Destination Location <span class="req">*</span></label>
+        <select id="f-dest" disabled></select>
+        <div class="hint">Same warehouse only; source location excluded.</div>
+      </div>
+    </div>
+
+    <!-- Repeatable transfer lines -->
+    <div class="section-label" style="margin-top:0.75rem">Bins to Move</div>
+    <div id="lines-wrap"></div>
+
+    <button class="btn btn-ghost btn-sm" id="btn-add-line" type="button" disabled>+ Add line</button>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="footer-row">
+      <button class="btn btn-ghost" id="btn-reset" type="button">Reset</button>
+      <div class="footer-actions">
+        <button class="btn" id="btn-submit" type="button" disabled>Transfer Bags</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- One transfer line (cloned per row) -->
+<template id="tpl-line">
+  <div class="tline" data-line>
+    <div class="tline-head">
+      <span class="tline-no" data-no>Line</span>
+      <button type="button" class="tline-remove" data-remove title="Remove line">×</button>
+    </div>
+    <div class="line-warn" data-warn></div>
+
+    <!-- Line 3: SKU/Lot picker + Name -->
+    <div class="line-row">
+      <div class="field half">
+        <label>SKU / Lot <span class="req">*</span></label>
+        <div class="ddc-search-wrap" data-lot-wrap>
+          <input type="text" data-lot-input placeholder="Search by SKU, name, or lot #…" autocomplete="off" disabled />
+          <button type="button" class="ddc-clear" data-lot-clear title="Clear">×</button>
+          <div class="ddc-search-drop" data-lot-drop></div>
+        </div>
+        <input type="hidden" data-lot-id />
+      </div>
+      <div class="field half">
+        <label>Name</label>
+        <input type="text" data-name readonly placeholder="—" />
+      </div>
+    </div>
+
+    <!-- Line 4: Bin -->
+    <div class="line-row">
+      <div class="field full">
+        <label>Bin <span class="req">*</span></label>
+        <select data-bin disabled></select>
+        <div class="hint">Bins of this lot in the source location, with weight.</div>
+      </div>
+    </div>
+
+    <!-- Line 5: Quantity — enter bags directly OR a weight that auto-fills bags (÷ bag size, like contract lines) -->
+    <div class="line-row">
+      <div class="field full">
+        <label>Quantity (Bags) <span class="req">*</span></label>
+        <div class="qty-wrap">
+          <input type="text" inputmode="decimal" data-qty disabled placeholder="0" autocomplete="off" />
+          <span class="qty-or">or</span>
+          <input type="text" inputmode="decimal" data-wt disabled placeholder="enter kg/lb" title="Enter weight to auto-fill bags" autocomplete="off" />
+          <span class="qty-weight" data-qty-weight></span>
+        </div>
+        <div class="hint" data-qty-hint>Enter bags, or a weight to auto-calculate bags. Fractional allowed.</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js?v=1.0"></script>
+<script src="js/auth.js?v=1.0"></script>
+<script src="js/api.js?v=1.0"></script>
+<script src="js/ui.js?v=1.0"></script>
+<script>
+// Version 2.2 | inventory-transfer.html
+// v2.2: BUG FIX — bin dropdown options are now keyed by ARRAY INDEX, not bin_id, and the
+//        resolved bins list is stashed on the row (el._bins). selectedBin(el) reads the index.
+//        Previously a value of bin_id was resolved with .find() (first match); with reused bin
+//        LABELS (and any id ambiguity) the validator read the FIRST bin'''s qty (e.g. "max 5"
+//        while bin 08 with 9 bags was selected). Index keying is unambiguous. binById removed.
+// v2.1: WEIGHT ENTRY — per-line "or enter kg/lb" box that auto-fills the bags field
+//        (bags = weight ÷ bag_size), exactly like the contracts New/Edit Line modal's
+//        modalWeightToBags(). Weight is entered in the bag's own unit (no kg⇄lb conversion,
+//        matching contracts). Bags remains the value of record; typing bags clears the
+//        weight box. Green badge echoes bags→weight. Helpers: weightToBags, updateQtyEcho,
+//        onWeightInput.
+// v2.0: MAJOR — multi-line batch transfer. One shared source location + one destination
+//        (Model A: From location chosen first, drives all shortlisting), many SKU/Bin/Qty
+//        lines. Full-width (90%, 5% margins). Weight (bags×bag_size) shown like
+//        contracts/drawdowns via fmtWeight(). Same-bin overdraw summed across lines and
+//        flagged. All-or-nothing submit → transferInventoryBatch. One API call on load,
+//        one on submit. Old single-transfer path retired.
+
+// ── Dependency checks ────────────────────────────────────────────────────────
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth       === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API        === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+const BAG_TOL = 0.001; // UI fractional-bag tolerance
+
+// ── Display helpers (inline per project convention) ──────────────────────────
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtBags(n) { return String(Math.round((parseFloat(n) || 0) * 10000) / 10000); }
+// fmtWeight — same formula as drawdowns/contracts: bags×bag_size, 2dp, ' (NN kg)', blank if size unknown.
+function fmtWeight(bags, bagSize, unit) {
+  const b = parseFloat(bags), s = parseFloat(bagSize);
+  if (!isFinite(b) || !isFinite(s) || s <= 0) return '';
+  const w = Math.round(b * s * 100) / 100;
+  return ' <span class="weight">(' + w + ' ' + esc(unit || 'kg') + ')</span>';
+}
+function weightPlain(bags, bagSize, unit) {
+  const b = parseFloat(bags), s = parseFloat(bagSize);
+  if (!isFinite(b) || !isFinite(s) || s <= 0) return '';
+  const w = Math.round(b * s * 100) / 100;
+  return ' (' + w + ' ' + (unit || 'kg') + ')';
+}
+// weightToBags — bags = weight ÷ bag_size, rounded 4dp. Exactly like the contract modal's
+// modalWeightToBags(): the entered weight is assumed to be in the bag's own unit (no kg⇄lb
+// conversion). Returns NaN when bag_size is unknown. Bag count is the value of record.
+function weightToBags(weight, bagSize) {
+  const w = parseFloat(weight), s = parseFloat(bagSize);
+  if (!isFinite(w) || !isFinite(s) || s <= 0) return NaN;
+  return Math.round((w / s) * 10000) / 10000;
+}
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => { t.className = 'toast'; }, 2600);
+}
+
+let PAGE_DATA = { warehouses: [], locations: [], lots: [] };
+let lineSeq = 0; // unique id per line row
+
+// ── Boot — single API call ───────────────────────────────────────────────────
+(async () => {
+  const user = Auth.getUser(); const company = Auth.getCompany();
+  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
+  document.getElementById('nav-user').textContent  = user ? user.name : '';
+  document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
+
+  try {
+    const data = await API.post({ action: 'getTransferPage' });
+    PAGE_DATA = {
+      warehouses: data.warehouses || [],
+      locations:  data.locations  || [],
+      lots:       data.lots       || []
+    };
+    mountForm();
+  } catch (e) {
+    document.getElementById('form-wrap').innerHTML =
+      '<div class="empty">Failed to load: ' + esc(e.message) + '</div>';
+  }
+})();
+
+// ── Derived helpers ──────────────────────────────────────────────────────────
+function activeBins(lot) {
+  return (lot.bins || []).filter(b => (parseFloat(b.qty_bags) || 0) > BAG_TOL);
+}
+function warehousesWithStock() {
+  const ids = {};
+  PAGE_DATA.lots.forEach(l => { if (activeBins(l).length) ids[String(l.warehouse_id)] = true; });
+  return PAGE_DATA.warehouses.filter(w => ids[String(w.warehouse_id)]);
+}
+function locationName(locId) {
+  const loc = PAGE_DATA.locations.find(l => String(l.location_id) === String(locId));
+  return loc ? loc.facility_name : ('Location ' + locId);
+}
+function locationsInWarehouse(whId) {
+  return PAGE_DATA.locations.filter(l => String(l.warehouse_id) === String(whId));
+}
+// Locations in this warehouse that actually contain bins (with bags) — valid sources.
+function sourceLocationsInWarehouse(whId) {
+  const withStock = {};
+  PAGE_DATA.lots.forEach(l => {
+    if (String(l.warehouse_id) !== String(whId)) return;
+    activeBins(l).forEach(b => { withStock[String(b.location_id)] = true; });
+  });
+  return locationsInWarehouse(whId).filter(l => withStock[String(l.location_id)]);
+}
+// Lots that have bags in a specific location — shortlist for the SKU picker.
+function lotsInLocation(whId, fromLocId) {
+  return PAGE_DATA.lots.filter(l =>
+    String(l.warehouse_id) === String(whId) &&
+    activeBins(l).some(b => String(b.location_id) === String(fromLocId))
+  );
+}
+function lotById(lotId) { return PAGE_DATA.lots.find(l => String(l.lot_id) === String(lotId)) || null; }
+function binsOfLotInLocation(lot, fromLocId) {
+  return activeBins(lot).filter(b => String(b.location_id) === String(fromLocId));
+}
+
+// ── Mount ────────────────────────────────────────────────────────────────────
+function mountForm() {
+  lineSeq = 0;
+  const tpl = document.getElementById('tpl-form');
+  const wrap = document.getElementById('form-wrap');
+  wrap.innerHTML = '';
+  wrap.appendChild(tpl.content.cloneNode(true));
+
+  const whs = warehousesWithStock();
+  if (!whs.length) {
+    wrap.innerHTML = '<div class="empty">No inventory with bins found. Add bins to a lot first.</div>';
+    return;
+  }
+
+  const whSel = document.getElementById('f-warehouse');
+  whSel.innerHTML = '<option value="">Select warehouse…</option>' +
+    whs.map(w => `<option value="${esc(w.warehouse_id)}">${esc(w.warehouse_name)}</option>`).join('');
+
+  whSel.addEventListener('change', onWarehouseChange);
+  document.getElementById('f-from').addEventListener('change', onFromChange);
+  document.getElementById('f-dest').addEventListener('change', () => { revalidateAll(); });
+  document.getElementById('btn-add-line').addEventListener('click', () => { addLine(); revalidateAll(); });
+  document.getElementById('btn-submit').addEventListener('click', onSubmit);
+  document.getElementById('btn-reset').addEventListener('click', () => mountForm());
+}
+
+// ── Header cascade ───────────────────────────────────────────────────────────
+function onWarehouseChange() {
+  const whId = document.getElementById('f-warehouse').value;
+  const fromSel = document.getElementById('f-from');
+  const destSel = document.getElementById('f-dest');
+
+  // wipe lines + destination
+  document.getElementById('lines-wrap').innerHTML = '';
+  destSel.innerHTML = ''; destSel.disabled = true;
+  document.getElementById('btn-add-line').disabled = true;
+
+  if (!whId) { fromSel.innerHTML = ''; fromSel.disabled = true; revalidateAll(); return; }
+
+  const sources = sourceLocationsInWarehouse(whId);
+  fromSel.disabled = false;
+  fromSel.innerHTML = '<option value="">Select source location…</option>' +
+    sources.map(l => `<option value="${esc(l.location_id)}">${esc(l.facility_name)}</option>`).join('');
+
+  revalidateAll();
+}
+
+function onFromChange() {
+  const whId = document.getElementById('f-warehouse').value;
+  const fromId = document.getElementById('f-from').value;
+  const destSel = document.getElementById('f-dest');
+
+  // changing the source context invalidates all existing lines
+  document.getElementById('lines-wrap').innerHTML = '';
+
+  if (!fromId) {
+    destSel.innerHTML = ''; destSel.disabled = true;
+    document.getElementById('btn-add-line').disabled = true;
+    revalidateAll(); return;
+  }
+
+  // destination = other locations in the warehouse (exclude the source)
+  const dests = locationsInWarehouse(whId).filter(l => String(l.location_id) !== String(fromId));
+  destSel.disabled = false;
+  destSel.innerHTML = '<option value="">Select destination…</option>' +
+    dests.map(l => `<option value="${esc(l.location_id)}">${esc(l.facility_name)}</option>`).join('');
+
+  // start the user off with one line ready
+  document.getElementById('btn-add-line').disabled = false;
+  addLine();
+  revalidateAll();
+}
+
+// ── Transfer line rows ───────────────────────────────────────────────────────
+function addLine() {
+  const fromId = document.getElementById('f-from').value;
+  if (!fromId) return;
+
+  const id = ++lineSeq;
+  const tpl = document.getElementById('tpl-line');
+  const node = tpl.content.cloneNode(true);
+  const row = node.querySelector('[data-line]');
+  row.dataset.lineId = id;
+
+  document.getElementById('lines-wrap').appendChild(node);
+  const el = document.querySelector('[data-line][data-line-id="' + id + '"]');
+
+  // Remove button
+  el.querySelector('[data-remove]').addEventListener('click', () => {
+    el.remove();
+    renumberLines();
+    revalidateAll();
+  });
+
+  // Wire the lot typeahead for this row
+  initLotSearch(el, fromId);
+
+  // Bin + qty listeners
+  el.querySelector('[data-bin]').addEventListener('change', () => onBinChange(el));
+  el.querySelector('[data-qty]').addEventListener('input', () => onQtyInput(el));
+  // Weight entry → auto-fill bags (kg/lb), like contract lines
+  el.querySelector('[data-wt]').addEventListener('input', () => onWeightInput(el));
+
+  renumberLines();
+}
+
+function renumberLines() {
+  const rows = document.querySelectorAll('[data-line]');
+  rows.forEach((r, i) => {
+    r.querySelector('[data-no]').textContent = 'Line ' + (i + 1);
+    // hide remove button if it's the only line
+    r.querySelector('[data-remove]').style.visibility = rows.length > 1 ? 'visible' : 'hidden';
+  });
+}
+
+function applyLotSelection(el, lotId) {
+  const fromId = document.getElementById('f-from').value;
+  const lot = lotId ? lotById(lotId) : null;
+  const binSel = el.querySelector('[data-bin]');
+  const qty = el.querySelector('[data-qty]');
+  const wt = el.querySelector('[data-wt]');
+  const wtEcho = el.querySelector('[data-qty-weight]');
+
+  qty.value = ''; qty.disabled = true;
+  wt.value = ''; wt.disabled = true;
+  if (wtEcho) wtEcho.textContent = '';
+
+  if (!lot) {
+    el.querySelector('[data-name]').value = '';
+    binSel.innerHTML = ''; binSel.disabled = true;
+    revalidateAll(); return;
+  }
+
+  el.querySelector('[data-name]').value = lot.sample_name || '';
+
+  // Resolve the candidate bins ONCE and stash them on the row. Options are keyed by
+  // ARRAY INDEX, not bin_id — legacy data can contain duplicate bin_ids (pre-v2.7 fix),
+  // and a <select> value of bin_id would resolve to the FIRST matching bin (wrong qty).
+  const bins = binsOfLotInLocation(lot, fromId);
+  el._bins = bins;
+  binSel.disabled = false;
+  binSel.innerHTML = '<option value="">Select bin…</option>' +
+    bins.map((b, idx) => {
+      const label = b.bin_label || '(no label)';
+      const w = weightPlain(b.qty_bags, lot.bag_size, lot.cost_price_unit);
+      return `<option value="${idx}">${esc(label)} · ${fmtBags(b.qty_bags)} bags${esc(w)}</option>`;
+    }).join('');
+
+  revalidateAll();
+}
+
+// Resolve the bin the user actually selected on a row, by array index (dup-id safe).
+function selectedBin(el) {
+  const v = el.querySelector('[data-bin]').value;
+  if (v === '' || v == null) return null;
+  const bins = el._bins || [];
+  const idx = parseInt(v, 10);
+  return (idx >= 0 && idx < bins.length) ? bins[idx] : null;
+}
+
+function onBinChange(el) {
+  const lot = lotById(el.querySelector('[data-lot-id]').value);
+  const bin = selectedBin(el);
+  const qty = el.querySelector('[data-qty]');
+  const wt = el.querySelector('[data-wt]');
+  const hint = el.querySelector('[data-qty-hint]');
+
+  qty.value = ''; wt.value = '';
+  if (!bin) {
+    qty.disabled = true; wt.disabled = true;
+    el.querySelector('[data-qty-weight]').textContent = '';
+    revalidateAll(); return;
+  }
+
+  qty.disabled = false;
+  wt.disabled = false;
+  // weight is entered in the bag's own unit — hint the placeholder with it
+  const bagUnit = lot.cost_price_unit || 'kg';
+  wt.placeholder = 'enter ' + bagUnit;
+
+  const w = weightPlain(bin.qty_bags, lot.bag_size, lot.cost_price_unit);
+  hint.innerHTML = 'Max ' + fmtBags(bin.qty_bags) + ' bags' + esc(w) + ' available. Enter bags or weight.';
+  updateQtyEcho(el);
+  revalidateAll();
+}
+
+// Shared: refresh the green weight badge from whatever bags value is currently set.
+function updateQtyEcho(el) {
+  const lot = lotById(el.querySelector('[data-lot-id]').value);
+  const echo = el.querySelector('[data-qty-weight]');
+  const bagsVal = el.querySelector('[data-qty]').value;
+  if (!lot || !bagsVal) { echo.textContent = ''; return; }
+  const wp = weightPlain(bagsVal, lot.bag_size, lot.cost_price_unit);
+  echo.textContent = wp ? '=' + wp : '';
+}
+
+function onQtyInput(el) {
+  const q = el.querySelector('[data-qty]');
+  q.value = q.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  // typing bags directly clears the weight box (bags is the value of record)
+  if (q.value) el.querySelector('[data-wt]').value = '';
+  const lot = lotById(el.querySelector('[data-lot-id]').value);
+  const bin = selectedBin(el);
+  const hint = el.querySelector('[data-qty-hint]');
+  if (bin && q.value) {
+    hint.innerHTML = 'Moving ' + fmtBags(q.value) + ' bags · max ' + fmtBags(bin.qty_bags) + ' available.';
+  } else if (bin) {
+    const w = weightPlain(bin.qty_bags, lot.bag_size, lot.cost_price_unit);
+    hint.innerHTML = 'Max ' + fmtBags(bin.qty_bags) + ' bags' + esc(w) + ' available. Enter bags or weight.';
+  }
+  updateQtyEcho(el);
+  revalidateAll();
+}
+
+// Weight entry → auto-fill the bags field (kg/lb, converted to the bag's unit), like contracts.
+function onWeightInput(el) {
+  const wt = el.querySelector('[data-wt]');
+  wt.value = wt.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  const lot = lotById(el.querySelector('[data-lot-id]').value);
+  const bin = selectedBin(el);
+  const qty = el.querySelector('[data-qty]');
+  const hint = el.querySelector('[data-qty-hint]');
+  const unit = lot ? (lot.cost_price_unit || 'kg') : 'kg';
+
+  if (!lot || !bin) { revalidateAll(); return; }
+
+  if (!wt.value) {
+    qty.value = '';
+    updateQtyEcho(el);
+    const w = weightPlain(bin.qty_bags, lot.bag_size, lot.cost_price_unit);
+    hint.innerHTML = 'Max ' + fmtBags(bin.qty_bags) + ' bags' + esc(w) + ' available. Enter bags or weight.';
+    revalidateAll(); return;
+  }
+
+  // bags = weight ÷ bag_size (weight assumed in the bag's unit — same as the contract modal)
+  const bags = weightToBags(wt.value, lot.bag_size);
+  if (isFinite(bags)) {
+    qty.value = bags;
+    hint.innerHTML = fmtBags(wt.value) + ' ' + esc(unit) + ' ÷ ' + lot.bag_size + ' ' +
+      esc(unit) + '/bag = ' + fmtBags(bags) + ' bags · max ' +
+      fmtBags(bin.qty_bags) + ' available.';
+  } else {
+    qty.value = '';
+    hint.innerHTML = 'This lot has no bag size set — enter bags directly.';
+  }
+  updateQtyEcho(el);
+  revalidateAll();
+}
+
+// ── Read a single line's selection ───────────────────────────────────────────
+function readLine(el) {
+  const lot = lotById(el.querySelector('[data-lot-id]').value);
+  const bin = selectedBin(el);
+  const qty = parseFloat(el.querySelector('[data-qty]').value);
+  return { el, lot, bin, qty };
+}
+
+// ── Validate everything (lines + cross-line same-bin overdraw) ───────────────
+function revalidateAll() {
+  const fromEl = document.getElementById('f-from');
+  const destEl = document.getElementById('f-dest');
+  const fromId = fromEl ? fromEl.value : '';
+  const destId = destEl ? destEl.value : '';
+  const errEl  = document.getElementById('form-error');
+  if (errEl) errEl.className = 'form-error';
+
+  const rows = Array.from(document.querySelectorAll('[data-line]'));
+  const lines = rows.map(readLine);
+
+  // sum requested qty per bin across lines (same-bin overdraw guard)
+  const sumPerBin = {};
+  lines.forEach(l => {
+    if (l.bin && !isNaN(l.qty) && l.qty > 0) {
+      const k = String(l.bin.bin_id);
+      sumPerBin[k] = (sumPerBin[k] || 0) + l.qty;
+    }
+  });
+
+  let allValid = rows.length > 0 && !!fromId && !!destId;
+
+  lines.forEach(l => {
+    const warn = l.el.querySelector('[data-warn]');
+    let lineOk = !!(l.lot && l.bin && !isNaN(l.qty) && l.qty > 0);
+    let msg = '';
+
+    if (l.bin && !isNaN(l.qty) && l.qty > 0) {
+      const avail = parseFloat(l.bin.qty_bags) || 0;
+      const summed = sumPerBin[String(l.bin.bin_id)] || 0;
+      if (l.qty > avail + BAG_TOL) {
+        lineOk = false; msg = 'Exceeds the ' + fmtBags(avail) + ' bags in this bin.';
+      } else if (summed > avail + BAG_TOL) {
+        lineOk = false; msg = 'This bin is used on multiple lines totalling ' + fmtBags(summed) +
+          ' bags, but only ' + fmtBags(avail) + ' are available.';
+      }
+    }
+
+    l.el.classList.toggle('invalid', !lineOk && (!!l.lot || !!l.bin || (!isNaN(l.qty) && l.qty > 0)));
+    if (msg) { warn.textContent = msg; warn.classList.add('show'); }
+    else     { warn.textContent = ''; warn.classList.remove('show'); }
+
+    if (!lineOk) allValid = false;
+  });
+
+  const submitBtn = document.getElementById('btn-submit');
+  if (submitBtn) submitBtn.disabled = !allValid;
+  renderSummary(lines, fromId, destId, allValid);
+}
+
+function renderSummary(lines, fromId, destId, allValid) {
+  const s = document.getElementById('summary');
+  if (!s) return;
+  const complete = lines.filter(l => l.lot && l.bin && !isNaN(l.qty) && l.qty > 0);
+  if (!fromId || !destId || !complete.length) { s.className = 'summary'; return; }
+
+  // total weight only when all bag-size units match and all are known
+  let totalBags = 0, totalWeight = 0, unit = null, unitConsistent = true, allHaveSize = true;
+  complete.forEach(l => {
+    totalBags += l.qty;
+    const s2 = parseFloat(l.lot.bag_size);
+    const u  = l.lot.cost_price_unit || 'kg';
+    if (!isFinite(s2) || s2 <= 0) allHaveSize = false;
+    else {
+      if (unit === null) unit = u;
+      else if (unit !== u) unitConsistent = false;
+      totalWeight += l.qty * s2;
+    }
+  });
+
+  const lineHtml = complete.map(l => {
+    const w = fmtWeight(l.qty, l.lot.bag_size, l.lot.cost_price_unit);
+    return '<div class="sum-line">' +
+      esc(l.lot.sku_code || l.lot.sample_name || ('Lot ' + l.lot.lot_id)) +
+      ' · bin <b>' + esc(l.bin.bin_label || '(no label)') + '</b> · ' +
+      fmtBags(l.qty) + ' bags' + w + '</div>';
+  }).join('');
+
+  const totalW = (allHaveSize && unitConsistent && unit !== null)
+    ? ' <span class="weight">(' + (Math.round(totalWeight * 100) / 100) + ' ' + esc(unit) + ')</span>'
+    : '';
+
+  s.innerHTML =
+    'From <b>' + esc(locationName(fromId)) + '</b> → <b>' + esc(locationName(destId)) + '</b>' +
+    lineHtml +
+    '<div class="sum-total">Total: ' + complete.length + ' line' + (complete.length === 1 ? '' : 's') +
+      ' · ' + fmtBags(totalBags) + ' bags' + totalW + '</div>' +
+    (allValid ? '' : '<div class="sum-line" style="color:var(--error)">Resolve the highlighted lines before transferring.</div>');
+  s.className = 'summary show';
+}
+
+// ── SKU/Lot typeahead per line (mirrors drawdowns replacement-lot picker) ────
+function initLotSearch(el, fromId) {
+  const input  = el.querySelector('[data-lot-input]');
+  const drop   = el.querySelector('[data-lot-drop]');
+  const hidden = el.querySelector('[data-lot-id]');
+  const clear  = el.querySelector('[data-lot-clear]');
+  if (!input || !drop || !hidden) return;
+
+  input.disabled = false;
+  const whId = document.getElementById('f-warehouse').value;
+
+  function candidates() { return lotsInLocation(whId, fromId); }
+  function rowLabel(l) { return (l.sku_code ? l.sku_code + ' · ' : '') + (l.sample_name || ('Lot ' + l.lot_id)); }
+
+  function showDrop(items) {
+    if (!items.length) { drop.classList.remove('open'); drop.innerHTML = ''; return; }
+    drop.innerHTML = items.map(l => {
+      const binCount = binsOfLotInLocation(l, fromId).length;
+      return '<div class="ddc-item" data-id="' + esc(l.lot_id) + '">' +
+        (l.sku_code ? '<span style="color:var(--accent);font-weight:600">' + esc(l.sku_code) + '</span> · ' : '') +
+        esc(l.sample_name || ('Lot ' + l.lot_id)) +
+        '<div class="ddc-item-sub">' + (l.lot_number ? esc(l.lot_number) + ' · ' : '') +
+          binCount + ' bin' + (binCount === 1 ? '' : 's') + ' here</div>' +
+      '</div>';
+    }).join('');
+    drop.classList.add('open');
+    drop.querySelectorAll('.ddc-item').forEach(it => {
+      it.onmousedown = e => { e.preventDefault(); pick(String(it.dataset.id)); };
+    });
+  }
+
+  function pick(id) {
+    const l = lotById(id);
+    if (!l) return;
+    hidden.value = id;
+    input.value  = rowLabel(l);
+    drop.classList.remove('open');
+    if (clear) clear.classList.add('show');
+    applyLotSelection(el, id);
+  }
+
+  function clearSel() {
+    hidden.value = ''; input.value = '';
+    drop.classList.remove('open');
+    if (clear) clear.classList.remove('show');
+    applyLotSelection(el, null);
+    input.focus();
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    hidden.value = '';
+    if (clear) clear.classList.remove('show');
+    applyLotSelection(el, null);
+    if (!q) { drop.classList.remove('open'); return; }
+    const matches = candidates().filter(l =>
+      ((l.sku_code || '') + ' ' + (l.sample_name || '') + ' ' + (l.lot_number || '')).toLowerCase().includes(q)
+    ).slice(0, 15);
+    showDrop(matches);
+  });
+
+  input.addEventListener('keydown', e => {
+    const items  = drop.querySelectorAll('.ddc-item');
+    const active = drop.querySelector('.ddc-active');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? (active.nextElementSibling || items[0]) : items[0];
+      if (active) active.classList.remove('ddc-active');
+      if (next) next.classList.add('ddc-active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active ? (active.previousElementSibling || items[items.length-1]) : items[items.length-1];
+      if (active) active.classList.remove('ddc-active');
+      if (prev) prev.classList.add('ddc-active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active) pick(active.dataset.id);
+    } else if (e.key === 'Escape') {
+      drop.classList.remove('open');
+    }
+  });
+
+  input.addEventListener('blur', () => { setTimeout(() => drop.classList.remove('open'), 150); });
+  if (clear) clear.onclick = clearSel;
+}
+
+// ── Submit — single API call, all-or-nothing ─────────────────────────────────
+async function onSubmit() {
+  const fromId = document.getElementById('f-from').value;
+  const destId = document.getElementById('f-dest').value;
+  const btn = document.getElementById('btn-submit');
+  const errEl = document.getElementById('form-error');
+  errEl.className = 'form-error';
+
+  const rows = Array.from(document.querySelectorAll('[data-line]')).map(readLine);
+  const complete = rows.filter(l => l.lot && l.bin && !isNaN(l.qty) && l.qty > 0);
+  if (!fromId || !destId || !complete.length) return;
+
+  const lines = complete.map(l => ({ bin_id: l.bin.bin_id, qty_bags: l.qty }));
+
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Transferring…';
+  try {
+    const data = await API.post({
+      action:           'transferInventoryBatch',
+      from_location_id: fromId,
+      to_location_id:   destId,
+      lines:            JSON.stringify(lines)
+    });
+    if (data && data.inventory_lots) {
+      PAGE_DATA.lots       = data.inventory_lots.map(l => Object.assign({}, l, { bins: l.bins || [] }));
+      PAGE_DATA.warehouses = data.warehouses || PAGE_DATA.warehouses;
+      PAGE_DATA.locations  = data.locations  || PAGE_DATA.locations;
+    }
+    showToast(complete.length + ' line' + (complete.length === 1 ? '' : 's') + ' transferred.', 'success');
+    mountForm();
+  } catch (e) {
+    errEl.textContent = e.message || 'Transfer failed.';
+    errEl.className = 'form-error show';
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+</script>
+</body>
+</html>
