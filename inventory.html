@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!-- Version 2.10 | inventory.html -->
+<!-- v2.10: BINS modal — allow CLEARING bins (fixes a dead-end created by v2.9). On a fully-drawn lot the only way to remove a stale phantom bin is to save zero bins, but the save loop rejected qty≤0 ("must be greater than zero") and removeBinRow re-adds a blank row when the last is deleted, so an empty state was unreachable. Now the save handler drops fully-blank rows (no label AND no positive qty) into a cleanRows set before validating; an all-blank modal therefore sends bins:[] which replaceBinsForLot treats as "delete all bins for this lot" (backend already supports empty — requireAtLeastOne=false). Only user-filled rows are validated. The qty>0 message now hints you can clear the label to drop a bin. Backend unchanged. To clear the phantom: blank the Qty (and/or ✕ the rows) and Save — the total bar's "saving will clear all bin records" message confirms the action. -->
+<!-- Version 2.9 | inventory.html -->
+<!-- v2.9: BINS modal ceiling changed from RECEIVED to ON-HAND (available_bags). Surfaced by a real defect: a fully-drawn lot (320 received, 320 drawn, 0 on-hand) still carried a stale 300-bag bin because the bin was created/edited AFTER the drawdowns dispatched, so decrementBinsForDrawdown (which only shrinks bins listed in drawdown_line_bins) never touched it, and the old received-based ceiling treated 300≤320 as valid. Now: (a) front-end OVER + Save-guard + total bar all block at available; (b) backend handleSaveBinsForLot passes available to _validateBins (PO-receive path still uses po_line.qty_bags — unchanged); (c) _validateBins gained an optional ceilingLabel for clearer messages; (d) over-limit error explains how many bags were drawn down and cannot be binned; (e) info block says "cannot exceed on-hand bags". NOTE: this validates NEW saves — it does not retroactively clean already-stored phantom bins; those must be corrected by editing the lot's bins down to on-hand (or via a data migration). available_bags rides in PAGE_DATA (no extra API call). -->
+<!-- Version 2.8 | inventory.html -->
+<!-- v2.8: BINS modal "fully binned" semantics fixed. Drawn-down bags physically leave bins (backend decrementBinsForDrawdown), so they can never sit in a bin — the real "all binned" target is AVAILABLE (received − drawn), not received. Changes (display/validation-feel only, no API/backend change): (1) GREEN "exact" now fires when bin total === available_bags (everything on-hand binned), shown with a ✓. (2) RED "over" ceiling stays at received_bags — backend law unchanged; a reversed drawdown can re-open room up to received. (3) Total line now reads "X (wt) / AVAIL on-hand binned ✓ · DRAWN drawn · RECEIVED received" so the gap between on-hand and received is explained instead of looking like missing bags. (4) Info block surfaces received · drawn · on-hand. Splitting bins is unaffected (only constraint remains sum ≤ received). available_bags already rides in PAGE_DATA (no extra API call); falls back to received when absent. -->
+<!-- Version 2.7 | inventory.html -->
+<!-- v2.7: BINS modal — (1) Qty Bags now accepts FRACTIONAL bags (parseInt→parseFloat in render, updateBinTotal, save-validation, and payload; min=0 step=any). (2) New WEIGHT column per bin row: type kg/lbs and it auto-derives fractional bags (weight ÷ lot.bag_size); typing bags mirrors back to weight (two-way, no re-render so focus is kept). Weight header shows the lot unit; column disabled when lot.bag_size unset. (3) Live Total now sums fractional bags (fmtBags) + shows aggregate weight (fmtWeight), with float-tolerant (1e-6) over/exact checks so e.g. 9.0000001 isn't flagged over. Backend (handleSaveBinsForLot / _validateBins / writeBins) already parseFloat since v2.4.1 — NO backend change. Display+input only; relational bin_id incremental scheme unchanged. -->
 <!-- Version 2.6 | inventory.html -->
 <!-- v2.5: Received & Available lot columns now display fixed 2 decimal places (fmt2: 9 → "9.00", 2.5 → "2.50"). Per-bin rows keep fmtBags (4dp trimmed). Display-only — no data/API change. NOTE: location→location transfers (inventory-transfer.html) do NOT change Received/Available (those are lot-level: received − dispatched/delivered drawdowns); a transfer only moves bins within the warehouse. Bin rows here reflect the new layout on next page load. -->
 <!-- v2.4: show WEIGHT next to bag counts (fmtWeight = bags×bag_size with lot unit) and display fractional bags via fmtBags (4dp, trailing zeros trimmed) across: lot bin rows, drawdown-activity line totals, per-bin allocation tags, and SUB tags. bag_size/unit sourced from the lot (cost_price_unit); weight omitted when bag_size unknown. Display-only. -->
@@ -81,9 +89,9 @@
     .dd-empty { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); font-style: italic; }
 
     /* ── Bin edit modal (v2.2.0) ────────────────────────────────────────────── */
-    .bin-edit-row { display: grid; grid-template-columns: 1fr 80px 1fr 1fr 28px; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem; }
+    .bin-edit-row { display: grid; grid-template-columns: 1fr 90px 90px 1fr 1fr 28px; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem; }
     .bin-edit-row input, .bin-edit-row select { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
-    .bin-edit-header { display: grid; grid-template-columns: 1fr 80px 1fr 1fr 28px; gap: 0.4rem; padding: 0 0 0.3rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.4rem; }
+    .bin-edit-header { display: grid; grid-template-columns: 1fr 90px 90px 1fr 1fr 28px; gap: 0.4rem; padding: 0 0 0.3rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.4rem; }
     .bin-edit-header span { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .btn-del-bin { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0; line-height: 1; transition: color var(--transition); }
     .btn-del-bin:hover { color: var(--error); }
@@ -219,6 +227,7 @@
     <div class="bin-edit-header">
       <span>Bin Label <span style="color:var(--error)">*</span></span>
       <span>Qty Bags <span style="color:var(--error)">*</span></span>
+      <span id="bins-wt-hdr">Weight</span>
       <span>Location</span>
       <span>Notes</span>
       <span></span>
@@ -782,11 +791,15 @@ function openBinsModal(lotId) {
   document.getElementById('modal-bins-title').textContent =
     'Edit Bins — ' + (lot.sample_name || 'Lot ' + lotId);
 
-  // Info block
+  // Info block — v2.8: surface available (on-hand) + drawn so the green target makes sense.
+  const _av = lot.available_bags != null ? (parseFloat(lot.available_bags) || 0) : lot.received_bags;
+  const _dr = Math.max(0, Math.round((lot.received_bags - _av) * 10000) / 10000);
   document.getElementById('bins-info-block').innerHTML =
     '<strong>' + esc(lot.warehouse_name || 'Warehouse') + '</strong>' +
-    ' &nbsp;·&nbsp; <strong>' + lot.received_bags + '</strong> bags received' +
-    ' &nbsp;·&nbsp; Bin total cannot exceed received bags.';
+    ' &nbsp;·&nbsp; <strong>' + fmt2(lot.received_bags) + '</strong> received' +
+    (_dr > 1e-6 ? ' &nbsp;·&nbsp; <strong>' + fmtBags(_dr) + '</strong> drawn' : '') +
+    ' &nbsp;·&nbsp; <strong>' + fmt2(_av) + '</strong> on-hand to bin' +
+    ' &nbsp;·&nbsp; Bin total cannot exceed on-hand bags.';
 
   // Seed from existing bins — deep copy so edits don't mutate PAGE_DATA
   const existing = lot.bins || [];
@@ -811,6 +824,12 @@ function renderBinRows(lotArg) {
   if (!lot) return;
 
   const whId = String(lot.warehouse_id || '');
+  // v2.7: bag_size/unit from lot drive the kg/lbs ↔ bags auto-calc in the editor.
+  const bagSize = parseFloat(lot.bag_size) || 0;
+  const unit    = lot.cost_price_unit || 'kg';
+  // Show unit in the Weight header so user knows what they're typing.
+  const wtHdr = document.getElementById('bins-wt-hdr');
+  if (wtHdr) wtHdr.textContent = 'Weight (' + unit + ')' + (bagSize > 0 ? '' : ' — set bag size');
   const locs = (PAGE_DATA.locations || []).filter(l =>
     String(l.warehouse_id) === whId && l.is_active !== false
   );
@@ -826,11 +845,17 @@ function renderBinRows(lotArg) {
       (String(b.location_id) === String(l.location_id) ? ' selected' : '') +
       '>' + esc(l.facility_name || String(l.location_id)) + '</option>'
     ).join('');
+    // Weight cell value = qty_bags × bag_size (4dp trimmed). Empty if no bags or no bag_size.
+    const wtVal = (bagSize > 0 && b.qty_bags !== '' && b.qty_bags != null)
+      ? fmtBags((parseFloat(b.qty_bags) || 0) * bagSize) : '';
     return '<div class="bin-edit-row">' +
       '<input type="text" placeholder="e.g. A3-R2" value="' + esc(b.bin_label) + '" ' +
         'oninput="binRows[' + i + '].bin_label=this.value" />' +
-      '<input type="number" min="1" placeholder="0" value="' + (b.qty_bags || '') + '" ' +
-        'oninput="binRows[' + i + '].qty_bags=this.value;updateBinTotal()" />' +
+      '<input type="number" min="0" step="any" placeholder="0" value="' + (b.qty_bags || '') + '" ' +
+        'oninput="onBagsInput(' + i + ',this.value)" id="bin-bags-' + i + '" />' +
+      '<input type="number" min="0" step="any" placeholder="0" value="' + wtVal + '" ' +
+        (bagSize > 0 ? '' : 'disabled title="Set lot bag size first" ') +
+        'oninput="onWeightInput(' + i + ',this.value)" id="bin-wt-' + i + '" />' +
       '<select onchange="binRows[' + i + '].location_id=this.value">' +
         '<option value="">— No location —</option>' + selOpts +
       '</select>' +
@@ -843,24 +868,73 @@ function renderBinRows(lotArg) {
   updateBinTotal();
 }
 
+// v2.7: bag_size of the currently-open lot, for the two-way weight↔bags calc.
+function _binsModalBagSize() {
+  const lot = (PAGE_DATA.inventory_lots || [])
+    .find(l => String(l.lot_id) === String(document.getElementById('bins-lot-id').value));
+  return lot ? (parseFloat(lot.bag_size) || 0) : 0;
+}
+
+// User typed in Bags → update model + mirror Weight cell (no full re-render, keeps focus).
+function onBagsInput(i, val) {
+  binRows[i].qty_bags = val;
+  const bagSize = _binsModalBagSize();
+  const wtEl = document.getElementById('bin-wt-' + i);
+  if (wtEl && bagSize > 0) {
+    wtEl.value = (val === '' || val == null) ? '' : fmtBags((parseFloat(val) || 0) * bagSize);
+  }
+  updateBinTotal();
+}
+
+// User typed in Weight → derive fractional bags (weight ÷ bag_size) + mirror Bags cell.
+function onWeightInput(i, val) {
+  const bagSize = _binsModalBagSize();
+  if (bagSize <= 0) return;
+  const bags = (val === '' || val == null) ? '' : fmtBags((parseFloat(val) || 0) / bagSize);
+  binRows[i].qty_bags = bags;
+  const bagsEl = document.getElementById('bin-bags-' + i);
+  if (bagsEl) bagsEl.value = bags;
+  updateBinTotal();
+}
+
 function updateBinTotal() {
   const lot = (PAGE_DATA.inventory_lots || [])
     .find(l => String(l.lot_id) === String(document.getElementById('bins-lot-id').value));
   const received = lot ? (lot.received_bags || 0) : 0;
-  const total = binRows.reduce(function(s, b) { return s + (parseInt(b.qty_bags) || 0); }, 0);
+  // v2.8: available = received − drawn (already derived backend-side). This is the
+  // amount PHYSICALLY in bins after drawdowns shrank them, and the true "fully binned"
+  // target. Fall back to received when available is absent so behaviour is unchanged
+  // for lots with nothing drawn.
+  const available = lot && lot.available_bags != null ? (parseFloat(lot.available_bags) || 0) : received;
+  const drawn     = Math.max(0, Math.round((received - available) * 10000) / 10000);
+  // v2.7: fractional bags — parseFloat (was parseInt, which floored fractions to 0).
+  const total   = binRows.reduce(function(s, b) { return s + (parseFloat(b.qty_bags) || 0); }, 0);
+  const bagSize = lot ? (parseFloat(lot.bag_size) || 0) : 0;
+  const unit    = lot ? (lot.cost_price_unit || 'kg') : 'kg';
+  const wtStr   = bagSize > 0 ? fmtWeight(total, bagSize, unit) : '';
   const el = document.getElementById('bins-total');
+  const EPS = 1e-6; // float slop so 12.6000001 isn't mis-flagged
+  // v2.9: OVER ceiling now = AVAILABLE (on-hand), matching the backend block in
+  // handleSaveBinsForLot. Drawn bags physically left their bins, so binning more than
+  // on-hand is invalid (this is what surfaced the stale 300-bag phantom on a 0-on-hand
+  // lot). GREEN "exact" = total === available (everything on hand is binned).
+  const over  = total > available + EPS;
+  const exact = Math.abs(total - available) < EPS && total > 0;
+  // drawn-gap suffix so "12.6 / 16" reads as a complete story, not a missing 3.4.
+  const gap   = drawn > EPS ? ' · ' + fmtBags(drawn) + ' drawn · ' + fmt2(received) + ' received' : '';
   // v2.3.0 I7: zero-bag warning — prevents accidentally clearing all bin records
   if (total === 0 && binRows.some(b => b.bin_label || b.qty_bags)) {
-    el.textContent = 'Total: 0 bags — saving will clear all bin records for this lot';
+    el.innerHTML  = 'Total: 0 bags — saving will clear all bin records for this lot';
     el.className   = 'bin-total over';
   } else if (total === 0) {
-    el.textContent = 'Total: 0 / ' + received + ' bags binned';
+    el.innerHTML  = 'Total: 0 / ' + fmt2(available) + ' on-hand binned' + gap;
     el.className   = 'bin-total';
   } else {
-    el.textContent = 'Total: ' + total + ' / ' + received + ' bags binned';
-    el.className   = 'bin-total' + (total > received ? ' over' : total === received ? ' exact' : '');
+    el.innerHTML  = 'Total: ' + fmtBags(total) + wtStr + ' / ' + fmt2(available) + ' on-hand binned' +
+                    (exact ? ' ✓' : '') + gap;
+    el.className   = 'bin-total' + (over ? ' over' : exact ? ' exact' : '');
   }
-  document.getElementById('btn-bins-save').disabled = total > received;
+  document.getElementById('btn-bins-save').disabled = over;
 }
 
 function removeBinRow(idx) {
@@ -890,32 +964,46 @@ document.getElementById('btn-bins-save').onclick = async function() {
   }
   const lot   = (PAGE_DATA.inventory_lots || []).find(l => String(l.lot_id) === String(lotId));
   const received = lot ? (lot.received_bags || 0) : 0;
+  // v2.9: ceiling for the save guard is ON-HAND (available), matching backend.
+  const onHand = lot && lot.available_bags != null ? (parseFloat(lot.available_bags) || 0) : received;
 
-  // Client-side validation
-  for (var i = 0; i < binRows.length; i++) {
-    if (!binRows[i].bin_label || !String(binRows[i].bin_label).trim()) {
+  // v2.10: drop fully-blank rows (no label AND no positive qty). This is what lets a
+  // user CLEAR all bins — e.g. to remove a stale phantom bin on a drawn-out lot: blank
+  // the qty (or delete rows) and save. A single empty row no longer trips the "qty > 0"
+  // error; it simply means "no bins". Rows with a label OR a qty are kept and validated.
+  const cleanRows = binRows.filter(function(b) {
+    const hasLabel = b.bin_label && String(b.bin_label).trim();
+    const hasQty   = (parseFloat(b.qty_bags) || 0) > 0;
+    return hasLabel || hasQty;
+  });
+
+  // Validate only the rows the user actually filled.
+  for (var i = 0; i < cleanRows.length; i++) {
+    if (!cleanRows[i].bin_label || !String(cleanRows[i].bin_label).trim()) {
       showModalError('modal-bins', 'Bin ' + (i + 1) + ': label is required.');
       btn.disabled = false; return;
     }
-    const qty = parseInt(binRows[i].qty_bags) || 0;
+    // v2.7: fractional bags allowed — parseFloat (was parseInt).
+    const qty = parseFloat(cleanRows[i].qty_bags) || 0;
     if (qty <= 0) {
-      showModalError('modal-bins', 'Bin ' + (i + 1) + ': qty must be greater than zero.');
+      showModalError('modal-bins', 'Bin ' + (i + 1) + ': qty must be greater than zero (or clear the label to drop this bin).');
       btn.disabled = false; return;
     }
   }
-  const total = binRows.reduce(function(s, b) { return s + (parseInt(b.qty_bags) || 0); }, 0);
-  if (total > received) {
-    showModalError('modal-bins', 'Total bins (' + total + ') exceed received bags (' + received + ').');
+  const total = cleanRows.reduce(function(s, b) { return s + (parseFloat(b.qty_bags) || 0); }, 0);
+  if (total > onHand + 1e-6) {
+    showModalError('modal-bins', 'Total bins (' + fmtBags(total) + ') exceed on-hand bags (' + fmt2(onHand) +
+      '). ' + (received > onHand ? fmtBags(received - onHand) + ' bag(s) have been drawn down and cannot be binned.' : ''));
     btn.disabled = false; return;
   }
 
   const payload = {
     action:  'saveBinsForLot',
     lot_id:  lotId,
-    bins:    binRows.map(function(b) {
+    bins:    cleanRows.map(function(b) {
       return {
         bin_label:   String(b.bin_label || '').trim(),
-        qty_bags:    parseInt(b.qty_bags) || 0,
+        qty_bags:    parseFloat(b.qty_bags) || 0,
         location_id: b.location_id || '',
         notes:       String(b.notes || '').trim()
       };
