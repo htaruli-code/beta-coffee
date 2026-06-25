@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 1.3 | activity-log.html -->
+<!-- Version 1.5 | activity-log.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -51,6 +51,7 @@
     .xcaret { display: inline-block; width: 1em; color: var(--accent); font-size: 0.7rem; }
     tr.xdetail td { background: var(--surface); padding: 0.5rem 0.75rem 0.75rem 2rem; }
     .xloading, .xempty { font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); }
+    .weight { color: var(--accent); }
     table.xtable { width: auto; min-width: 60%; border-collapse: collapse; font-size: 0.74rem; margin-top: 0.25rem; }
     table.xtable th { text-align: left; font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 0.3rem 0.7rem; border-bottom: 1px solid var(--border); position: static; background: transparent; }
     table.xtable td { padding: 0.3rem 0.7rem; border-bottom: 1px solid var(--border); }
@@ -116,7 +117,12 @@
 <script src="js/ui.js?v=1.3"></script>
 <script src="js/nav.js?v=1.0"></script>
 <script>
-// Version 1.3 | activity-log.html
+// Version 1.5 | activity-log.html
+// v1.5: transfer breakdown now shows WEIGHT next to bags ("9 bags (531 kg)") via fmtWeight, like
+//        drawdowns. bag_size+unit come from the backend (resolved per lot). Added fmtBags/fmtWeight.
+// v1.4: ACTION filter de-duped by label — synonym codes (BIN_TRANSFERRED + BIN_TRANSFERRED_BATCH)
+//        now show as ONE "Inventory Transfer" option whose value is all matching codes; filter
+//        matches any. Fixes the duplicate dropdown entry.
 // v1.3: TRANSFER BREAKDOWN — transfer rows are now expandable; clicking fetches the per-bin detail
 //        (getTransferDetail → inventory_transfers) and shows SKU/lot · bin · bags · mode. Cached per row.
 // v1.2: EXPORT — Export PDF (print-to-PDF via hidden iframe, A4 landscape, same pattern as
@@ -136,6 +142,15 @@ if (!Auth.requireAuth()) throw new Error('Unauthenticated');
 const TRANSFER_ACTION = 'BIN_TRANSFERRED_BATCH';
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// fmtBags / fmtWeight — same formulas as drawdowns: bags 4dp trimmed; weight = bags×bag_size, 2dp,
+// " (NN kg)", blank when bag_size unknown. Lets the transfer breakdown show "9 bags (531 kg)".
+function fmtBags(n) { return String(Math.round((parseFloat(n) || 0) * 10000) / 10000); }
+function fmtWeight(bags, bagSize, unit) {
+  const b = parseFloat(bags), s = parseFloat(bagSize);
+  if (!isFinite(b) || !isFinite(s) || s <= 0) return '';
+  const w = Math.round(b * s * 100) / 100;
+  return ' <span class="weight">(' + w + ' ' + esc(unit || 'kg') + ')</span>';
+}
 
 // Friendly action labels (fallback = raw action)
 const ACTION_LABELS = {
@@ -191,12 +206,21 @@ function mount(actions, users) {
   wrap.innerHTML = '';
   wrap.appendChild(tpl.content.cloneNode(true));
 
-  // Action filter — include an "All actions" option; default to transfers if present
+  // Action filter — group raw codes by their display LABEL so synonyms (e.g. BIN_TRANSFERRED and
+  // BIN_TRANSFERRED_BATCH → "Inventory Transfer") appear ONCE. Option value = all codes for that
+  // label, '|'-joined; the filter matches any of them.
   const aSel = document.getElementById('f-action');
-  const hasTransfer = actions.indexOf(TRANSFER_ACTION) !== -1;
+  const byLabel = {};
+  actions.forEach(a => {
+    const lbl = actionLabel(a);
+    (byLabel[lbl] = byLabel[lbl] || []).push(a);
+  });
+  const labels = Object.keys(byLabel).sort();
   aSel.innerHTML = '<option value="">All actions</option>' +
-    actions.map(a => `<option value="${esc(a)}">${esc(actionLabel(a))}</option>`).join('');
-  aSel.value = hasTransfer ? TRANSFER_ACTION : '';
+    labels.map(lbl => `<option value="${esc(byLabel[lbl].join('|'))}">${esc(lbl)}</option>`).join('');
+  // default to the transfer group if present
+  const transferOpt = labels.find(lbl => byLabel[lbl].indexOf(TRANSFER_ACTION) !== -1);
+  aSel.value = transferOpt ? byLabel[transferOpt].join('|') : '';
 
   // User filter
   const uSel = document.getElementById('f-user');
@@ -226,7 +250,7 @@ function render() {
   const to     = document.getElementById('f-to').value;
 
   const rows = LOGS.filter(l => {
-    if (action && l.action !== action) return false;
+    if (action && action.split('|').indexOf(l.action) === -1) return false;
     if (userId && String(l.user_id) !== String(userId)) return false;
     if (from || to) {
       const d = dayOf(l.timestamp);
@@ -309,13 +333,15 @@ async function toggleTransferDetail(activityId, el) {
       html = '<span class="xempty">No per-bin breakdown was recorded for this transfer (it predates breakdown logging).</span>';
     } else {
       html = '<table class="xtable"><thead><tr>' +
-        '<th>SKU / Lot</th><th>Bin</th><th>Bags</th><th>Move</th></tr></thead><tbody>' +
+        '<th>SKU / Lot</th><th>Bin</th><th>Bags moved</th><th>Move</th></tr></thead><tbody>' +
         lines.map(function (r) {
           const name = r.sku_code ? (r.sku_code + ' · ' + r.sample_name) : (r.sample_name || ('Lot ' + r.lot_id));
+          // bags + weight, e.g. "9 bags (531 kg)" — same as drawdowns fmtWeight
+          const bagsCell = fmtBags(r.bags_moved) + ' bags' + fmtWeight(r.bags_moved, r.bag_size, r.bag_size_unit);
           return '<tr>' +
             '<td>' + esc(name) + '</td>' +
             '<td>' + esc(r.bin_label || '(no label)') + '</td>' +
-            '<td class="xnum">' + esc(String(r.bags_moved)) + '</td>' +
+            '<td class="xnum">' + bagsCell + '</td>' +
             '<td>' + esc(r.mode || '') + '</td>' +
           '</tr>';
         }).join('') + '</tbody></table>';
