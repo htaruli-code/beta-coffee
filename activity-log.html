@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<!-- Version 1.3 | activity-log.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity Log — Sample Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --surface: #fdf8f2; --surface2: #f7eee1; --border: #f0e8da; --accent: #c47a2b;
+      --text: #1a1a1a; --muted: #8a7060; --error: #c0392b; --success: #2e7d52;
+      --font-mono: 'IBM Plex Mono', monospace; --font-sans: 'Inter', sans-serif;
+      --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+
+    .page { width: 90%; margin: 0 auto; padding: 2rem 0 3rem; }
+    .page-header { margin-bottom: 1.25rem; }
+    .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+    .page-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+    .filters { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .filter { display: flex; flex-direction: column; gap: 0.3rem; }
+    .filter label { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; }
+    select, input[type="date"] { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.8rem; padding: 0.5rem 0.7rem; border-radius: var(--radius); outline: none; transition: border-color var(--transition); min-width: 150px; }
+    select:focus, input[type="date"]:focus { border-color: var(--accent); }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; border-radius: var(--radius); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .count-note { font-size: 0.72rem; color: var(--muted); font-family: var(--font-mono); margin-bottom: 0.75rem; }
+    .cap-warn { color: var(--accent); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    thead th { text-align: left; font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0.6rem 0.75rem; border-bottom: 2px solid var(--border); position: sticky; top: var(--nav-h); background: var(--bg); }
+    tbody td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tbody tr:hover { background: var(--surface); }
+    .col-time { white-space: nowrap; font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); }
+    .col-user { white-space: nowrap; }
+    .action-tag { display: inline-block; font-family: var(--font-mono); font-size: 0.68rem; padding: 0.15rem 0.5rem; border-radius: 3px; background: var(--surface2); color: var(--text); }
+    .action-tag.transfer { background: var(--accent); color: #fff; }
+    .col-detail { font-family: var(--font-mono); font-size: 0.76rem; }
+    .empty { color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; padding: 2rem; text-align: center; }
+    .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+    /* expandable transfer breakdown */
+    tr.xrow { cursor: pointer; }
+    .xpand { cursor: pointer; user-select: none; }
+    .xcaret { display: inline-block; width: 1em; color: var(--accent); font-size: 0.7rem; }
+    tr.xdetail td { background: var(--surface); padding: 0.5rem 0.75rem 0.75rem 2rem; }
+    .xloading, .xempty { font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); }
+    table.xtable { width: auto; min-width: 60%; border-collapse: collapse; font-size: 0.74rem; margin-top: 0.25rem; }
+    table.xtable th { text-align: left; font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 0.3rem 0.7rem; border-bottom: 1px solid var(--border); position: static; background: transparent; }
+    table.xtable td { padding: 0.3rem 0.7rem; border-bottom: 1px solid var(--border); }
+    table.xtable td.xnum { text-align: right; font-family: var(--font-mono); }
+  </style>
+</head>
+<body>
+
+<div id="app-nav"></div>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">Activity Log</div>
+    <div class="page-sub">Staff audit trail. Defaults to inventory transfers — clear the Action filter to see everything.</div>
+  </div>
+
+  <div id="wrap"><div class="loading">Loading…</div></div>
+</div>
+
+<!-- Filters + table template (before script so bindings resolve) -->
+<template id="tpl-main">
+  <div class="filters">
+    <div class="filter">
+      <label>Action</label>
+      <select id="f-action"></select>
+    </div>
+    <div class="filter">
+      <label>User</label>
+      <select id="f-user"></select>
+    </div>
+    <div class="filter">
+      <label>From date</label>
+      <input type="date" id="f-from" />
+    </div>
+    <div class="filter">
+      <label>To date</label>
+      <input type="date" id="f-to" />
+    </div>
+    <button class="btn btn-ghost" id="btn-clear" type="button">Clear filters</button>
+    <span style="flex:1"></span>
+    <button class="btn" id="btn-export-pdf" type="button">Export PDF</button>
+    <button class="btn" id="btn-export-csv" type="button">Export Excel (CSV)</button>
+  </div>
+
+  <div class="count-note" id="count-note"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:160px">Time</th>
+        <th style="width:160px">User</th>
+        <th style="width:200px">Action</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody id="log-body"></tbody>
+  </table>
+</template>
+
+<script src="js/config.js?v=1.2"></script>
+<script src="js/auth.js?v=1.2.4"></script>
+<script src="js/api.js?v=1.35"></script>
+<script src="js/ui.js?v=1.3"></script>
+<script src="js/nav.js?v=1.0"></script>
+<script>
+// Version 1.3 | activity-log.html
+// v1.3: TRANSFER BREAKDOWN — transfer rows are now expandable; clicking fetches the per-bin detail
+//        (getTransferDetail → inventory_transfers) and shows SKU/lot · bin · bags · mode. Cached per row.
+// v1.2: EXPORT — Export PDF (print-to-PDF via hidden iframe, A4 landscape, same pattern as
+//        contracts/purchase-orders) and Export Excel (CSV Blob download, UTF-8 BOM). Both export
+//        exactly the currently-filtered rows (FILTERED). Buttons disable when no rows match.
+// v1.0: Staff activity-log viewer over getAuditLogPage. One API call on load. Client-side
+//        filters: Action (from returned actions[]), User (from returned users[]), and a date
+//        range applied to the ISO timestamps. Defaults the Action filter to BIN_TRANSFERRED_BATCH
+//        (transfers only) per request. The backend caps at 500 newest rows — surfaced in the note.
+
+// ── Dependency checks ────────────────────────────────────────────────────────
+if (typeof APP_CONFIG === 'undefined') throw new Error('config.js not loaded');
+if (typeof Auth       === 'undefined') throw new Error('auth.js not loaded');
+if (typeof API        === 'undefined') throw new Error('api.js not loaded');
+if (!Auth.requireAuth()) throw new Error('Unauthenticated');
+
+const TRANSFER_ACTION = 'BIN_TRANSFERRED_BATCH';
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Friendly action labels (fallback = raw action)
+const ACTION_LABELS = {
+  'BIN_TRANSFERRED_BATCH': 'Inventory Transfer',
+  'BIN_TRANSFERRED':       'Inventory Transfer',
+  'BINS_UPDATED':          'Bins Updated',
+  'PO_LINE_RECEIVED':      'PO Line Received',
+  'LOT_TOGGLED':           'Lot Activated/Deactivated',
+  'LOCATION_TOGGLED':      'Location Activated/Deactivated'
+};
+function actionLabel(a) { return ACTION_LABELS[a] || a; }
+
+// Format ISO timestamp → readable local
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return esc(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) +
+    ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+// ISO timestamp → YYYY-MM-DD (for date-range compare)
+function dayOf(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+}
+
+let LOGS = [];     // all rows from the API (≤500)
+let FILTERED = []; // current on-screen rows (exports use these)
+let CAPPED = false;
+
+(async () => {
+  const user = Auth.getUser(); const company = Auth.getCompany();
+  /* nav brand handled by nav.js */
+  /* nav user handled by nav.js */
+  /* nav brand/user/logout handled by nav.js */
+
+  try {
+    const data = await API.post({ action: 'getAuditLogPage' });
+    LOGS = data.logs || [];
+    CAPPED = LOGS.length >= 500;
+    mount(data.actions || [], data.users || []);
+  } catch (e) {
+    document.getElementById('wrap').innerHTML = '<div class="empty">Failed to load: ' + esc(e.message) + '</div>';
+  }
+})();
+
+function mount(actions, users) {
+  const tpl = document.getElementById('tpl-main');
+  const wrap = document.getElementById('wrap');
+  wrap.innerHTML = '';
+  wrap.appendChild(tpl.content.cloneNode(true));
+
+  // Action filter — include an "All actions" option; default to transfers if present
+  const aSel = document.getElementById('f-action');
+  const hasTransfer = actions.indexOf(TRANSFER_ACTION) !== -1;
+  aSel.innerHTML = '<option value="">All actions</option>' +
+    actions.map(a => `<option value="${esc(a)}">${esc(actionLabel(a))}</option>`).join('');
+  aSel.value = hasTransfer ? TRANSFER_ACTION : '';
+
+  // User filter
+  const uSel = document.getElementById('f-user');
+  uSel.innerHTML = '<option value="">All users</option>' +
+    users.map(u => `<option value="${esc(u.user_id)}">${esc(u.user_name)}</option>`).join('');
+
+  aSel.addEventListener('change', render);
+  uSel.addEventListener('change', render);
+  document.getElementById('f-from').addEventListener('change', render);
+  document.getElementById('f-to').addEventListener('change', render);
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    aSel.value = ''; uSel.value = '';
+    document.getElementById('f-from').value = '';
+    document.getElementById('f-to').value = '';
+    render();
+  });
+  document.getElementById('btn-export-pdf').addEventListener('click', exportPdf);
+  document.getElementById('btn-export-csv').addEventListener('click', exportCsv);
+
+  render();
+}
+
+function render() {
+  const action = document.getElementById('f-action').value;
+  const userId = document.getElementById('f-user').value;
+  const from   = document.getElementById('f-from').value; // YYYY-MM-DD or ''
+  const to     = document.getElementById('f-to').value;
+
+  const rows = LOGS.filter(l => {
+    if (action && l.action !== action) return false;
+    if (userId && String(l.user_id) !== String(userId)) return false;
+    if (from || to) {
+      const d = dayOf(l.timestamp);
+      if (!d) return false;
+      if (from && d < from) return false;
+      if (to   && d > to)   return false;
+    }
+    return true;
+  });
+  FILTERED = rows;  // exports use exactly what's on screen
+
+  const body = document.getElementById('log-body');
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4"><div class="empty">No activity matches these filters.</div></td></tr>';
+  } else {
+    body.innerHTML = rows.map(l => {
+      const isTransfer = (l.action === TRANSFER_ACTION || l.action === 'BIN_TRANSFERRED');
+      const tag = '<span class="action-tag' + (isTransfer ? ' transfer' : '') + '">' + esc(actionLabel(l.action)) + '</span>';
+      // entity_id carries the enriched summary for transfers; for others show type + id
+      const detail = isTransfer
+        ? esc(l.entity_id)
+        : (esc(l.entity_type) + (l.entity_id ? ' · ' + esc(l.entity_id) : ''));
+      // transfer rows are expandable — clicking fetches the per-bin breakdown (getTransferDetail)
+      const detailCell = isTransfer
+        ? '<span class="xpand" data-aid="' + esc(l.activity_id) + '"><span class="xcaret">▸</span> ' + detail + '</span>'
+        : detail;
+      const mainRow = '<tr' + (isTransfer ? ' class="xrow"' : '') + '>' +
+        '<td class="col-time">' + fmtTime(l.timestamp) + '</td>' +
+        '<td class="col-user">' + esc(l.user_name) + '</td>' +
+        '<td>' + tag + '</td>' +
+        '<td class="col-detail">' + detailCell + '</td>' +
+      '</tr>';
+      const subRow = isTransfer
+        ? '<tr class="xdetail" data-aid-row="' + esc(l.activity_id) + '" style="display:none">' +
+          '<td colspan="4" class="xdetail-cell"></td></tr>'
+        : '';
+      return mainRow + subRow;
+    }).join('');
+  }
+
+  const note = document.getElementById('count-note');
+  note.innerHTML = 'Showing ' + rows.length + ' of ' + LOGS.length + ' loaded entries.' +
+    (CAPPED ? ' <span class="cap-warn">Only the most recent 500 entries are loaded; older activity isn\'t shown.</span>' : '');
+
+  // export buttons enabled only when there's something to export
+  const pdfBtn = document.getElementById('btn-export-pdf');
+  const csvBtn = document.getElementById('btn-export-csv');
+  if (pdfBtn) pdfBtn.disabled = !rows.length;
+  if (csvBtn) csvBtn.disabled = !rows.length;
+
+  // wire expandable transfer rows
+  Array.prototype.forEach.call(document.querySelectorAll('.xpand'), function (el) {
+    el.addEventListener('click', function () { toggleTransferDetail(el.getAttribute('data-aid'), el); });
+  });
+}
+
+// Fetch + show/hide the per-bin breakdown for a transfer activity row.
+const _detailCache = {};
+async function toggleTransferDetail(activityId, el) {
+  const sub = document.querySelector('.xdetail[data-aid-row="' + (window.CSS && CSS.escape ? CSS.escape(activityId) : activityId) + '"]');
+  if (!sub) return;
+  const caret = el.querySelector('.xcaret');
+  const open = sub.style.display !== 'none';
+  if (open) {
+    sub.style.display = 'none';
+    if (caret) caret.textContent = '▸';
+    return;
+  }
+  sub.style.display = '';
+  if (caret) caret.textContent = '▾';
+  const cell = sub.querySelector('.xdetail-cell');
+
+  if (_detailCache[activityId]) { cell.innerHTML = _detailCache[activityId]; return; }
+  cell.innerHTML = '<span class="xloading">Loading breakdown…</span>';
+  try {
+    const data = await API.post({ action: 'getTransferDetail', activity_id: activityId });
+    const lines = (data && data.lines) || [];
+    let html;
+    if (!lines.length) {
+      html = '<span class="xempty">No per-bin breakdown was recorded for this transfer (it predates breakdown logging).</span>';
+    } else {
+      html = '<table class="xtable"><thead><tr>' +
+        '<th>SKU / Lot</th><th>Bin</th><th>Bags</th><th>Move</th></tr></thead><tbody>' +
+        lines.map(function (r) {
+          const name = r.sku_code ? (r.sku_code + ' · ' + r.sample_name) : (r.sample_name || ('Lot ' + r.lot_id));
+          return '<tr>' +
+            '<td>' + esc(name) + '</td>' +
+            '<td>' + esc(r.bin_label || '(no label)') + '</td>' +
+            '<td class="xnum">' + esc(String(r.bags_moved)) + '</td>' +
+            '<td>' + esc(r.mode || '') + '</td>' +
+          '</tr>';
+        }).join('') + '</tbody></table>';
+    }
+    _detailCache[activityId] = html;
+    cell.innerHTML = html;
+  } catch (e) {
+    cell.innerHTML = '<span class="xempty">Failed to load breakdown: ' + esc(e.message) + '</span>';
+  }
+}
+
+// ── Export helpers ───────────────────────────────────────────────────────────
+// Plain-text detail (no HTML) for CSV/PDF — mirrors the on-screen Detail column.
+function plainDetail(l) {
+  const isTransfer = (l.action === TRANSFER_ACTION || l.action === 'BIN_TRANSFERRED');
+  return isTransfer
+    ? String(l.entity_id || '')
+    : (String(l.entity_type || '') + (l.entity_id ? ' · ' + String(l.entity_id) : ''));
+}
+// Describe the active filters (for the PDF header + file name)
+function filterSummary() {
+  const a = document.getElementById('f-action');
+  const u = document.getElementById('f-user');
+  const from = document.getElementById('f-from').value;
+  const to   = document.getElementById('f-to').value;
+  const parts = [];
+  if (a.value) parts.push('Action: ' + (a.options[a.selectedIndex] ? a.options[a.selectedIndex].text : a.value));
+  if (u.value) parts.push('User: ' + (u.options[u.selectedIndex] ? u.options[u.selectedIndex].text : u.value));
+  if (from || to) parts.push('Dates: ' + (from || '…') + ' to ' + (to || '…'));
+  return parts.length ? parts.join('  ·  ') : 'All activity';
+}
+function stamp() {
+  const d = new Date(); const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes());
+}
+
+// ── CSV export (opens in Excel) ──────────────────────────────────────────────
+function csvCell(v) {
+  const s = String(v == null ? '' : v);
+  // quote if it contains comma, quote, or newline; escape embedded quotes
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportCsv() {
+  if (!FILTERED.length) return;
+  const header = ['Time', 'User', 'Action', 'Detail'];
+  const lines = [header.map(csvCell).join(',')];
+  FILTERED.forEach(l => {
+    lines.push([
+      csvCell(fmtTime(l.timestamp)),
+      csvCell(l.user_name),
+      csvCell(actionLabel(l.action)),
+      csvCell(plainDetail(l))
+    ].join(','));
+  });
+  // BOM so Excel reads UTF-8 (the → and · render correctly)
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'activity-log-' + stamp() + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+// ── PDF export (print-to-PDF via hidden iframe — same pattern as contracts/PO) ─
+function exportPdf() {
+  if (!FILTERED.length) return;
+  const company = (Auth.getCompany && Auth.getCompany()) || {};
+  const title = (company.company_name || 'Sample Tracker') + ' — Activity Log';
+
+  const rowsHtml = FILTERED.map(l => {
+    const isTransfer = (l.action === TRANSFER_ACTION || l.action === 'BIN_TRANSFERRED');
+    return '<tr>' +
+      '<td class="t">' + esc(fmtTime(l.timestamp)) + '</td>' +
+      '<td>' + esc(l.user_name) + '</td>' +
+      '<td>' + esc(actionLabel(l.action)) + '</td>' +
+      '<td class="' + (isTransfer ? 'em' : '') + '">' + esc(plainDetail(l)) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  const PRINT_CSS =
+    '@page{size:A4 landscape;margin:14mm}' +
+    'body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;font-size:11px}' +
+    'body::before{content:"";display:block;height:4px;background:#c47a2b;margin:-8px 0 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    'h1{font-size:16px;margin:0 0 2px}' +
+    '.meta{color:#666;font-size:10px;margin:0 0 12px}' +
+    'table{width:100%;border-collapse:collapse}' +
+    'th{text-align:left;border-bottom:2px solid #c47a2b;padding:6px 8px;font-size:9px;text-transform:uppercase;letter-spacing:0.04em;color:#555}' +
+    'td{border-bottom:1px solid #e5e0d6;padding:5px 8px;vertical-align:top}' +
+    'td.t{white-space:nowrap;color:#666}' +
+    'td.em{font-weight:600;color:#a8621f}' +
+    'tr{break-inside:avoid}';
+
+  const html = '<h1>' + esc(title) + '</h1>' +
+    '<div class="meta">' + esc(filterSummary()) + '  ·  ' + FILTERED.length +
+      ' entries  ·  generated ' + esc(fmtTime(new Date().toISOString())) + '</div>' +
+    '<table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th></tr></thead>' +
+    '<tbody>' + rowsHtml + '</tbody></table>';
+
+  const old = document.getElementById('pdf-print-frame');
+  if (old) old.remove();
+  const iframe = document.createElement('iframe');
+  iframe.id = 'pdf-print-frame';
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:297mm;height:210mm;border:none;';
+  document.body.appendChild(iframe);
+  const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+  iDoc.open();
+  iDoc.write('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>' + esc(title) + '</title>');
+  iDoc.write('<style>' + PRINT_CSS + '</style></head><body>');
+  iDoc.write(html);
+  iDoc.write('</body></html>');
+  iDoc.close();
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => iframe.remove(), 2000);
+  }, 400);
+}
+</script>
+</body>
+</html>

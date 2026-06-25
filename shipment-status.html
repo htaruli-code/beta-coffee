@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.7 | shipment-status.html -->
+<!-- Version 2.8 | shipment-status.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -17,14 +17,6 @@
       --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
     }
     body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
-    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
-    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
-    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
-    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
-    .nav-links a:hover { background: var(--surface); color: var(--text); }
-    .nav-links a.active { background: var(--surface); color: var(--accent); font-weight: 500; }
-    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
-    .nav-user:hover { color: var(--accent); }
 
     /* Page */
     .page { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
@@ -119,21 +111,7 @@
 </head>
 <body>
 
-<nav class="nav">
-  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
-  <div class="nav-links">
-    <a href="all-samples.html" id="nav-all-samples">All Samples</a>
-    <a href="purchase-orders.html" id="nav-po">Purchase Orders</a>
-    <a href="shipments.html" id="nav-shipments">Shipments</a>
-    <a href="inventory.html" id="nav-inventory">Inventory</a>
-    <a href="inventory-locations.html" id="nav-locations">Locations</a>
-    <a href="product-skus.html" id="nav-skus">SKU</a>
-    <a href="suppliers.html" id="nav-suppliers">Suppliers</a>
-    <a href="contracts.html" id="nav-contracts">Contracts</a>
-    <a href="drawdowns.html" id="nav-drawdowns">Drawdowns</a>
-  </div>
-  <span class="nav-user" id="nav-user"></span>
-</nav>
+<div id="app-nav"></div>
 
 <div class="page">
   <div class="page-header">
@@ -170,12 +148,13 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/config.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/api.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/config.js?v=1.2"></script>
+<script src="js/auth.js?v=1.2.4"></script>
+<script src="js/api.js?v=1.35"></script>
+<script src="js/ui.js?v=1.3"></script>
+<script src="js/nav.js?v=1.0"></script>
 <script>
-// Version 2.7 | shipment-status.html
+// Version 2.8 | shipment-status.html
 // v2.7: badge-confirmed added. buildSailingBadge includes Booked + Confirmed.
 //       TAB_DEFS Booked tab now also filters sailing_status='Booked'.
 //       Confirmed tab added. Default fallback changed from 'Pending' to 'Booked'.
@@ -223,9 +202,9 @@ let sortDir     = 'desc'; // desc = newest first
 (async () => {
   const user    = Auth.getUser();
   const company = Auth.getCompany();
-  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
-  document.getElementById('nav-user').textContent  = user ? user.name : '';
-  document.getElementById('nav-user').onclick      = () => Auth.logout();
+  /* nav brand handled by nav.js */
+  /* nav user handled by nav.js */
+  /* nav logout handled by nav.js */
   await loadData();
 })();
 

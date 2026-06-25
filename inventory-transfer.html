@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 2.2 | inventory-transfer.html -->
+<!-- Version 2.5 | inventory-transfer.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -16,14 +16,6 @@
       --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
     }
     body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
-    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
-    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
-    .nav-links { display: flex; gap: 0.25rem; flex: 1; margin: 0 1rem; flex-wrap: wrap; }
-    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
-    .nav-links a:hover { background: var(--surface2); color: var(--text); }
-    .nav-links a.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
-    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
-    .nav-user:hover { color: var(--accent); }
 
     /* v2.0: full-width page, 5% margin each side */
     .page { width: 90%; margin: 0 auto; padding: 2rem 0 3rem; }
@@ -49,12 +41,25 @@
     .hint { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); margin-top: 0.3rem; }
     .weight { color: var(--accent); }
     /* qty input + live weight badge on the right */
-    .qty-wrap { display: flex; align-items: stretch; gap: 0.6rem; flex-wrap: wrap; }
-    .qty-wrap input[data-qty] { flex: 1 1 160px; }
-    .qty-wrap input[data-wt] { flex: 1 1 140px; font-size: 0.78rem; opacity: 0.85; }
-    .qty-or { flex: 0 0 auto; display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
-    .qty-weight { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 120px; padding: 0 1rem; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; color: var(--accent); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); white-space: nowrap; }
-    .qty-weight:empty { display: none; }
+
+    /* Bin grid — image-2 style: one row per bin, qty input each */
+    .bin-grid-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    table.bin-grid { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.78rem; }
+    table.bin-grid th { text-align: left; background: var(--surface2); color: var(--muted); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); font-weight: 600; }
+    table.bin-grid td { padding: 0.4rem 0.7rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    table.bin-grid tr:last-child td { border-bottom: none; }
+    table.bin-grid tr.bg-invalid td { background: rgba(192,57,43,0.06); }
+    table.bin-grid tr.bg-filled td { background: rgba(46,125,82,0.05); }
+    .bg-label { font-weight: 500; color: var(--text); }
+    .bg-avail { color: var(--muted); white-space: nowrap; }
+    .bg-qty { width: 90px; }
+    .bg-qty input { width: 100%; text-align: right; padding: 0.4rem 0.5rem; font-size: 0.8rem; }
+    .bg-wt { width: 120px; }
+    .bg-wt input { width: 100%; text-align: right; padding: 0.4rem 0.5rem; font-size: 0.76rem; opacity: 0.9; }
+    .bg-of { color: var(--muted); font-size: 0.72rem; padding: 0 0.3rem; }
+    .bg-rowwarn { color: var(--error); font-size: 0.68rem; }
+    .bin-grid-foot { display: flex; justify-content: space-between; align-items: center; background: var(--surface); padding: 0.5rem 0.7rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); border-top: 1px solid var(--border); }
+    .bin-grid-foot b { color: var(--accent); }
 
     .line-row { display: flex; gap: 1rem; flex-wrap: wrap; }
     .field { display: flex; flex-direction: column; margin-bottom: 1rem; flex: 1; min-width: 200px; }
@@ -103,22 +108,7 @@
 </head>
 <body>
 
-<nav class="nav">
-  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
-  <div class="nav-links">
-    <a href="all-samples.html" id="nav-all-samples">All Samples</a>
-    <a href="purchase-orders.html" id="nav-po">Purchase Orders</a>
-    <a href="shipments.html" id="nav-shipments">Shipments</a>
-    <a href="inventory.html" id="nav-inventory">Inventory</a>
-    <a href="inventory-locations.html" id="nav-locations">Locations</a>
-    <a href="inventory-transfer.html" id="nav-transfer" class="active">Transfer</a>
-    <a href="product-skus.html" id="nav-skus">SKU</a>
-    <a href="suppliers.html" id="nav-suppliers">Suppliers</a>
-    <a href="contracts.html" id="nav-contracts">Contracts</a>
-    <a href="drawdowns.html" id="nav-drawdowns">Drawdowns</a>
-  </div>
-  <span class="nav-user" id="nav-user"></span>
-</nav>
+<div id="app-nav"></div>
 
 <div class="page">
   <div class="page-header">
@@ -205,26 +195,14 @@
       </div>
     </div>
 
-    <!-- Line 4: Bin -->
+    <!-- Bin grid — all bins of the chosen lot in the source location, each with its own qty.
+         Fill multiple bins at once (image-2 style). Rendered by renderBinGrid(). -->
     <div class="line-row">
       <div class="field full">
-        <label>Bin <span class="req">*</span></label>
-        <select data-bin disabled></select>
-        <div class="hint">Bins of this lot in the source location, with weight.</div>
-      </div>
-    </div>
-
-    <!-- Line 5: Quantity — enter bags directly OR a weight that auto-fills bags (÷ bag size, like contract lines) -->
-    <div class="line-row">
-      <div class="field full">
-        <label>Quantity (Bags) <span class="req">*</span></label>
-        <div class="qty-wrap">
-          <input type="text" inputmode="decimal" data-qty disabled placeholder="0" autocomplete="off" />
-          <span class="qty-or">or</span>
-          <input type="text" inputmode="decimal" data-wt disabled placeholder="enter kg/lb" title="Enter weight to auto-fill bags" autocomplete="off" />
-          <span class="qty-weight" data-qty-weight></span>
+        <label>Bins to move <span class="req">*</span></label>
+        <div class="bin-grid-wrap" data-bin-grid>
+          <div class="hint" data-grid-hint>Pick a SKU / lot above to list its bins in the source location.</div>
         </div>
-        <div class="hint" data-qty-hint>Enter bags, or a weight to auto-calculate bags. Fractional allowed.</div>
       </div>
     </div>
   </div>
@@ -232,17 +210,22 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/config.js?v=1.0"></script>
-<script src="js/auth.js?v=1.0"></script>
-<script src="js/api.js?v=1.0"></script>
-<script src="js/ui.js?v=1.0"></script>
+<script src="js/config.js?v=1.2"></script>
+<script src="js/auth.js?v=1.2.4"></script>
+<script src="js/api.js?v=1.35"></script>
+<script src="js/ui.js?v=1.3"></script>
+<script src="js/nav.js?v=1.0"></script>
 <script>
-// Version 2.2 | inventory-transfer.html
-// v2.2: BUG FIX — bin dropdown options are now keyed by ARRAY INDEX, not bin_id, and the
-//        resolved bins list is stashed on the row (el._bins). selectedBin(el) reads the index.
-//        Previously a value of bin_id was resolved with .find() (first match); with reused bin
-//        LABELS (and any id ambiguity) the validator read the FIRST bin'''s qty (e.g. "max 5"
-//        while bin 08 with 9 bags was selected). Index keying is unambiguous. binById removed.
+// Version 2.5 | inventory-transfer.html
+// v2.5: BIN GRID redesign (image-2 style) + DUP-ID FIX. Picking a SKU/lot now renders a GRID of
+//        that lot's bins in the source location — one row per bin with its own qty (and weight→bags)
+//        input, so multiple bins fill at once (no re-picking the SKU). Multiple lot blocks stack via
+//        "+ Add line". readLine returns ALL filled bins per block; validate/summary/submit flatten
+//        across blocks. Each bin row carries + submits FULL composite identity (bin_id+lot_id+
+//        location_id+bin_label+created_at) so the backend (DataService_Inventory v3.0) resolves the
+//        EXACT physical bin even with duplicate legacy bin_ids — fixes the false over-allocation error.
+//        Single bin dropdown + per-line qty/weight inputs removed.
+// v2.2: BUG FIX — bin dropdown options keyed by ARRAY INDEX, not bin_id (superseded by the grid).
 // v2.1: WEIGHT ENTRY — per-line "or enter kg/lb" box that auto-fills the bags field
 //        (bags = weight ÷ bag_size), exactly like the contracts New/Edit Line modal's
 //        modalWeightToBags(). Weight is entered in the bag's own unit (no kg⇄lb conversion,
@@ -301,9 +284,9 @@ let lineSeq = 0; // unique id per line row
 // ── Boot — single API call ───────────────────────────────────────────────────
 (async () => {
   const user = Auth.getUser(); const company = Auth.getCompany();
-  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
-  document.getElementById('nav-user').textContent  = user ? user.name : '';
-  document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
+  /* nav brand handled by nav.js */
+  /* nav user handled by nav.js */
+  /* nav brand/user/logout handled by nav.js */
 
   try {
     const data = await API.post({ action: 'getTransferPage' });
@@ -453,11 +436,7 @@ function addLine() {
   // Wire the lot typeahead for this row
   initLotSearch(el, fromId);
 
-  // Bin + qty listeners
-  el.querySelector('[data-bin]').addEventListener('change', () => onBinChange(el));
-  el.querySelector('[data-qty]').addEventListener('input', () => onQtyInput(el));
-  // Weight entry → auto-fill bags (kg/lb), like contract lines
-  el.querySelector('[data-wt]').addEventListener('input', () => onWeightInput(el));
+  // Bin grid renders + wires its own per-bin listeners when a lot is picked (applyLotSelection).
 
   renumberLines();
 }
@@ -474,146 +453,105 @@ function renumberLines() {
 function applyLotSelection(el, lotId) {
   const fromId = document.getElementById('f-from').value;
   const lot = lotId ? lotById(lotId) : null;
-  const binSel = el.querySelector('[data-bin]');
-  const qty = el.querySelector('[data-qty]');
-  const wt = el.querySelector('[data-wt]');
-  const wtEcho = el.querySelector('[data-qty-weight]');
-
-  qty.value = ''; qty.disabled = true;
-  wt.value = ''; wt.disabled = true;
-  if (wtEcho) wtEcho.textContent = '';
+  const grid = el.querySelector('[data-bin-grid]');
 
   if (!lot) {
     el.querySelector('[data-name]').value = '';
-    binSel.innerHTML = ''; binSel.disabled = true;
+    el._bins = [];
+    grid.innerHTML = '<div class="hint" data-grid-hint>Pick a SKU / lot above to list its bins in the source location.</div>';
     revalidateAll(); return;
   }
 
   el.querySelector('[data-name]').value = lot.sample_name || '';
-
-  // Resolve the candidate bins ONCE and stash them on the row. Options are keyed by
-  // ARRAY INDEX, not bin_id — legacy data can contain duplicate bin_ids (pre-v2.7 fix),
-  // and a <select> value of bin_id would resolve to the FIRST matching bin (wrong qty).
   const bins = binsOfLotInLocation(lot, fromId);
   el._bins = bins;
-  binSel.disabled = false;
-  binSel.innerHTML = '<option value="">Select bin…</option>' +
-    bins.map((b, idx) => {
-      const label = b.bin_label || '(no label)';
-      const w = weightPlain(b.qty_bags, lot.bag_size, lot.cost_price_unit);
-      return `<option value="${idx}">${esc(label)} · ${fmtBags(b.qty_bags)} bags${esc(w)}</option>`;
-    }).join('');
-
+  el._lot  = lot;
+  renderBinGrid(el, lot, bins);
   revalidateAll();
 }
 
-// Resolve the bin the user actually selected on a row, by array index (dup-id safe).
-function selectedBin(el) {
-  const v = el.querySelector('[data-bin]').value;
-  if (v === '' || v == null) return null;
-  const bins = el._bins || [];
-  const idx = parseInt(v, 10);
-  return (idx >= 0 && idx < bins.length) ? bins[idx] : null;
-}
-
-function onBinChange(el) {
-  const lot = lotById(el.querySelector('[data-lot-id]').value);
-  const bin = selectedBin(el);
-  const qty = el.querySelector('[data-qty]');
-  const wt = el.querySelector('[data-wt]');
-  const hint = el.querySelector('[data-qty-hint]');
-
-  qty.value = ''; wt.value = '';
-  if (!bin) {
-    qty.disabled = true; wt.disabled = true;
-    el.querySelector('[data-qty-weight]').textContent = '';
-    revalidateAll(); return;
+// renderBinGrid — image-2 style: one row per bin in the source location, each with a qty input
+// (and a weight box that auto-fills bags). Each row carries the bin's COMPOSITE identity in data-*.
+function renderBinGrid(el, lot, bins) {
+  const grid = el.querySelector('[data-bin-grid]');
+  if (!bins.length) {
+    grid.innerHTML = '<div class="empty">This lot has no bins with bags in the source location.</div>';
+    return;
   }
+  const unit = lot.cost_price_unit || 'kg';
+  const rowsHtml = bins.map((b, idx) => {
+    const w = weightPlain(b.qty_bags, lot.bag_size, lot.cost_price_unit);
+    return '<tr data-bin-row data-idx="' + idx + '">' +
+      '<td class="bg-label">' + esc(b.bin_label || '(no label)') + '</td>' +
+      '<td class="bg-avail">' + fmtBags(b.qty_bags) + ' bags' + esc(w) + '</td>' +
+      '<td class="bg-qty"><input type="text" inputmode="decimal" data-bin-qty placeholder="0" autocomplete="off" /></td>' +
+      '<td class="bg-of">of ' + fmtBags(b.qty_bags) + '</td>' +
+      '<td class="bg-wt"><input type="text" inputmode="decimal" data-bin-wt placeholder="' + esc(unit) + '" title="Enter weight to auto-fill bags" autocomplete="off" /></td>' +
+      '<td class="bg-rowwarn" data-bin-rowwarn></td>' +
+    '</tr>';
+  }).join('');
 
-  qty.disabled = false;
-  wt.disabled = false;
-  // weight is entered in the bag's own unit — hint the placeholder with it
-  const bagUnit = lot.cost_price_unit || 'kg';
-  wt.placeholder = 'enter ' + bagUnit;
+  grid.innerHTML =
+    '<table class="bin-grid"><thead><tr>' +
+      '<th>Bin</th><th>Available</th><th>Move (bags)</th><th></th><th>or weight</th><th></th>' +
+    '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+    '<div class="bin-grid-foot"><span data-grid-summary>Enter quantities to move.</span>' +
+      '<span>Bag size: ' + (lot.bag_size ? fmtBags(lot.bag_size) + ' ' + esc(unit) + '/bag' : 'not set') + '</span></div>';
 
-  const w = weightPlain(bin.qty_bags, lot.bag_size, lot.cost_price_unit);
-  hint.innerHTML = 'Max ' + fmtBags(bin.qty_bags) + ' bags' + esc(w) + ' available. Enter bags or weight.';
-  updateQtyEcho(el);
-  revalidateAll();
+  // Wire each bin row's qty + weight inputs
+  Array.prototype.forEach.call(grid.querySelectorAll('[data-bin-row]'), function (tr) {
+    const idx = parseInt(tr.getAttribute('data-idx'), 10);
+    const bin = bins[idx];
+    const qIn = tr.querySelector('[data-bin-qty]');
+    const wIn = tr.querySelector('[data-bin-wt]');
+    qIn.addEventListener('input', function () { onBinQtyInput(el, tr, bin, lot); });
+    wIn.addEventListener('input', function () { onBinWtInput(el, tr, bin, lot); });
+  });
 }
 
-// Shared: refresh the green weight badge from whatever bags value is currently set.
-function updateQtyEcho(el) {
-  const lot = lotById(el.querySelector('[data-lot-id]').value);
-  const echo = el.querySelector('[data-qty-weight]');
-  const bagsVal = el.querySelector('[data-qty]').value;
-  if (!lot || !bagsVal) { echo.textContent = ''; return; }
-  const wp = weightPlain(bagsVal, lot.bag_size, lot.cost_price_unit);
-  echo.textContent = wp ? '=' + wp : '';
-}
-
-function onQtyInput(el) {
-  const q = el.querySelector('[data-qty]');
+// Typing bags directly in a bin row.
+function onBinQtyInput(el, tr, bin, lot) {
+  const q = tr.querySelector('[data-bin-qty]');
   q.value = q.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-  // typing bags directly clears the weight box (bags is the value of record)
-  if (q.value) el.querySelector('[data-wt]').value = '';
-  const lot = lotById(el.querySelector('[data-lot-id]').value);
-  const bin = selectedBin(el);
-  const hint = el.querySelector('[data-qty-hint]');
-  if (bin && q.value) {
-    hint.innerHTML = 'Moving ' + fmtBags(q.value) + ' bags · max ' + fmtBags(bin.qty_bags) + ' available.';
-  } else if (bin) {
-    const w = weightPlain(bin.qty_bags, lot.bag_size, lot.cost_price_unit);
-    hint.innerHTML = 'Max ' + fmtBags(bin.qty_bags) + ' bags' + esc(w) + ' available. Enter bags or weight.';
-  }
-  updateQtyEcho(el);
+  if (q.value) tr.querySelector('[data-bin-wt]').value = '';  // bags is value of record
   revalidateAll();
 }
 
-// Weight entry → auto-fill the bags field (kg/lb, converted to the bag's unit), like contracts.
-function onWeightInput(el) {
-  const wt = el.querySelector('[data-wt]');
+// Typing a weight in a bin row → auto-fill bags (bags = weight ÷ bag_size, bag's own unit).
+function onBinWtInput(el, tr, bin, lot) {
+  const wt = tr.querySelector('[data-bin-wt]');
   wt.value = wt.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-  const lot = lotById(el.querySelector('[data-lot-id]').value);
-  const bin = selectedBin(el);
-  const qty = el.querySelector('[data-qty]');
-  const hint = el.querySelector('[data-qty-hint]');
-  const unit = lot ? (lot.cost_price_unit || 'kg') : 'kg';
-
-  if (!lot || !bin) { revalidateAll(); return; }
-
-  if (!wt.value) {
-    qty.value = '';
-    updateQtyEcho(el);
-    const w = weightPlain(bin.qty_bags, lot.bag_size, lot.cost_price_unit);
-    hint.innerHTML = 'Max ' + fmtBags(bin.qty_bags) + ' bags' + esc(w) + ' available. Enter bags or weight.';
-    revalidateAll(); return;
-  }
-
-  // bags = weight ÷ bag_size (weight assumed in the bag's unit — same as the contract modal)
+  const q = tr.querySelector('[data-bin-qty]');
+  if (!wt.value) { q.value = ''; revalidateAll(); return; }
   const bags = weightToBags(wt.value, lot.bag_size);
-  if (isFinite(bags)) {
-    qty.value = bags;
-    hint.innerHTML = fmtBags(wt.value) + ' ' + esc(unit) + ' ÷ ' + lot.bag_size + ' ' +
-      esc(unit) + '/bag = ' + fmtBags(bags) + ' bags · max ' +
-      fmtBags(bin.qty_bags) + ' available.';
-  } else {
-    qty.value = '';
-    hint.innerHTML = 'This lot has no bag size set — enter bags directly.';
-  }
-  updateQtyEcho(el);
+  q.value = isFinite(bags) ? bags : '';
   revalidateAll();
 }
 
-// ── Read a single line's selection ───────────────────────────────────────────
+// ── Read all FILLED bins of one line (lot block) ─────────────────────────────
+// Returns { el, lot, bins: [ { bin, qty } ] } — bins with a positive qty entered.
 function readLine(el) {
-  const lot = lotById(el.querySelector('[data-lot-id]').value);
-  const bin = selectedBin(el);
-  const qty = parseFloat(el.querySelector('[data-qty]').value);
-  return { el, lot, bin, qty };
+  const lot = el._lot || lotById(el.querySelector('[data-lot-id]').value);
+  const grid = el.querySelector('[data-bin-grid]');
+  const out = [];
+  if (lot && grid) {
+    Array.prototype.forEach.call(grid.querySelectorAll('[data-bin-row]'), function (tr) {
+      const idx = parseInt(tr.getAttribute('data-idx'), 10);
+      const bin = (el._bins || [])[idx];
+      const qty = parseFloat(tr.querySelector('[data-bin-qty]').value);
+      if (bin && !isNaN(qty) && qty > 0) out.push({ tr: tr, bin: bin, qty: qty });
+    });
+  }
+  return { el, lot, bins: out };
 }
 
-// ── Validate everything (lines + cross-line same-bin overdraw) ───────────────
+// ── Validate everything (per-bin, + cross-block same-bin overdraw) ───────────
+// Composite identity key so duplicate bin_ids don't collide (matches the backend fix).
+function binKeyOf(b) {
+  return [String(b.bin_id), String(b.lot_id), String(b.location_id),
+          String(b.bin_label || ''), String(b.created_at || '')].join('|');
+}
+
 function revalidateAll() {
   const fromEl = document.getElementById('f-from');
   const destEl = document.getElementById('f-dest');
@@ -622,42 +560,67 @@ function revalidateAll() {
   const errEl  = document.getElementById('form-error');
   if (errEl) errEl.className = 'form-error';
 
-  const rows = Array.from(document.querySelectorAll('[data-line]'));
+  const rows  = Array.from(document.querySelectorAll('[data-line]'));
   const lines = rows.map(readLine);
 
-  // sum requested qty per bin across lines (same-bin overdraw guard)
+  // Sum requested qty per physical bin across ALL blocks (same bin could appear in two lot blocks
+  // only if the same lot is picked twice — guard anyway).
   const sumPerBin = {};
-  lines.forEach(l => {
-    if (l.bin && !isNaN(l.qty) && l.qty > 0) {
-      const k = String(l.bin.bin_id);
-      sumPerBin[k] = (sumPerBin[k] || 0) + l.qty;
-    }
-  });
+  lines.forEach(l => l.bins.forEach(e => {
+    const k = binKeyOf(e.bin);
+    sumPerBin[k] = (sumPerBin[k] || 0) + e.qty;
+  }));
 
-  let allValid = rows.length > 0 && !!fromId && !!destId;
+  let allValid = !!fromId && !!destId;
+  let anyFilled = false;
 
   lines.forEach(l => {
     const warn = l.el.querySelector('[data-warn]');
-    let lineOk = !!(l.lot && l.bin && !isNaN(l.qty) && l.qty > 0);
-    let msg = '';
+    let blockOk = true, blockMsg = '';
+    const hasLot = !!l.lot;
 
-    if (l.bin && !isNaN(l.qty) && l.qty > 0) {
-      const avail = parseFloat(l.bin.qty_bags) || 0;
-      const summed = sumPerBin[String(l.bin.bin_id)] || 0;
-      if (l.qty > avail + BAG_TOL) {
-        lineOk = false; msg = 'Exceeds the ' + fmtBags(avail) + ' bags in this bin.';
+    // per-bin-row validation
+    l.bins.forEach(e => {
+      anyFilled = true;
+      const avail  = parseFloat(e.bin.qty_bags) || 0;
+      const summed = sumPerBin[binKeyOf(e.bin)] || 0;
+      const rowWarn = e.tr.querySelector('[data-bin-rowwarn]');
+      let rowMsg = '';
+      if (e.qty > avail + BAG_TOL) {
+        rowMsg = 'Max ' + fmtBags(avail);
       } else if (summed > avail + BAG_TOL) {
-        lineOk = false; msg = 'This bin is used on multiple lines totalling ' + fmtBags(summed) +
-          ' bags, but only ' + fmtBags(avail) + ' are available.';
+        rowMsg = 'Bin used twice; total ' + fmtBags(summed) + ' > ' + fmtBags(avail);
       }
+      e.tr.classList.toggle('bg-invalid', !!rowMsg);
+      e.tr.classList.toggle('bg-filled', !rowMsg);
+      if (rowWarn) rowWarn.textContent = rowMsg;
+      if (rowMsg) { blockOk = false; }
+    });
+
+    // a lot block with a lot picked but NO bins filled isn't an error on its own, but the form
+    // needs at least one filled bin overall to submit.
+    if (hasLot && !l.bins.length) {
+      blockMsg = '';  // neutral — just incomplete
     }
 
-    l.el.classList.toggle('invalid', !lineOk && (!!l.lot || !!l.bin || (!isNaN(l.qty) && l.qty > 0)));
-    if (msg) { warn.textContent = msg; warn.classList.add('show'); }
-    else     { warn.textContent = ''; warn.classList.remove('show'); }
+    l.el.classList.toggle('invalid', !blockOk);
+    if (blockMsg) { warn.textContent = blockMsg; warn.classList.add('show'); }
+    else          { warn.textContent = ''; warn.classList.remove('show'); }
 
-    if (!lineOk) allValid = false;
+    // per-block grid summary line
+    const gs = l.el.querySelector('[data-grid-summary]');
+    if (gs) {
+      const filled = l.bins.length;
+      const bags = l.bins.reduce((a, e) => a + e.qty, 0);
+      gs.textContent = filled
+        ? (filled + ' bin' + (filled === 1 ? '' : 's') + ' · ' + fmtBags(bags) + ' bags')
+        : 'Enter quantities to move.';
+    }
+
+    if (!blockOk) allValid = false;
   });
+
+  if (!anyFilled) allValid = false;  // nothing to move
 
   const submitBtn = document.getElementById('btn-submit');
   if (submitBtn) submitBtn.disabled = !allValid;
@@ -667,29 +630,30 @@ function revalidateAll() {
 function renderSummary(lines, fromId, destId, allValid) {
   const s = document.getElementById('summary');
   if (!s) return;
-  const complete = lines.filter(l => l.lot && l.bin && !isNaN(l.qty) && l.qty > 0);
-  if (!fromId || !destId || !complete.length) { s.className = 'summary'; return; }
+  // flatten all filled bins across blocks
+  const entries = [];
+  lines.forEach(l => l.bins.forEach(e => entries.push({ lot: l.lot, bin: e.bin, qty: e.qty })));
+  if (!fromId || !destId || !entries.length) { s.className = 'summary'; return; }
 
-  // total weight only when all bag-size units match and all are known
   let totalBags = 0, totalWeight = 0, unit = null, unitConsistent = true, allHaveSize = true;
-  complete.forEach(l => {
-    totalBags += l.qty;
-    const s2 = parseFloat(l.lot.bag_size);
-    const u  = l.lot.cost_price_unit || 'kg';
+  entries.forEach(e => {
+    totalBags += e.qty;
+    const s2 = parseFloat(e.lot.bag_size);
+    const u  = e.lot.cost_price_unit || 'kg';
     if (!isFinite(s2) || s2 <= 0) allHaveSize = false;
     else {
       if (unit === null) unit = u;
       else if (unit !== u) unitConsistent = false;
-      totalWeight += l.qty * s2;
+      totalWeight += e.qty * s2;
     }
   });
 
-  const lineHtml = complete.map(l => {
-    const w = fmtWeight(l.qty, l.lot.bag_size, l.lot.cost_price_unit);
+  const lineHtml = entries.map(e => {
+    const w = fmtWeight(e.qty, e.lot.bag_size, e.lot.cost_price_unit);
     return '<div class="sum-line">' +
-      esc(l.lot.sku_code || l.lot.sample_name || ('Lot ' + l.lot.lot_id)) +
-      ' · bin <b>' + esc(l.bin.bin_label || '(no label)') + '</b> · ' +
-      fmtBags(l.qty) + ' bags' + w + '</div>';
+      esc(e.lot.sku_code || e.lot.sample_name || ('Lot ' + e.lot.lot_id)) +
+      ' · bin <b>' + esc(e.bin.bin_label || '(no label)') + '</b> · ' +
+      fmtBags(e.qty) + ' bags' + w + '</div>';
   }).join('');
 
   const totalW = (allHaveSize && unitConsistent && unit !== null)
@@ -699,9 +663,9 @@ function renderSummary(lines, fromId, destId, allValid) {
   s.innerHTML =
     'From <b>' + esc(locationName(fromId)) + '</b> → <b>' + esc(locationName(destId)) + '</b>' +
     lineHtml +
-    '<div class="sum-total">Total: ' + complete.length + ' line' + (complete.length === 1 ? '' : 's') +
+    '<div class="sum-total">Total: ' + entries.length + ' bin' + (entries.length === 1 ? '' : 's') +
       ' · ' + fmtBags(totalBags) + ' bags' + totalW + '</div>' +
-    (allValid ? '' : '<div class="sum-line" style="color:var(--error)">Resolve the highlighted lines before transferring.</div>');
+    (allValid ? '' : '<div class="sum-line" style="color:var(--error)">Resolve the highlighted bins before transferring.</div>');
   s.className = 'summary show';
 }
 
@@ -799,11 +763,22 @@ async function onSubmit() {
   const errEl = document.getElementById('form-error');
   errEl.className = 'form-error';
 
+  // flatten all filled bins across every lot block
   const rows = Array.from(document.querySelectorAll('[data-line]')).map(readLine);
-  const complete = rows.filter(l => l.lot && l.bin && !isNaN(l.qty) && l.qty > 0);
-  if (!fromId || !destId || !complete.length) return;
+  const entries = [];
+  rows.forEach(l => l.bins.forEach(e => entries.push({ lot: l.lot, bin: e.bin, qty: e.qty })));
+  if (!fromId || !destId || !entries.length) return;
 
-  const lines = complete.map(l => ({ bin_id: l.bin.bin_id, qty_bags: l.qty }));
+  // v2.5: send the FULL composite identity per bin so the backend resolves the EXACT physical bin
+  // even when bin_id is duplicated in legacy data (fixes the over-allocation-on-wrong-bin error).
+  const lines = entries.map(e => ({
+    bin_id:      e.bin.bin_id,
+    lot_id:      e.bin.lot_id,
+    location_id: e.bin.location_id,
+    bin_label:   e.bin.bin_label || '',
+    created_at:  e.bin.created_at || '',
+    qty_bags:    e.qty
+  }));
 
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = 'Transferring…';
@@ -819,7 +794,7 @@ async function onSubmit() {
       PAGE_DATA.warehouses = data.warehouses || PAGE_DATA.warehouses;
       PAGE_DATA.locations  = data.locations  || PAGE_DATA.locations;
     }
-    showToast(complete.length + ' line' + (complete.length === 1 ? '' : 's') + ' transferred.', 'success');
+    showToast(entries.length + ' bin' + (entries.length === 1 ? '' : 's') + ' transferred.', 'success');
     mountForm();
   } catch (e) {
     errEl.textContent = e.message || 'Transfer failed.';

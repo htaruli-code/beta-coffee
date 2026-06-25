@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version 3.18 | drawdowns.html -->
+<!-- Version 3.19 | drawdowns.html -->
 <!-- v3.18: prefix-swap fallback handles hyphenated prefixes (e.g. drawdown_prefix "DSSNZ-" + base "-00004017") by dropping the doubled separator. NOTE: if preview still shows "/N" suffix-only, drawdown_prefix is empty in the payload — likely stale getDrawdownsPage cache (4.8 deployed but cached payload predates it) or no drawdown_prefix on the warehouse; see DiagnoseDrawdownPrefix.gs. -->
 <!-- v3.17: preview prefix swap now works with drawdown_prefix ALONE — if contract_prefix is present it strips it exactly (matches server); otherwise it strips the leading alphabetic prefix from contract_number and prepends drawdown_prefix. Suffix-only fallback now only when drawdown_prefix itself is absent (needs DataService 4.8 in the payload). -->
 <!-- v3.16: FIX Next-auto-# preview was wrong (showed contract prefix DSONZ not drawdown prefix DSSNZ, and count+1 instead of count). Now mirrors server getDrawdownNumber exactly: ref = drawdown_prefix + contract_number-minus-contract_prefix; number = count===0 ? ref : ref+/count (no +1, no suffix at 0). Uses drawdown_prefix/contract_prefix from the v4.8 payload; falls back to suffix-only if prefixes absent. -->
@@ -38,14 +38,6 @@
       --radius: 4px; --transition: 160ms ease; --nav-h: 52px;
     }
     body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
-    .nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
-    .nav-brand { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
-    .nav-links { display: flex; gap: 0.25rem; flex: 1; }
-    .nav-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 5px; transition: background var(--transition), color var(--transition); }
-    .nav-links a:hover { background: var(--surface); color: var(--text); }
-    .nav-links a.active { color: var(--accent); font-weight: 500; }
-    .nav-user { font-size: 0.78rem; color: var(--muted); cursor: pointer; padding: 0.35rem 0.75rem; border-radius: 5px; transition: color var(--transition); }
-    .nav-user:hover { color: var(--accent); }
     .page { max-width: 1300px; margin: 0 auto; padding: 2rem; }
     .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
@@ -182,21 +174,7 @@
 </head>
 <body>
 
-<nav class="nav">
-  <span class="nav-brand" id="nav-brand">Sample Tracker</span>
-  <div class="nav-links">
-    <a href="all-samples.html" id="nav-all-samples">All Samples</a>
-    <a href="purchase-orders.html" id="nav-po">Purchase Orders</a>
-    <a href="shipments.html" id="nav-shipments">Shipments</a>
-    <a href="inventory.html" id="nav-inventory">Inventory</a>
-    <a href="inventory-locations.html" id="nav-locations">Locations</a>
-    <a href="product-skus.html" id="nav-skus">SKU</a>
-    <a href="suppliers.html" id="nav-suppliers">Suppliers</a>
-    <a href="contracts.html" id="nav-contracts">Contracts</a>
-    <a href="drawdowns.html" id="nav-drawdowns" class="active">Drawdowns</a>
-  </div>
-  <span class="nav-user" id="nav-user"></span>
-</nav>
+<div id="app-nav"></div>
 
 <div class="page">
   <div class="page-header">
@@ -327,10 +305,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/config.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/api.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/config.js?v=1.2"></script>
+<script src="js/auth.js?v=1.2.4"></script>
+<script src="js/api.js?v=1.35"></script>
+<script src="js/ui.js?v=1.3"></script>
+<script src="js/nav.js?v=1.0"></script>
 <script>
 // Version 3.4 | drawdowns.html
 // v3.3: Approve modal — filters 0-qty bins (already dispatched); shows received_bags vs qty_bags.
@@ -356,9 +335,9 @@ let PAGE_DATA = {
 (async () => {
   const user    = Auth.getUser();
   const company = Auth.getCompany();
-  document.getElementById('nav-brand').textContent = company ? company.company_name : 'Sample Tracker';
-  document.getElementById('nav-user').textContent  = user ? user.name : '';
-  document.getElementById('nav-user').onclick = () => { Auth.logout(); window.location = 'login.html'; };
+  /* nav brand handled by nav.js */
+  /* nav user handled by nav.js */
+  /* nav brand/user/logout handled by nav.js */
   try {
     const data = await API.post({ action: 'getDrawdownsPage' });
     PAGE_DATA = data;
