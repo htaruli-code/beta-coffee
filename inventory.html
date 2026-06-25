@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!-- Version 2.12.1 | inventory.html -->
+<!-- v2.12.1: BUGFIX — updateBinTotal threw "ReferenceError: received is not defined" (the v2.12 rewrite dropped the `const received` declaration while still using it on the next lines for `available` fallback and `drawn`). This crashed renderBinRows → openBinsModal, breaking the bins modal on open. Restored `const received = parseFloat(lot.received_bags)||0;`. Verified by runtime test across all four bin states (active/partial/fully_drawn/phantom) + blank modal — 11/11 pass, no throws. No behaviour change beyond not crashing. -->
+<!-- Version 2.12 | inventory.html -->
+<!-- v2.12: BINS modal THREE-STATE model (Active / Partial / Fully-drawn) plus a Phantom safety state. binState(b) classifies each bin from backend-supplied drawn_bags + is_phantom: ACTIVE (no history) fully editable+deletable; PARTIAL (has draw but stock remains) editable with qty floored at bags already drawn (input min + save check) and no delete; FULLY-DRAWN (qty 0 / drawn≥received) read-only, no delete, kept for trace; PHANTOM (lot fully drawn but bin still shows qty with NO per-bin allocation — backend is_phantom via lot-level fallback) read-only with red "Needs reconciliation" badge, qty shown verbatim and NOT zeroed (reconcile via separate batch tool, never silently). Save preserves read-only + partial bins verbatim with preserve:true so backend excludes them from the on-hand ceiling (a phantom's leftover qty can't block a legitimate edit); only active blank rows are droppable. Live total = active+partial qty (phantom excluded). Requires backend Code_Inventory v2.11 (ceiling skips preserve:true) + DataService_Inventory v3.5 (per-bin drawn_bags + is_phantom in getInventoryPage). drawn_bags is only as complete as drawdown_line_bins; legacy lots with no allocations rely on the lot-level phantom fallback. -->
+<!-- Version 2.11 | inventory.html -->
+<!-- v2.11: BINS modal — DRAWN-EMPTY bins are now PRESERVED, not wipeable (the safety net for the data-loss this thread uncovered). A bin with qty 0 but received_bags > 0 (it once held stock, fully drawn down) is "locked": rendered read-only/greyed with a "Fully drawn — 0 of N, record kept for traceability" note, no ✕, inputs disabled, and edit handlers (onBagsInput/onWeightInput/removeBinRow) guard against changes. On Save, locked bins are re-sent verbatim carrying their original received_bags so the record survives; only ACTIVE editable rows are validated (qty>0) and the blank-row clear path applies to them alone. The old "saving will clear ALL bin records" foot-gun no longer fires when locked bins are present — a 0 on-hand total then shows "N fully-drawn bins kept for traceability" (green) instead. Requires backend v2.11/v3.3 (below). Detection: isLockedBinRow(b) = qty≤0 && received_bags>0. -->
 <!-- Version 2.10 | inventory.html -->
 <!-- v2.10: BINS modal — allow CLEARING bins (fixes a dead-end created by v2.9). On a fully-drawn lot the only way to remove a stale phantom bin is to save zero bins, but the save loop rejected qty≤0 ("must be greater than zero") and removeBinRow re-adds a blank row when the last is deleted, so an empty state was unreachable. Now the save handler drops fully-blank rows (no label AND no positive qty) into a cleanRows set before validating; an all-blank modal therefore sends bins:[] which replaceBinsForLot treats as "delete all bins for this lot" (backend already supports empty — requireAtLeastOne=false). Only user-filled rows are validated. The qty>0 message now hints you can clear the label to drop a bin. Backend unchanged. To clear the phantom: blank the Qty (and/or ✕ the rows) and Save — the total bar's "saving will clear all bin records" message confirms the action. -->
 <!-- Version 2.9 | inventory.html -->
@@ -91,6 +97,16 @@
     /* ── Bin edit modal (v2.2.0) ────────────────────────────────────────────── */
     .bin-edit-row { display: grid; grid-template-columns: 1fr 90px 90px 1fr 1fr 28px; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem; }
     .bin-edit-row input, .bin-edit-row select { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
+    /* v2.11: a drawn-empty bin (qty 0 but it once held stock) is HISTORICAL — shown
+       read-only so a Save can never wipe the record. */
+    .bin-edit-row.locked { opacity: 0.72; }
+    .bin-edit-row.locked input { background: var(--surface2); border-style: dashed; color: var(--muted); cursor: not-allowed; }
+    .bin-edit-row.phantom input { border-color: var(--error); }
+    .bin-edit-row.partial input[type="number"] { border-color: var(--accent); }
+    .bin-locked-note { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 0.66rem; color: var(--muted); margin: -0.15rem 0 0.35rem 0.1rem; }
+    .bin-locked-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #1e6640; background: #edf7f0; padding: 0.08rem 0.35rem; border-radius: 2px; }
+    .bin-locked-badge.phantom { color: #b00020; background: #fdecea; }
+    .bin-locked-badge.partial { color: #854f0b; background: #fef9ec; }
     .bin-edit-header { display: grid; grid-template-columns: 1fr 90px 90px 1fr 1fr 28px; gap: 0.4rem; padding: 0 0 0.3rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.4rem; }
     .bin-edit-header span { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .btn-del-bin { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0; line-height: 1; transition: color var(--transition); }
@@ -801,16 +817,21 @@ function openBinsModal(lotId) {
     ' &nbsp;·&nbsp; <strong>' + fmt2(_av) + '</strong> on-hand to bin' +
     ' &nbsp;·&nbsp; Bin total cannot exceed on-hand bags.';
 
-  // Seed from existing bins — deep copy so edits don't mutate PAGE_DATA
+  // Seed from existing bins — deep copy so edits don't mutate PAGE_DATA.
+  // v2.11: carry received_bags so we can detect drawn-empty (historical) bins.
+  // v2.12: also carry drawn_bags + is_phantom (from backend) for three-state classify.
   const existing = lot.bins || [];
   binRows = existing.length
     ? existing.map(b => ({
-        bin_label:   b.bin_label   || '',
-        qty_bags:    b.qty_bags    || '',
-        location_id: b.location_id || '',
-        notes:       b.notes       || ''
+        bin_label:     b.bin_label   || '',
+        qty_bags:      b.qty_bags    || '',
+        location_id:   b.location_id || '',
+        notes:         b.notes       || '',
+        received_bags: b.received_bags != null ? b.received_bags : '',
+        drawn_bags:    b.drawn_bags  != null ? b.drawn_bags : 0,
+        is_phantom:    b.is_phantom === true
       }))
-    : [{ bin_label: '', qty_bags: '', location_id: '', notes: '' }];
+    : [{ bin_label: '', qty_bags: '', location_id: '', notes: '', received_bags: '', drawn_bags: 0, is_phantom: false }];
 
   renderBinRows(lot);
   clearModalError('modal-bins');
@@ -840,6 +861,44 @@ function renderBinRows(lotArg) {
 
   const wrap = document.getElementById('bins-rows-wrap');
   wrap.innerHTML = binRows.map(function(b, i) {
+    const st = binState(b);
+    const locName = (function(){
+      const m = locs.find(l => String(l.location_id) === String(b.location_id));
+      return m ? (m.facility_name || String(b.location_id)) : (b.location_id ? String(b.location_id) : '—');
+    })();
+
+    // ── READ-ONLY states: fully_drawn & phantom ─────────────────────────────────
+    if (st === 'fully_drawn' || st === 'phantom') {
+      const recv  = parseFloat(b.received_bags) || 0;
+      const qty   = parseFloat(b.qty_bags) || 0;
+      const drawn = parseFloat(b.drawn_bags) || 0;
+      const wtRec = (bagSize > 0) ? fmtBags(recv * bagSize) : '';
+      let badge, note;
+      if (st === 'phantom') {
+        badge = '<span class="bin-locked-badge phantom">Needs reconciliation</span>';
+        note  = 'Shows ' + fmtBags(qty) + ' of ' + fmtBags(recv) + ' bags, but this lot is fully drawn ' +
+                'and no per-bin drawdown record explains the remainder. Locked to protect the record; ' +
+                'reconcile via the batch tool — do not edit here.';
+      } else {
+        badge = '<span class="bin-locked-badge">Fully drawn</span>';
+        note  = '0 of ' + fmtBags(recv) + ' bags' + (wtRec ? ' (' + wtRec + ' ' + esc(unit) + ')' : '') +
+                ' — all drawn down. Record kept for traceability; cannot be edited or removed here.';
+      }
+      const shownQty = (st === 'phantom') ? fmtBags(qty) : '0';
+      const shownWt  = (st === 'phantom')
+        ? (bagSize > 0 ? fmtBags(qty * bagSize) : '0')
+        : (wtRec || '0');
+      return '<div class="bin-edit-row locked' + (st === 'phantom' ? ' phantom' : '') + '">' +
+        '<input type="text" value="' + esc(b.bin_label) + '" disabled />' +
+        '<input type="text" value="' + shownQty + '" disabled />' +
+        '<input type="text" value="' + shownWt + '" disabled />' +
+        '<input type="text" value="' + esc(locName) + '" disabled />' +
+        '<input type="text" value="' + esc(b.notes) + '" disabled />' +
+        '<span></span>' +
+        '<div class="bin-locked-note">' + badge + ' ' + note + '</div>' +
+      '</div>';
+    }
+
     const selOpts = locs.map(l =>
       '<option value="' + l.location_id + '"' +
       (String(b.location_id) === String(l.location_id) ? ' selected' : '') +
@@ -848,6 +907,31 @@ function renderBinRows(lotArg) {
     // Weight cell value = qty_bags × bag_size (4dp trimmed). Empty if no bags or no bag_size.
     const wtVal = (bagSize > 0 && b.qty_bags !== '' && b.qty_bags != null)
       ? fmtBags((parseFloat(b.qty_bags) || 0) * bagSize) : '';
+
+    // ── PARTIAL: editable, but qty floored at bags already drawn; no delete ──────
+    if (st === 'partial') {
+      const minQ = binMinQty(b);
+      return '<div class="bin-edit-row partial">' +
+        '<input type="text" value="' + esc(b.bin_label) + '" ' +
+          'oninput="binRows[' + i + '].bin_label=this.value" />' +
+        '<input type="number" min="' + minQ + '" step="any" value="' + (b.qty_bags || '') + '" ' +
+          'oninput="onBagsInput(' + i + ',this.value)" id="bin-bags-' + i + '" />' +
+        '<input type="number" min="0" step="any" value="' + wtVal + '" ' +
+          (bagSize > 0 ? '' : 'disabled ') +
+          'oninput="onWeightInput(' + i + ',this.value)" id="bin-wt-' + i + '" />' +
+        '<select onchange="binRows[' + i + '].location_id=this.value">' +
+          '<option value="">— No location —</option>' + selOpts +
+        '</select>' +
+        '<input type="text" placeholder="optional notes" value="' + esc(b.notes) + '" ' +
+          'oninput="binRows[' + i + '].notes=this.value" />' +
+        '<span></span>' +
+        '<div class="bin-locked-note"><span class="bin-locked-badge partial">Partly drawn</span> ' +
+          fmtBags(minQ) + ' of ' + fmtBags(parseFloat(b.received_bags)||0) + ' bags already drawn — ' +
+          'qty can be adjusted but not below ' + fmtBags(minQ) + '. Cannot be removed (has drawdown history).</div>' +
+      '</div>';
+    }
+
+    // ── ACTIVE: fully editable + deletable ──────────────────────────────────────
     return '<div class="bin-edit-row">' +
       '<input type="text" placeholder="e.g. A3-R2" value="' + esc(b.bin_label) + '" ' +
         'oninput="binRows[' + i + '].bin_label=this.value" />' +
@@ -868,6 +952,35 @@ function renderBinRows(lotArg) {
   updateBinTotal();
 }
 
+// v2.12: THREE-STATE bin classification.
+//   'active'      — no drawdown history; fully editable + deletable.
+//   'partial'     — has drawn history but still holds stock; editable but qty floored at
+//                   drawn_bags (can't go below what already left); cannot be deleted.
+//   'fully_drawn' — drawn ≥ received (or qty 0 with history); read-only, no delete.
+//   'phantom'     — lot fully drawn but bin still shows qty with NO allocation (backend
+//                   is_phantom). Read-only + "needs reconciliation"; fixed via batch script.
+function binState(b) {
+  if (b.is_phantom === true) return 'phantom';
+  const qty   = parseFloat(b.qty_bags) || 0;
+  const recv  = parseFloat(b.received_bags) || 0;
+  const drawn = parseFloat(b.drawn_bags) || 0;
+  const hasHistory = drawn > 1e-6 || (qty <= 1e-6 && recv > 1e-6);
+  if (!hasHistory) return 'active';
+  if (qty <= 1e-6) return 'fully_drawn';
+  if (drawn >= recv - 1e-6 && recv > 1e-6) return 'fully_drawn';
+  return 'partial';
+}
+// Minimum qty a PARTIAL bin may be edited down to (bags already drawn from it).
+function binMinQty(b) {
+  return Math.max(0, Math.round((parseFloat(b.drawn_bags) || 0) * 10000) / 10000);
+}
+// Compat: "locked" = any non-active state (read-only OR floored). Used by save/remove
+// guards. A partial bin is NOT fully locked (qty editable), so callers that need the
+// finer distinction use binState() directly.
+function isLockedBinRow(b) {
+  return binState(b) !== 'active' && binState(b) !== 'partial';
+}
+
 // v2.7: bag_size of the currently-open lot, for the two-way weight↔bags calc.
 function _binsModalBagSize() {
   const lot = (PAGE_DATA.inventory_lots || [])
@@ -877,6 +990,7 @@ function _binsModalBagSize() {
 
 // User typed in Bags → update model + mirror Weight cell (no full re-render, keeps focus).
 function onBagsInput(i, val) {
+  if (isLockedBinRow(binRows[i])) return; // v2.11: historical bins are read-only
   binRows[i].qty_bags = val;
   const bagSize = _binsModalBagSize();
   const wtEl = document.getElementById('bin-wt-' + i);
@@ -888,6 +1002,7 @@ function onBagsInput(i, val) {
 
 // User typed in Weight → derive fractional bags (weight ÷ bag_size) + mirror Bags cell.
 function onWeightInput(i, val) {
+  if (isLockedBinRow(binRows[i])) return; // v2.11: historical bins are read-only
   const bagSize = _binsModalBagSize();
   if (bagSize <= 0) return;
   const bags = (val === '' || val == null) ? '' : fmtBags((parseFloat(val) || 0) / bagSize);
@@ -900,51 +1015,74 @@ function onWeightInput(i, val) {
 function updateBinTotal() {
   const lot = (PAGE_DATA.inventory_lots || [])
     .find(l => String(l.lot_id) === String(document.getElementById('bins-lot-id').value));
-  const received = lot ? (lot.received_bags || 0) : 0;
-  // v2.8: available = received − drawn (already derived backend-side). This is the
-  // amount PHYSICALLY in bins after drawdowns shrank them, and the true "fully binned"
-  // target. Fall back to received when available is absent so behaviour is unchanged
-  // for lots with nothing drawn.
+  const received  = lot ? (parseFloat(lot.received_bags) || 0) : 0;
   const available = lot && lot.available_bags != null ? (parseFloat(lot.available_bags) || 0) : received;
   const drawn     = Math.max(0, Math.round((received - available) * 10000) / 10000);
-  // v2.7: fractional bags — parseFloat (was parseInt, which floored fractions to 0).
-  const total   = binRows.reduce(function(s, b) { return s + (parseFloat(b.qty_bags) || 0); }, 0);
   const bagSize = lot ? (parseFloat(lot.bag_size) || 0) : 0;
   const unit    = lot ? (lot.cost_price_unit || 'kg') : 'kg';
-  const wtStr   = bagSize > 0 ? fmtWeight(total, bagSize, unit) : '';
   const el = document.getElementById('bins-total');
-  const EPS = 1e-6; // float slop so 12.6000001 isn't mis-flagged
-  // v2.9: OVER ceiling now = AVAILABLE (on-hand), matching the backend block in
-  // handleSaveBinsForLot. Drawn bags physically left their bins, so binning more than
-  // on-hand is invalid (this is what surfaced the stale 300-bag phantom on a 0-on-hand
-  // lot). GREEN "exact" = total === available (everything on hand is binned).
-  const over  = total > available + EPS;
-  const exact = Math.abs(total - available) < EPS && total > 0;
-  // drawn-gap suffix so "12.6 / 16" reads as a complete story, not a missing 3.4.
+  const EPS = 1e-6;
+
+  // v2.12: classify and total by state.
+  // liveTotal (active + partial qty) is what sits on hand → checked vs available.
+  // phantom qty is UNRECONCILED — excluded from the ceiling so it can't block a save.
+  let liveTotal = 0, phantomCount = 0, drawnCount = 0, partialCount = 0, activeContent = false;
+  binRows.forEach(function(b){
+    const st = binState(b);
+    if (st === 'phantom') { phantomCount++; return; }
+    if (st === 'fully_drawn') { drawnCount++; return; }
+    if (st === 'partial') { partialCount++; liveTotal += parseFloat(b.qty_bags) || 0; return; }
+    // active
+    liveTotal += parseFloat(b.qty_bags) || 0;
+    if (b.bin_label || b.qty_bags) activeContent = true;
+  });
+  liveTotal = Math.round(liveTotal * 10000) / 10000;
+  const wtStr = bagSize > 0 ? fmtWeight(liveTotal, bagSize, unit) : '';
+
+  const over  = liveTotal > available + EPS;
+  const exact = Math.abs(liveTotal - available) < EPS && liveTotal > 0;
   const gap   = drawn > EPS ? ' · ' + fmtBags(drawn) + ' drawn · ' + fmt2(received) + ' received' : '';
-  // v2.3.0 I7: zero-bag warning — prevents accidentally clearing all bin records
-  if (total === 0 && binRows.some(b => b.bin_label || b.qty_bags)) {
-    el.innerHTML  = 'Total: 0 bags — saving will clear all bin records for this lot';
-    el.className   = 'bin-total over';
-  } else if (total === 0) {
-    el.innerHTML  = 'Total: 0 / ' + fmt2(available) + ' on-hand binned' + gap;
-    el.className   = 'bin-total';
+  // Suffix listing preserved records so the user sees they're kept, not lost.
+  const kept = [];
+  if (drawnCount)   kept.push(drawnCount + ' fully-drawn');
+  if (phantomCount) kept.push(phantomCount + ' needs-reconcile');
+  if (partialCount) kept.push(partialCount + ' partly-drawn');
+  const keptStr = kept.length ? ' · ' + kept.join(', ') + ' kept' : '';
+
+  if (liveTotal === 0 && (drawnCount + phantomCount + partialCount) > 0) {
+    el.innerHTML = 'Total: 0 on-hand' + keptStr + gap;
+    el.className  = 'bin-total' + (phantomCount ? ' over' : ' exact');
+  } else if (liveTotal === 0 && activeContent) {
+    el.innerHTML = 'Total: 0 bags — saving will clear all editable bin records for this lot';
+    el.className  = 'bin-total over';
+  } else if (liveTotal === 0) {
+    el.innerHTML = 'Total: 0 / ' + fmt2(available) + ' on-hand binned' + gap;
+    el.className  = 'bin-total';
   } else {
-    el.innerHTML  = 'Total: ' + fmtBags(total) + wtStr + ' / ' + fmt2(available) + ' on-hand binned' +
-                    (exact ? ' ✓' : '') + gap;
-    el.className   = 'bin-total' + (over ? ' over' : exact ? ' exact' : '');
+    el.innerHTML = 'Total: ' + fmtBags(liveTotal) + wtStr + ' / ' + fmt2(available) + ' on-hand binned' +
+                   (exact ? ' ✓' : '') + keptStr + gap;
+    el.className  = 'bin-total' + (over ? ' over' : exact ? ' exact' : '');
   }
+  // Phantom presence doesn't block Save (you can still edit other bins); only a true
+  // over-bin of live stock disables it.
   document.getElementById('btn-bins-save').disabled = over;
 }
 
 function removeBinRow(idx) {
+  // v2.12: a bin with ANY drawdown history (partial, fully-drawn, or phantom) cannot be
+  // removed here — its record is preserved for traceability. The ✕ isn't rendered for
+  // those rows, but guard anyway. Only ACTIVE bins (no history) are removable.
+  if (binState(binRows[idx]) !== 'active') {
+    showToast('This bin has drawdown history — its record is kept and cannot be removed here.', 'error');
+    return;
+  }
   binRows.splice(idx, 1);
-  if (!binRows.length) binRows = [{ bin_label: '', qty_bags: '', location_id: '', notes: '' }];
+  if (!binRows.length) binRows = [{ bin_label: '', qty_bags: '', location_id: '', notes: '', received_bags: '', drawn_bags: 0, is_phantom: false }];
   renderBinRows();
 }
 
 document.getElementById('btn-add-bin-row').onclick = function() {
-  binRows.push({ bin_label: '', qty_bags: '', location_id: '', notes: '' });
+  binRows.push({ bin_label: '', qty_bags: '', location_id: '', notes: '', received_bags: '', drawn_bags: 0, is_phantom: false });
   renderBinRows();
 };
 
@@ -967,47 +1105,90 @@ document.getElementById('btn-bins-save').onclick = async function() {
   // v2.9: ceiling for the save guard is ON-HAND (available), matching backend.
   const onHand = lot && lot.available_bags != null ? (parseFloat(lot.available_bags) || 0) : received;
 
-  // v2.10: drop fully-blank rows (no label AND no positive qty). This is what lets a
-  // user CLEAR all bins — e.g. to remove a stale phantom bin on a drawn-out lot: blank
-  // the qty (or delete rows) and save. A single empty row no longer trips the "qty > 0"
-  // error; it simply means "no bins". Rows with a label OR a qty are kept and validated.
-  const cleanRows = binRows.filter(function(b) {
+  // v2.12: classify rows by state.
+  //   readOnly (phantom | fully_drawn) → re-sent VERBATIM (qty + received untouched) so
+  //     the record survives; phantom qty is NOT zeroed here — reconcile via batch tool.
+  //   partial → editable, qty must stay ≥ bags already drawn (floor); re-sent w/ received.
+  //   active  → normal editable; blank rows dropped (allows clearing active bins).
+  const readOnlyRows = binRows.filter(function(b){ const s = binState(b); return s === 'phantom' || s === 'fully_drawn'; });
+  const partialRows  = binRows.filter(function(b){ return binState(b) === 'partial'; });
+  const activeRows   = binRows.filter(function(b){ return binState(b) === 'active'; });
+  const cleanActive  = activeRows.filter(function(b) {
     const hasLabel = b.bin_label && String(b.bin_label).trim();
     const hasQty   = (parseFloat(b.qty_bags) || 0) > 0;
     return hasLabel || hasQty;
   });
 
-  // Validate only the rows the user actually filled.
-  for (var i = 0; i < cleanRows.length; i++) {
-    if (!cleanRows[i].bin_label || !String(cleanRows[i].bin_label).trim()) {
-      showModalError('modal-bins', 'Bin ' + (i + 1) + ': label is required.');
+  // Validate ACTIVE rows the user filled.
+  for (var i = 0; i < cleanActive.length; i++) {
+    if (!cleanActive[i].bin_label || !String(cleanActive[i].bin_label).trim()) {
+      showModalError('modal-bins', 'Bin: label is required.');
       btn.disabled = false; return;
     }
-    // v2.7: fractional bags allowed — parseFloat (was parseInt).
-    const qty = parseFloat(cleanRows[i].qty_bags) || 0;
+    const qty = parseFloat(cleanActive[i].qty_bags) || 0;
     if (qty <= 0) {
-      showModalError('modal-bins', 'Bin ' + (i + 1) + ': qty must be greater than zero (or clear the label to drop this bin).');
+      showModalError('modal-bins', 'Bin: qty must be greater than zero (or clear the label to drop this bin).');
       btn.disabled = false; return;
     }
   }
-  const total = cleanRows.reduce(function(s, b) { return s + (parseFloat(b.qty_bags) || 0); }, 0);
-  if (total > onHand + 1e-6) {
-    showModalError('modal-bins', 'Total bins (' + fmtBags(total) + ') exceed on-hand bags (' + fmt2(onHand) +
+  // Validate PARTIAL rows: qty must be ≥ bags already drawn (can't un-draw history).
+  for (var p = 0; p < partialRows.length; p++) {
+    const minQ = binMinQty(partialRows[p]);
+    const qtyP = parseFloat(partialRows[p].qty_bags) || 0;
+    if (qtyP < minQ - 1e-6) {
+      showModalError('modal-bins', 'Bin "' + esc(partialRows[p].bin_label) + '": qty (' + fmtBags(qtyP) +
+        ') cannot be below ' + fmtBags(minQ) + ' bags already drawn from it.');
+      btn.disabled = false; return;
+    }
+  }
+
+  // On-hand ceiling applies to bags currently sitting in bins = active + partial qty.
+  // (Read-only fully_drawn contribute 0; phantom qty is excluded — it's unreconciled and
+  // must not block a legitimate edit elsewhere on the lot.)
+  const liveTotal = cleanActive.reduce(function(s,b){ return s + (parseFloat(b.qty_bags)||0); }, 0) +
+                    partialRows.reduce(function(s,b){ return s + (parseFloat(b.qty_bags)||0); }, 0);
+  if (liveTotal > onHand + 1e-6) {
+    showModalError('modal-bins', 'Total live bins (' + fmtBags(liveTotal) + ') exceed on-hand bags (' + fmt2(onHand) +
       '). ' + (received > onHand ? fmtBags(received - onHand) + ' bag(s) have been drawn down and cannot be binned.' : ''));
     btn.disabled = false; return;
   }
 
+  // Build payload: read-only (verbatim) + partial (with received) + active (new-default).
+  // v2.12: preserve:true marks bins that carry pre-existing history (read-only + partial).
+  // The backend excludes these from the on-hand ceiling sum (they represent stock/records
+  // already accounted for by drawdowns), so a phantom's qty can't block a legitimate save.
+  const outBins = readOnlyRows.map(function(b) {
+    return {
+      bin_label:     String(b.bin_label || '').trim(),
+      qty_bags:      parseFloat(b.qty_bags) || 0,        // verbatim — phantom keeps its qty
+      location_id:   b.location_id || '',
+      notes:         String(b.notes || '').trim(),
+      received_bags: parseFloat(b.received_bags) || 0,
+      preserve:      true
+    };
+  }).concat(partialRows.map(function(b) {
+    return {
+      bin_label:     String(b.bin_label || '').trim(),
+      qty_bags:      parseFloat(b.qty_bags) || 0,
+      location_id:   b.location_id || '',
+      notes:         String(b.notes || '').trim(),
+      received_bags: parseFloat(b.received_bags) || 0,   // preserve original received
+      preserve:      true
+    };
+  })).concat(cleanActive.map(function(b) {
+    return {
+      bin_label:     String(b.bin_label || '').trim(),
+      qty_bags:      parseFloat(b.qty_bags) || 0,
+      location_id:   b.location_id || '',
+      notes:         String(b.notes || '').trim()
+      // no received_bags / no preserve → backend defaults received to qty (new bin)
+    };
+  }));
+
   const payload = {
     action:  'saveBinsForLot',
     lot_id:  lotId,
-    bins:    cleanRows.map(function(b) {
-      return {
-        bin_label:   String(b.bin_label || '').trim(),
-        qty_bags:    parseFloat(b.qty_bags) || 0,
-        location_id: b.location_id || '',
-        notes:       String(b.notes || '').trim()
-      };
-    })
+    bins:    outBins
   };
 
   try {
