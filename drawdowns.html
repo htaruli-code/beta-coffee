@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- Version 3.20 | drawdowns.html -->
+<!-- v3.20: status-update toast now also surfaces bin_warning (Code_Contracts v4.4) alongside invoice_warning — fires when a dispatch decremented no bins or the decrement failed. The new DISPATCH allocation guard (BINS_NOT_ALLOCATED) already displays via the existing catch→showModalError path ("Allocate bins before dispatching"), so no extra handling needed there. -->
 <!-- Version 3.19 | drawdowns.html -->
 <!-- v3.18: prefix-swap fallback handles hyphenated prefixes (e.g. drawdown_prefix "DSSNZ-" + base "-00004017") by dropping the doubled separator. NOTE: if preview still shows "/N" suffix-only, drawdown_prefix is empty in the payload — likely stale getDrawdownsPage cache (4.8 deployed but cached payload predates it) or no drawdown_prefix on the warehouse; see DiagnoseDrawdownPrefix.gs. -->
 <!-- v3.17: preview prefix swap now works with drawdown_prefix ALONE — if contract_prefix is present it strips it exactly (matches server); otherwise it strips the leading alphabetic prefix from contract_number and prepends drawdown_prefix. Suffix-only fallback now only when drawdown_prefix itself is absent (needs DataService 4.8 in the payload). -->
@@ -1115,7 +1117,10 @@ document.getElementById('btn-ds-save').onclick = async () => {
 
     document.getElementById('modal-status').classList.remove('open');
     renderTable();
-    if (data.invoice_warning) showToast('Status updated. Invoice: ' + data.invoice_warning, 'error');
+    const warns = [];
+    if (data.invoice_warning) warns.push('Invoice: ' + data.invoice_warning);
+    if (data.bin_warning)     warns.push('Bins: ' + data.bin_warning);
+    if (warns.length) showToast('Status updated. ' + warns.join(' · '), 'error');
     else showToast('Status updated.', 'success');
   } catch (e) {
     showModalError('modal-status', e.message || 'Update failed.');

@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- Version 2.6 | inventory-transfer.html -->
+<!-- v2.6: BUGFIX (same class as the drawdown/bins phantom bug) — transfers could move PHANTOM or DRAWN bags. activeBins() filtered only on qty_bags>0, so a phantom bin (qty shows bags that are actually drawn) was transferable, spreading bad data to a new location. Now: bins are gated by binMovable(b) = backend movable_bags (qty − effective_drawn; 0 for phantom/needs_reconcile). The bin grid shows movable bags as Available, the qty ceiling + validation use movable, and the BACKEND (DataService_Inventory v3.7) independently rejects phantom/over-movable transfers via _binMovableBags_ (authoritative). Requires backend v3.7 (sends movable_bags + guards). Fractional handling unchanged (already parseFloat). -->
 <!-- Version 2.5 | inventory-transfer.html -->
 <html lang="en">
 <head>
@@ -303,8 +305,20 @@ let lineSeq = 0; // unique id per line row
 })();
 
 // ── Derived helpers ──────────────────────────────────────────────────────────
+// v2.2: a bin is transferable only by its MOVABLE bags (backend movable_bags = qty −
+// effective_drawn, and 0 for phantom/needs_reconcile bins). This stops phantom/locked
+// bags being moved to another location (which would spread the bad data). Falls back to
+// qty_bags only if the backend didn't supply movable_bags (older payload).
+function binMovable(b) {
+  if (b.movable_bags != null) return parseFloat(b.movable_bags) || 0;
+  // Fallback: exclude obvious phantom/locked, else use qty.
+  if (b.is_phantom === true || b.needs_reconcile === true) return 0;
+  const qty = parseFloat(b.qty_bags) || 0;
+  const eff = parseFloat(b.effective_drawn != null ? b.effective_drawn : b.drawn_bags) || 0;
+  return Math.max(0, Math.round((qty - eff) * 10000) / 10000);
+}
 function activeBins(lot) {
-  return (lot.bins || []).filter(b => (parseFloat(b.qty_bags) || 0) > BAG_TOL);
+  return (lot.bins || []).filter(b => binMovable(b) > BAG_TOL);
 }
 function warehousesWithStock() {
   const ids = {};
@@ -480,12 +494,14 @@ function renderBinGrid(el, lot, bins) {
   }
   const unit = lot.cost_price_unit || 'kg';
   const rowsHtml = bins.map((b, idx) => {
-    const w = weightPlain(b.qty_bags, lot.bag_size, lot.cost_price_unit);
+    // v2.2: ceiling shown + used is MOVABLE bags (true on-hand), not raw qty_bags.
+    const mv = binMovable(b);
+    const w  = weightPlain(mv, lot.bag_size, lot.cost_price_unit);
     return '<tr data-bin-row data-idx="' + idx + '">' +
       '<td class="bg-label">' + esc(b.bin_label || '(no label)') + '</td>' +
-      '<td class="bg-avail">' + fmtBags(b.qty_bags) + ' bags' + esc(w) + '</td>' +
+      '<td class="bg-avail">' + fmtBags(mv) + ' bags' + esc(w) + '</td>' +
       '<td class="bg-qty"><input type="text" inputmode="decimal" data-bin-qty placeholder="0" autocomplete="off" /></td>' +
-      '<td class="bg-of">of ' + fmtBags(b.qty_bags) + '</td>' +
+      '<td class="bg-of">of ' + fmtBags(mv) + '</td>' +
       '<td class="bg-wt"><input type="text" inputmode="decimal" data-bin-wt placeholder="' + esc(unit) + '" title="Enter weight to auto-fill bags" autocomplete="off" /></td>' +
       '<td class="bg-rowwarn" data-bin-rowwarn></td>' +
     '</tr>';
@@ -582,7 +598,7 @@ function revalidateAll() {
     // per-bin-row validation
     l.bins.forEach(e => {
       anyFilled = true;
-      const avail  = parseFloat(e.bin.qty_bags) || 0;
+      const avail  = binMovable(e.bin);   // v2.2: true on-hand, excludes drawn/phantom
       const summed = sumPerBin[binKeyOf(e.bin)] || 0;
       const rowWarn = e.tr.querySelector('[data-bin-rowwarn]');
       let rowMsg = '';
