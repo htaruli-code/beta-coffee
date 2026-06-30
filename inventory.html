@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!-- Version 2.16 | inventory.html -->
+<!-- v2.16: surfaces id_collision from backend (DataService_Inventory v3.8). When a lot's bins share a duplicate bin_id, the reconcile-state note now explains the bin_id collision specifically (and points to the de-dup fix) instead of the generic multi-bin message. Seeds id_collision into binRows. -->
+<!-- Version 2.15 | inventory.html -->
+<!-- v2.15: TEMPORARY BINS RECONCILE UNLOCK (Unleashed reconciliation). New config flag APP_CONFIG.BINS_RECONCILE_UNLOCK (config.js v1.3, default false). When true, the bins modal renders otherwise-locked bins (fully_drawn / phantom / reconcile) as an editable 'reconcile_unlock' state: free qty down to 0 so staff can set the TRUE qty to match Unleashed; received_bags KEPT as history (preserve:true); still NOT deletable; over-bin Save-block relaxed during the window. A loud "RECONCILE MODE" banner shows at top of the modal. binStateRaw() preserves the real classification; binState() only downgrades to reconcile_unlock when the flag is on. Does NOT unlock Inventory Transfer and does NOT touch the dispatch allocation guard (Code_Contracts v4.4) — those stay locked so no phantom bags move or are created mid-reconcile. Turn the flag OFF after reconciliation. Backend unchanged (preserve:true path from v2.11 already accepts these). -->
 <!-- Version 2.14 | inventory.html -->
 <!-- v2.14: EDIT LOT modal now accepts FRACTIONAL received bags, matching the BINS modal. Received Bags input changed min="1" → min="0" step="any"; save validation parseInt → parseFloat; error text updated ("a number greater than zero (fractional allowed, e.g. 12.6)"). Payload already sent parsedBags; backend (handleSaveInventoryLot / saveInventoryLot) already parseFloat since v2.4.1 — NO backend change. Display of received_bags unchanged. -->
 <!-- Version 2.13 | inventory.html -->
@@ -111,6 +115,8 @@
     .bin-locked-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #1e6640; background: #edf7f0; padding: 0.08rem 0.35rem; border-radius: 2px; }
     .bin-locked-badge.phantom { color: #b00020; background: #fdecea; }
     .bin-locked-badge.partial { color: #854f0b; background: #fef9ec; }
+    .bin-locked-badge.reconcile { color: #7c4a02; background: #fff3d6; border: 1px solid #e0a93f; }
+    .bin-edit-row.reconcile-unlock input[type="number"] { border-color: #e0a93f; background: #fffdf7; }
     .bin-edit-header { display: grid; grid-template-columns: 1fr 90px 90px 1fr 1fr 28px; gap: 0.4rem; padding: 0 0 0.3rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.4rem; }
     .bin-edit-header span { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .btn-del-bin { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0; line-height: 1; transition: color var(--transition); }
@@ -814,7 +820,14 @@ function openBinsModal(lotId) {
   // Info block — v2.8: surface available (on-hand) + drawn so the green target makes sense.
   const _av = lot.available_bags != null ? (parseFloat(lot.available_bags) || 0) : lot.received_bags;
   const _dr = Math.max(0, Math.round((lot.received_bags - _av) * 10000) / 10000);
-  document.getElementById('bins-info-block').innerHTML =
+  // v2.15: loud banner when the temporary reconcile unlock is active.
+  const _reconBanner = binsReconcileUnlocked()
+    ? '<div style="background:#fff3d6;border:1px solid #e0a93f;color:#7c4a02;padding:0.5rem 0.7rem;' +
+      'border-radius:4px;margin-bottom:0.6rem;font-size:0.78rem;font-family:var(--font-mono)">' +
+      '⚠ RECONCILE MODE — locked bins are editable so you can match Unleashed. Set the TRUE qty per bin. ' +
+      'received_bags is kept as history. Turn BINS_RECONCILE_UNLOCK back off when done.</div>'
+    : '';
+  document.getElementById('bins-info-block').innerHTML = _reconBanner +
     '<strong>' + esc(lot.warehouse_name || 'Warehouse') + '</strong>' +
     ' &nbsp;·&nbsp; <strong>' + fmt2(lot.received_bags) + '</strong> received' +
     (_dr > 1e-6 ? ' &nbsp;·&nbsp; <strong>' + fmtBags(_dr) + '</strong> drawn' : '') +
@@ -835,7 +848,8 @@ function openBinsModal(lotId) {
         drawn_bags:     b.drawn_bags     != null ? b.drawn_bags : 0,
         effective_drawn:b.effective_drawn!= null ? b.effective_drawn : (b.drawn_bags != null ? b.drawn_bags : 0),
         is_phantom:     b.is_phantom      === true,
-        needs_reconcile:b.needs_reconcile === true
+        needs_reconcile:b.needs_reconcile === true,
+        id_collision:   b.id_collision    === true
       }))
     : [{ bin_label: '', qty_bags: '', location_id: '', notes: '', received_bags: '', drawn_bags: 0, effective_drawn: 0, is_phantom: false, needs_reconcile: false }];
 
@@ -881,9 +895,13 @@ function renderBinRows(lotArg) {
       let badge, note;
       if (st === 'reconcile') {
         badge = '<span class="bin-locked-badge phantom">Needs reconciliation</span>';
-        note  = 'This lot has drawn-down bags that aren\u2019t attributed to specific bins, and the lot ' +
-                'has multiple bins — so the system can\u2019t tell how much left THIS bin. Locked to protect ' +
-                'the records. Reconcile this lot by hand (enter the true qty per bin), then it will unlock.';
+        note  = b.id_collision === true
+          ? 'This bin shares its internal bin_id with other bins on this lot (a data error), ' +
+            'so drawdown amounts can\u2019t be attributed to it correctly. Locked to protect the records. ' +
+            'Run the bin_id de-duplication fix, then reconcile true qty per bin.'
+          : 'This lot has drawn-down bags that aren\u2019t attributed to specific bins, and the lot ' +
+            'has multiple bins — so the system can\u2019t tell how much left THIS bin. Locked to protect ' +
+            'the records. Reconcile this lot by hand (enter the true qty per bin), then it will unlock.';
       } else if (st === 'phantom') {
         badge = '<span class="bin-locked-badge phantom">Needs reconciliation</span>';
         note  = 'Shows ' + fmtBags(qty) + ' of ' + fmtBags(recv) + ' bags, but this lot is fully drawn ' +
@@ -917,6 +935,31 @@ function renderBinRows(lotArg) {
     // Weight cell value = qty_bags × bag_size (4dp trimmed). Empty if no bags or no bag_size.
     const wtVal = (bagSize > 0 && b.qty_bags !== '' && b.qty_bags != null)
       ? fmtBags((parseFloat(b.qty_bags) || 0) * bagSize) : '';
+
+    // ── RECONCILE-UNLOCK (v2.15): a normally-locked bin made editable by the temporary
+    // reconciliation switch. Free qty (down to 0) so staff can match Unleashed exactly;
+    // received_bags kept; no delete. Loud banner so it's obvious this is reconcile mode.
+    if (st === 'reconcile_unlock') {
+      const rawSt = binStateRaw(b);
+      return '<div class="bin-edit-row reconcile-unlock">' +
+        '<input type="text" value="' + esc(b.bin_label) + '" ' +
+          'oninput="binRows[' + i + '].bin_label=this.value" />' +
+        '<input type="number" min="0" step="any" value="' + (b.qty_bags || '') + '" ' +
+          'oninput="onBagsInput(' + i + ',this.value)" id="bin-bags-' + i + '" />' +
+        '<input type="number" min="0" step="any" value="' + wtVal + '" ' +
+          (bagSize > 0 ? '' : 'disabled ') +
+          'oninput="onWeightInput(' + i + ',this.value)" id="bin-wt-' + i + '" />' +
+        '<select onchange="binRows[' + i + '].location_id=this.value">' +
+          '<option value="">— No location —</option>' + selOpts +
+        '</select>' +
+        '<input type="text" placeholder="optional notes" value="' + esc(b.notes) + '" ' +
+          'oninput="binRows[' + i + '].notes=this.value" />' +
+        '<span></span>' +
+        '<div class="bin-locked-note"><span class="bin-locked-badge reconcile">Reconcile mode</span> ' +
+          'Normally locked (' + esc(rawSt.replace('_',' ')) + '). Set the TRUE qty to match Unleashed. ' +
+          'received_bags (' + fmtBags(parseFloat(b.received_bags)||0) + ') is kept as history; cannot be deleted.</div>' +
+      '</div>';
+    }
 
     // ── PARTIAL: editable, but qty floored at bags already drawn; no delete ──────
     if (st === 'partial') {
@@ -962,6 +1005,27 @@ function renderBinRows(lotArg) {
   updateBinTotal();
 }
 
+// v2.15: TEMPORARY reconciliation unlock. When APP_CONFIG.BINS_RECONCILE_UNLOCK is true,
+// otherwise-locked bins (fully_drawn / phantom / reconcile) become EDITABLE so staff can
+// set the true qty per bin to match Unleashed. received_bags is still preserved as history.
+// Transfer + dispatch guard are unaffected. Default false → normal locked behaviour.
+function binsReconcileUnlocked() {
+  return (typeof APP_CONFIG !== 'undefined') && APP_CONFIG.BINS_RECONCILE_UNLOCK === true;
+}
+// The raw, always-correct classification (ignores the unlock flag).
+function binStateRaw(b) {
+  if (b.needs_reconcile === true) return 'reconcile';
+  if (b.is_phantom === true) return 'phantom';
+  const qty   = parseFloat(b.qty_bags) || 0;
+  const recv  = parseFloat(b.received_bags) || 0;
+  const drawn = parseFloat(b.effective_drawn != null ? b.effective_drawn : b.drawn_bags) || 0;
+  const hasHistory = drawn > 1e-6 || (qty <= 1e-6 && recv > 1e-6);
+  if (!hasHistory) return 'active';
+  if (qty <= 1e-6) return 'fully_drawn';
+  if (drawn >= recv - 1e-6 && recv > 1e-6) return 'fully_drawn';
+  return 'partial';
+}
+
 // v2.12: THREE-STATE bin classification.
 //   'active'      — no drawdown history; fully editable + deletable.
 //   'partial'     — has drawn history but still holds stock; editable but qty floored at
@@ -969,20 +1033,15 @@ function renderBinRows(lotArg) {
 //   'fully_drawn' — drawn ≥ received (or qty 0 with history); read-only, no delete.
 //   'phantom'     — lot fully drawn but bin still shows qty with NO allocation (backend
 //                   is_phantom). Read-only + "needs reconciliation"; fixed via batch script.
+//   'reconcile_unlock' — (v2.15) a normally-locked bin made editable by the temporary
+//                   reconciliation switch. Editable qty, keeps received_bags, no delete.
 function binState(b) {
-  // v2.13: needs_reconcile (multi-bin lot, unallocated draw — can't attribute) → locked.
-  if (b.needs_reconcile === true) return 'reconcile';
-  if (b.is_phantom === true) return 'phantom';
-  const qty   = parseFloat(b.qty_bags) || 0;
-  const recv  = parseFloat(b.received_bags) || 0;
-  // v2.13: floor uses effective_drawn (per-bin allocations OR lot-level fallback for
-  // single-bin lots), so an un-allocated single-bin lot still floors correctly.
-  const drawn = parseFloat(b.effective_drawn != null ? b.effective_drawn : b.drawn_bags) || 0;
-  const hasHistory = drawn > 1e-6 || (qty <= 1e-6 && recv > 1e-6);
-  if (!hasHistory) return 'active';
-  if (qty <= 1e-6) return 'fully_drawn';
-  if (drawn >= recv - 1e-6 && recv > 1e-6) return 'fully_drawn';
-  return 'partial';
+  const raw = binStateRaw(b);
+  // v2.15: under the reconcile unlock, surface locked bins as an editable reconcile state.
+  if (binsReconcileUnlocked() && (raw === 'fully_drawn' || raw === 'phantom' || raw === 'reconcile')) {
+    return 'reconcile_unlock';
+  }
+  return raw;
 }
 // Minimum qty a PARTIAL bin may be edited down to (bags already drawn from it).
 function binMinQty(b) {
@@ -993,7 +1052,9 @@ function binMinQty(b) {
 // guards. A partial bin is NOT fully locked (qty editable), so callers that need the
 // finer distinction use binState() directly.
 function isLockedBinRow(b) {
-  return binState(b) !== 'active' && binState(b) !== 'partial';
+  const s = binState(b);
+  // v2.15: reconcile_unlock is editable (temporary reconcile mode), like active/partial.
+  return s !== 'active' && s !== 'partial' && s !== 'reconcile_unlock';
 }
 
 // v2.7: bag_size of the currently-open lot, for the two-way weight↔bags calc.
@@ -1041,9 +1102,10 @@ function updateBinTotal() {
   // v2.12: classify and total by state.
   // liveTotal (active + partial qty) is what sits on hand → checked vs available.
   // phantom qty is UNRECONCILED — excluded from the ceiling so it can't block a save.
-  let liveTotal = 0, phantomCount = 0, drawnCount = 0, partialCount = 0, reconcileCount = 0, activeContent = false;
+  let liveTotal = 0, phantomCount = 0, drawnCount = 0, partialCount = 0, reconcileCount = 0, unlockCount = 0, activeContent = false;
   binRows.forEach(function(b){
     const st = binState(b);
+    if (st === 'reconcile_unlock') { unlockCount++; liveTotal += parseFloat(b.qty_bags) || 0; return; } // v2.15 edited qty counts
     if (st === 'reconcile') { reconcileCount++; return; }   // v2.13 excluded from live total
     if (st === 'phantom') { phantomCount++; return; }
     if (st === 'fully_drawn') { drawnCount++; return; }
@@ -1055,7 +1117,10 @@ function updateBinTotal() {
   liveTotal = Math.round(liveTotal * 10000) / 10000;
   const wtStr = bagSize > 0 ? fmtWeight(liveTotal, bagSize, unit) : '';
 
-  const over  = liveTotal > available + EPS;
+  // v2.15: during the reconcile unlock, don't block Save on over-bin — staff are setting
+  // the true qty to match Unleashed and may pass through intermediate states.
+  const reconMode = binsReconcileUnlocked();
+  const over  = !reconMode && (liveTotal > available + EPS);
   const exact = Math.abs(liveTotal - available) < EPS && liveTotal > 0;
   const gap   = drawn > EPS ? ' · ' + fmtBags(drawn) + ' drawn · ' + fmt2(received) + ' received' : '';
   // Suffix listing preserved records so the user sees they're kept, not lost.
@@ -1128,6 +1193,7 @@ document.getElementById('btn-bins-save').onclick = async function() {
   //   partial → editable, qty must stay ≥ bags already drawn (floor); re-sent w/ received.
   //   active  → normal editable; blank rows dropped (allows clearing active bins).
   const readOnlyRows = binRows.filter(function(b){ const s = binState(b); return s === 'phantom' || s === 'fully_drawn' || s === 'reconcile'; });
+  const reconcileUnlockRows = binRows.filter(function(b){ return binState(b) === 'reconcile_unlock'; });
   const partialRows  = binRows.filter(function(b){ return binState(b) === 'partial'; });
   const activeRows   = binRows.filter(function(b){ return binState(b) === 'active'; });
   const cleanActive  = activeRows.filter(function(b) {
@@ -1190,6 +1256,18 @@ document.getElementById('btn-bins-save').onclick = async function() {
       location_id:   b.location_id || '',
       notes:         String(b.notes || '').trim(),
       received_bags: parseFloat(b.received_bags) || 0,   // preserve original received
+      preserve:      true
+    };
+  })).concat(reconcileUnlockRows.map(function(b) {
+    // v2.15: reconcile-mode edits — staff set true qty to match Unleashed. Keep received
+    // history; preserve:true so it's excluded from the on-hand ceiling (its drawdown
+    // history is already accounted for).
+    return {
+      bin_label:     String(b.bin_label || '').trim(),
+      qty_bags:      parseFloat(b.qty_bags) || 0,
+      location_id:   b.location_id || '',
+      notes:         String(b.notes || '').trim(),
+      received_bags: parseFloat(b.received_bags) || 0,
       preserve:      true
     };
   })).concat(cleanActive.map(function(b) {
