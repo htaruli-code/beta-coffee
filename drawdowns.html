@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!-- Version 3.22 | drawdowns.html -->
+<!-- v3.22: TRACEABILITY FIX — the v3.21 location display resolved blank because the drawdowns page payload has no locations[] array to look up (getDrawdownsPage never returned one; that's inventory.html's payload). Now the backend (DataService_Contracts v4.9) denormalises location_name onto each lot bin, and this page reads bin.location_name directly. The expanded lot panel's per-bin rows show "↳ <bin_label> @ <location> N bags", disambiguating same-labelled bins across locations. Display-only on the client; requires backend v4.9. -->
+<!-- Version 3.21 | drawdowns.html -->
+<!-- v3.21: TRACEABILITY — the expanded lot panel's per-bin allocation rows now show the bin's LOCATION (resolved from the bin's location_id via PAGE_DATA.locations) as "↳ <bin_label> @ <location> N bags". Fixes the ambiguity when one lot has two bins sharing the same ICO label in different locations (e.g. Continental Terminals NJ vs OPAL South Gate CA) — previously the bin row was indistinguishable between them. Display-only; reuses lot.bins[].location_id + existing locations list. No API/backend/schema change. -->
 <!-- Version 3.20 | drawdowns.html -->
 <!-- v3.20: status-update toast now also surfaces bin_warning (Code_Contracts v4.4) alongside invoice_warning — fires when a dispatch decremented no bins or the decrement failed. The new DISPATCH allocation guard (BINS_NOT_ALLOCATED) already displays via the existing catch→showModalError path ("Allocate bins before dispatching"), so no extra handling needed there. -->
 <!-- Version 3.19 | drawdowns.html -->
@@ -554,6 +558,7 @@ function renderTable() {
                   '<div class="lp-bin-row">' +
                     '<span style="color:var(--muted)">↳</span>' +
                     '<span class="lp-bin-label">' + esc(ba.bin_label || ('Bin ' + ba.bin_id)) + '</span>' +
+                    (ba.bin_location ? '<span style="color:var(--muted)">@ ' + esc(ba.bin_location) + '</span>' : '') +
                     '<span class="lp-bin-bags">' + fmtBags(ba.allocated_bags) + ' bags' + fmtWeight(ba.allocated_bags, line.bag_size, line.bag_size_unit) + '</span>' +
                   '</div>';
               });
@@ -1606,12 +1611,16 @@ function buildDrawdownLotSummary(drawdown) {
     const primaryBags = Math.max(0, ltp.requested_bags - subTotal);
 
     // v3.1: Enrich bin_allocations with bin_label from the lot's bins[]
+    // v3.22: also carry each bin's LOCATION NAME. The backend (DataService_Contracts v4.9)
+    //   now denormalises location_name onto every lot bin, so we read it directly from the
+    //   bin row here (the drawdowns page payload has no locations[] to look up, which is why
+    //   the earlier PAGE_DATA.locations attempt always resolved blank).
+    const lotBinsForLoc = (primaryLot && primaryLot.bins) ? primaryLot.bins : [];
     const enrichedBinAllocs = (ltp.bin_allocations || []).map(function(ba) {
-      if (ba.bin_label) return ba; // already has label
-      const lot  = primaryLot;
-      const lotBins = (lot && lot.bins) ? lot.bins : [];
-      const binRow  = lotBins.find(function(b) { return String(b.bin_id) === String(ba.bin_id); });
-      return Object.assign({}, ba, { bin_label: binRow ? binRow.bin_label : ('Bin ' + ba.bin_id) });
+      const binRow = lotBinsForLoc.find(function(b) { return String(b.bin_id) === String(ba.bin_id); });
+      const label  = ba.bin_label || (binRow ? binRow.bin_label : ('Bin ' + ba.bin_id));
+      const locName = binRow ? (binRow.location_name || '') : '';
+      return Object.assign({}, ba, { bin_label: label, bin_location: locName });
     });
 
     if (primaryLot && primaryBags > 0) {

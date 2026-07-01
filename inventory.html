@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- Version 2.17 | inventory.html -->
+<!-- v2.17: TRACEABILITY — each per-bin tag in the DRAWDOWN ACTIVITY panel now shows the bin's INVENTORY LOCATION as "📦 <bin_label> @ <location> N bags" (location resolved from the bin's own location_id via PAGE_DATA.locations). Fixes the ambiguity when one lot has two bins sharing the same ICO label across locations (e.g. Continental Terminals NJ vs OPAL South Gate CA) — the bin line now pinpoints which physical location the bags were drawn from. Display-only; reuses lot.bins[].location_id + existing locations list. No API/backend/schema change. -->
 <!-- Version 2.16 | inventory.html -->
 <!-- v2.16: surfaces id_collision from backend (DataService_Inventory v3.8). When a lot's bins share a duplicate bin_id, the reconcile-state note now explains the bin_id collision specifically (and points to the de-dup fix) instead of the generic multi-bin message. Seeds id_collision into binRows. -->
 <!-- Version 2.15 | inventory.html -->
@@ -584,6 +586,16 @@ function buildLotDrawdownPanel(lotId, lotDrawdowns) {
   const panelBagSz = panelLot ? panelLot.bag_size : 0;
   const panelUnit  = panelLot ? (panelLot.cost_price_unit || 'kg') : 'kg';
 
+  // v2.17: resolve a bin's location name from its location_id (via the lot's bins[] +
+  //   PAGE_DATA.locations) so same-labelled bins in different locations are distinguishable.
+  const panelBins = (panelLot && panelLot.bins) ? panelLot.bins : [];
+  function binLocationName(binId) {
+    const b = panelBins.find(x => String(x.bin_id) === String(binId));
+    if (!b || !b.location_id) return '';
+    const loc = (PAGE_DATA.locations || []).find(l => String(l.location_id) === String(b.location_id));
+    return loc ? loc.facility_name : '';
+  }
+
   // Derive primaryLineIds for this lot (needed for scoping bin allocations)
   const lid = String(lotId);
   const primaryLineIds = new Set(
@@ -614,11 +626,15 @@ function buildLotDrawdownPanel(lotId, lotDrawdowns) {
       // v2.3.1: show drawn-down bags PER BIN, not just bin labels.
       //   Each bin tag now reads "📦 <bin_label> <N> bags" using ba.allocated_bags,
       //   so a multi-bin pick (e.g. Bin-01 4 bags + Bin-02 1 bag) is identifiable.
+      // v2.17: each bin tag also carries the drawdown ref (refNum) so a bin line is
+      //   traceable to its exact drawdown at a glance without scanning up to the header.
       const binsHtml = ll.bin_allocations && ll.bin_allocations.length
         ? '<div style="margin-top:0.2rem;display:flex;flex-wrap:wrap;gap:0.25rem">' +
             ll.bin_allocations.map(function(ba) {
               const n = (ba.allocated_bags != null ? ba.allocated_bags : 0);
+              const loc = binLocationName(ba.bin_id);
               return '<span class="dd-bin-tag">📦 ' + esc(ba.bin_label || ('Bin ' + ba.bin_id)) +
+                (loc ? ' <span style="color:var(--muted)">@ ' + esc(loc) + '</span>' : '') +
                 ' <strong style="color:var(--text)">' + fmtBags(n) + ' bag' + (n === 1 ? '' : 's') + '</strong>' +
                 fmtWeight(n, panelBagSz, panelUnit) + '</span>';
             }).join('') +
