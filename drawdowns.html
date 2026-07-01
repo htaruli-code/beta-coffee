@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- Version 3.23 | drawdowns.html -->
+<!-- v3.23: APPROVE MODAL bin-allocation rows now show each bin's LOCATION as "<bin_label> @ <location>" beside the label, so staff can't pick a wrong-location bin when a lot has bins in multiple locations (same-labelled bins across locations were indistinguishable in the picker). Reads bin.location_name supplied by DataService_Contracts v4.9 (already denormalised onto lot.bins); carried into binAllocState and rendered. Display-only on the client; requires backend v4.9. -->
 <!-- Version 3.22 | drawdowns.html -->
 <!-- v3.22: TRACEABILITY FIX — the v3.21 location display resolved blank because the drawdowns page payload has no locations[] array to look up (getDrawdownsPage never returned one; that's inventory.html's payload). Now the backend (DataService_Contracts v4.9) denormalises location_name onto each lot bin, and this page reads bin.location_name directly. The expanded lot panel's per-bin rows show "↳ <bin_label> @ <location> N bags", disambiguating same-labelled bins across locations. Display-only on the client; requires backend v4.9. -->
 <!-- Version 3.21 | drawdowns.html -->
@@ -639,7 +641,7 @@ function renderBinAllocSection(drawdownId) {
           .filter(function(b) { return b.qty_bags > 0; })  // hide 0-qty bins (already dispatched)
           .map(function(b) {
             const ex = existingAllocs.find(function(a) { return String(a.bin_id) === String(b.bin_id); });
-            return { bin_id: b.bin_id, bin_label: b.bin_label, qty_bags: b.qty_bags, received_bags: b.received_bags || b.qty_bags, allocated_bags: ex ? ex.allocated_bags : 0 };
+            return { bin_id: b.bin_id, bin_label: b.bin_label, location_name: b.location_name || '', qty_bags: b.qty_bags, received_bags: b.received_bags || b.qty_bags, allocated_bags: ex ? ex.allocated_bags : 0 };
           })
       };
     }
@@ -664,7 +666,9 @@ function renderBinAllocSection(drawdownId) {
         : fmtBags(b.qty_bags) + ' avail';
       html +=
         '<div class="bin-alloc-row">' +
-          '<span class="bin-alloc-label">' + esc(b.bin_label || ('Bin ' + b.bin_id)) + '</span>' +
+          '<span class="bin-alloc-label">' + esc(b.bin_label || ('Bin ' + b.bin_id)) +
+            (b.location_name ? ' <span style="color:var(--muted);font-weight:400">@ ' + esc(b.location_name) + '</span>' : '') +
+          '</span>' +
           '<span class="bin-alloc-avail">' + availLabel + '</span>' +
           '<input type="text" inputmode="decimal" class="bin-alloc-input" data-max="' + b.qty_bags + '" ' +
             'value="' + (b.allocated_bags || 0) + '" ' +
