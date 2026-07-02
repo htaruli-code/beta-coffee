@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- Version 3.27 | drawdowns.html -->
+<!-- v3.27: updateSeqPreview [seq:N] regex now accepts NEGATIVE offsets — (\d+) → (-?\d+), kept in sync with DataService_Contracts v4.10 getContractSeqOffset. A [seq:-1] tag silently failed to match and the display-only "Next auto #" preview ignored the downward adjustment. Single-character regex fix. -->
 <!-- Version 3.26 | drawdowns.html -->
 <!-- v3.26: RESEND now available on Dispatched drawdowns too (was Approved-only) — a silently-failed approval email often gets Dispatched before staff notice, so the 📧 Resend button now shows for Approved AND Dispatched. Resend toast shows the backend message (including any skip reason) instead of a hardcoded "resent". Pairs with Code_Contracts v4.6 (resend guard widened + returns skip reason). -->
 <!-- Version 3.25 | drawdowns.html -->
@@ -1443,7 +1445,9 @@ function updateSeqPreview(con) {
   //   ref     = drawdown_prefix + (contract_number minus contract_prefix)
   //   count   = existing non-cancelled drawdowns on this contract + [seq:N] offset
   //   number  = count === 0 ? ref : ref + '/' + count   (NO +1; no suffix when 0)
-  const m      = con.notes ? String(con.notes).match(/\[seq:\s*(\d+)\s*\]/i) : null;
+  // v3.27: (-?\d+) — was (\d+), silently dropping negative offsets like [seq:-1];
+  //   kept in sync with getContractSeqOffset (DataService_Contracts v4.10).
+  const m      = con.notes ? String(con.notes).match(/\[seq:\s*(-?\d+)\s*\]/i) : null;
   const offset = m ? (parseInt(m[1]) || 0) : 0;
   const localCount = (PAGE_DATA.drawdowns || []).filter(function(d) {
     return String(d.contract_id) === String(con.contract_id) && d.status !== 'Cancelled';
