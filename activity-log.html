@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- Version 1.6 | activity-log.html -->
+<!-- v1.6: shows drawdown email outcome now logged by Code_Contracts v4.6 — new ACTION_LABELS for DRAWDOWN_EMAIL_SENT / _FAILED / _PARTIAL / _RESENT, and DRAWDOWN_EMAIL_FAILED renders with a red "fail" tag so staff can spot approvals whose warehouse email did not go out. Display only. -->
 <!-- Version 1.5 | activity-log.html -->
 <html lang="en">
 <head>
@@ -42,6 +44,7 @@
     .col-user { white-space: nowrap; }
     .action-tag { display: inline-block; font-family: var(--font-mono); font-size: 0.68rem; padding: 0.15rem 0.5rem; border-radius: 3px; background: var(--surface2); color: var(--text); }
     .action-tag.transfer { background: var(--accent); color: #fff; }
+    .action-tag.fail { background: var(--error, #c0392b); color: #fff; }
     .col-detail { font-family: var(--font-mono); font-size: 0.76rem; }
     .empty { color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; padding: 2rem; text-align: center; }
     .loading { text-align: center; padding: 3rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
@@ -159,7 +162,12 @@ const ACTION_LABELS = {
   'BINS_UPDATED':          'Bins Updated',
   'PO_LINE_RECEIVED':      'PO Line Received',
   'LOT_TOGGLED':           'Lot Activated/Deactivated',
-  'LOCATION_TOGGLED':      'Location Activated/Deactivated'
+  'LOCATION_TOGGLED':      'Location Activated/Deactivated',
+  // v1.6: drawdown email outcome — success/failure now recorded (Code_Contracts v4.6)
+  'DRAWDOWN_EMAIL_SENT':    'Drawdown Email Sent',
+  'DRAWDOWN_EMAIL_FAILED':  'Drawdown Email FAILED',
+  'DRAWDOWN_EMAIL_PARTIAL': 'Drawdown Email Partial',
+  'DRAWDOWN_EMAIL_RESENT':  'Drawdown Email Resent'
 };
 function actionLabel(a) { return ACTION_LABELS[a] || a; }
 
@@ -268,7 +276,8 @@ function render() {
   } else {
     body.innerHTML = rows.map(l => {
       const isTransfer = (l.action === TRANSFER_ACTION || l.action === 'BIN_TRANSFERRED');
-      const tag = '<span class="action-tag' + (isTransfer ? ' transfer' : '') + '">' + esc(actionLabel(l.action)) + '</span>';
+      const isFail = (l.action === 'DRAWDOWN_EMAIL_FAILED');  // v1.6: red tag for failed email
+      const tag = '<span class="action-tag' + (isTransfer ? ' transfer' : '') + (isFail ? ' fail' : '') + '">' + esc(actionLabel(l.action)) + '</span>';
       // entity_id carries the enriched summary for transfers; for others show type + id
       const detail = isTransfer
         ? esc(l.entity_id)

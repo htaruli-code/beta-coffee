@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!-- Version 3.26 | drawdowns.html -->
+<!-- v3.26: RESEND now available on Dispatched drawdowns too (was Approved-only) — a silently-failed approval email often gets Dispatched before staff notice, so the 📧 Resend button now shows for Approved AND Dispatched. Resend toast shows the backend message (including any skip reason) instead of a hardcoded "resent". Pairs with Code_Contracts v4.6 (resend guard widened + returns skip reason). -->
+<!-- Version 3.25 | drawdowns.html -->
+<!-- v3.25: status toast now also surfaces email_warning (Code_Contracts v4.6) — fires on Approve when the warehouse notification email did NOT go out (no warehouse email on file, no fulfillable lines, missing lot, or a send error). The approval still succeeds; the toast tells staff why the email was skipped so they can fix the cause and use Resend. Same pattern as invoice_warning / bin_warning. -->
+<!-- Version 3.24 | drawdowns.html -->
+<!-- v3.24: Approve/status modal widened 50% (max-width 560px → 840px) via inline override on that modal only — base .modal class untouched, so other modals keep their width. Gives the bin-allocation rows (label + @ location + avail + input) more room so long bin labels and location names don't wrap. Layout only. -->
 <!-- Version 3.23 | drawdowns.html -->
 <!-- v3.23: APPROVE MODAL bin-allocation rows now show each bin's LOCATION as "<bin_label> @ <location>" beside the label, so staff can't pick a wrong-location bin when a lot has bins in multiple locations (same-labelled bins across locations were indistinguishable in the picker). Reads bin.location_name supplied by DataService_Contracts v4.9 (already denormalised onto lot.bins); carried into binAllocState and rendered. Display-only on the client; requires backend v4.9. -->
 <!-- Version 3.22 | drawdowns.html -->
@@ -211,7 +217,7 @@
 
 <!-- ── Status Update Modal ──────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="modal-status">
-  <div class="modal">
+  <div class="modal" style="max-width:840px">
     <div class="modal-title" id="modal-status-title">Update Drawdown</div>
     <div class="modal-error" id="modal-status-error"></div>
     <input type="hidden" id="ds-drawdown-id" />
@@ -517,7 +523,7 @@ function renderTable() {
     let actions = next.map(s =>
       `<button class="btn btn-ghost btn-sm" onclick="openStatusModal(${d.drawdown_id},'${d.contract_id}','${firstLineId}','${s}')">${s}</button>`
     ).join('');
-    if (d.status === 'Approved') {
+    if (d.status === 'Approved' || d.status === 'Dispatched') {
       actions += `<button class="btn btn-ghost btn-sm" onclick="resendDrawdownEmail(${d.drawdown_id})" title="Resend warehouse notification">📧 Resend</button>`;
     }
 
@@ -1129,6 +1135,7 @@ document.getElementById('btn-ds-save').onclick = async () => {
     const warns = [];
     if (data.invoice_warning) warns.push('Invoice: ' + data.invoice_warning);
     if (data.bin_warning)     warns.push('Bins: ' + data.bin_warning);
+    if (data.email_warning)   warns.push('Email: ' + data.email_warning);
     if (warns.length) showToast('Status updated. ' + warns.join(' · '), 'error');
     else showToast('Status updated.', 'success');
   } catch (e) {
@@ -1651,8 +1658,8 @@ function toggleDdRow(drawdownId) {
 async function resendDrawdownEmail(drawdownId) {
   if (!confirm('Resend warehouse notification email for this drawdown?')) return;
   try {
-    await API.post({ action: 'resendDrawdownEmail', drawdown_id: drawdownId });
-    showToast('Notification email resent.', 'success');
+    const res = await API.post({ action: 'resendDrawdownEmail', drawdown_id: drawdownId });
+    showToast((res && res.message) ? res.message : 'Notification email resent.', 'success');
   } catch (e) { showToast(e.message || 'Failed to resend email.', 'error'); }
 }
 
